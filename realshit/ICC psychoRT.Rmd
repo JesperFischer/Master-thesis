@@ -6,7 +6,8 @@ date: "2024-03-16"
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-pacman::p_load(tidyverse,RWiener, tidybayes, posterior, furrr,gganimate, cmdstanr,patchwork, gamlss,truncnorm,extraDistr,flextable,lmerTest,lme4,Matrix,pracma)
+
+pacman::p_load(tidyverse,RWiener, tidybayes, posterior, furrr,gganimate, cmdstanr,patchwork, gamlss,truncnorm,extraDistr,flextable,lmerTest,lme4,Matrix,pracma,brms,HDInterval)
 ```
 
 ## R Markdown
@@ -16,25 +17,57 @@ source(here::here("realshit","run_ICC_psychoRT.R"))
 
 parameters = expand.grid(subs = c(30),
                          trials = seq(20,100,20),
+                         replicate = 1:5)
+
+parameters <- parameters[sample(nrow(parameters)), ]
+
+parameters = parameters %>% mutate(id = 1:nrow(.))
+
+data_list <- split(parameters, parameters$id)
+
+cores = 7
+  
+plan(multisession, workers = cores)
+  
+possfit_model = possibly(.f = together, otherwise = "Error")
+
+#test = together(data_list[[25]])
+
+results <- future_map(data_list, ~possfit_model(.x), .progress = TRUE, .options = furrr_options(seed = TRUE,scheduling = 2L))
+save.image(here::here("ICC_psycho_lowtrials_finished_beta=3 comparison RT.RData"))
+
+
+rstudioapi::restartSession()
+```
+
+
+
+```{r}
+
+source(here::here("realshit","run_ICC_psychoRT.R"))
+
+parameters = expand.grid(subs = c(30),
+                         trials = c(20),
                          replicate = 1:50) %>% 
   mutate(id = rev(1:nrow(.)))
 
 
 data_list <- split(parameters, parameters$id)
 
-cores = 10
+cores = 7
   
 plan(multisession, workers = cores)
   
-possfit_model = possibly(.f = together, otherwise = "Error")
+possfit_model = possibly(.f = fit_without_data_gen, otherwise = "Error")
 
-#test = together(data_list[[150]])
+test = possfit_model(data_list[[50]])
 
 results <- future_map(data_list, ~possfit_model(.x), .progress = TRUE, .options = furrr_options(seed = TRUE,scheduling = 2L))
-save.image(here::here("workspace psychometric","ICC_psycho_lowtrials_finished_beta=3 comparison RT.RData"))
+save.image(here::here("ICC_psycho_lowtrials_finished_beta=3 comparison RT.RData"))
 
 
 rstudioapi::restartSession()
+
 ```
 
 

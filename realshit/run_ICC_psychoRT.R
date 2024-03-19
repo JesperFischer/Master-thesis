@@ -22,7 +22,7 @@ fit_pathfinder_static_rts = function(parameters){
   rts[1] = rlnorm(1,parameters$real_inter_con+parameters$real_betarts_con * (p[1]*(1-p[1])), parameters$real_sigma_con)+parameters$real_shift_con
   
   
-  mod = cmdstanr::cmdstan_model(here::here("pathfinder.stan"))
+  mod = cmdstanr::cmdstan_model(here::here("Stanmodels","pathfinder.stan"))
   
   for(i in 1:N){
     
@@ -165,7 +165,7 @@ get_params = function(subs, trials){
   
   trialwise_data = map_dfr(results, bind_rows)
   
-  trialwise_data %>% ggplot(aes(x = X, y = rts))+geom_point()+facet_wrap(~subs)
+  #trialwise_data %>% ggplot(aes(x = X, y = rts))+geom_point()+facet_wrap(~subs)
   
   # write.csv(trialwise_data, here::here("datasets",paste0("subs = ", max(trialwise_data$subs),
   #                                                      " trials = ", trialwise_data$trials[1],
@@ -187,7 +187,7 @@ get_ICC_psychometric = function(trialwise_data){
   
   
   
-  write.csv(trialwise_data, here::here("data","beta=3 rts datasets",paste0("subs = ", max(trialwise_data$subs),
+  write.csv(trialwise_data, here::here("data","beta=3_rt_mean=1_sd=0.3",paste0("subs = ", max(trialwise_data$subs),
                                                                 " trials = ", trialwise_data$trials[1],
                                                                 " id = ", rnorm(1,0,10),".csv")))
   
@@ -236,7 +236,7 @@ get_ICC_psychometric = function(trialwise_data){
   fit <- mod$sample(
     data = data_stan,
     chains = 4,
-    refresh = 50,
+    refresh = 500,
     init = 0,
     parallel_chains = 4,
     adapt_delta = 0.9,
@@ -367,7 +367,7 @@ get_ICC_psychometric = function(trialwise_data){
   fit <- mod$sample(
     data = data_stan,
     chains = 4,
-    refresh = 50,
+    refresh = 500,
     init = 0,
     parallel_chains = 4,
     adapt_delta = 0.9,
@@ -482,9 +482,9 @@ fit_without_data_gen= function(dav){
   #                                                                          " id = ", rnorm(1,0,10),".csv")))
   # 
   
-  file  = list.files(here::here("data","beta=3 rts datasets"))[grepl("subs = 30",list.files(here::here("data","beta=3 rts datasets")))][dav$id]
+  file  = list.files(here::here("data","beta=3 rts datasets","trials=20"))[grepl("subs = 30",list.files(here::here("data","beta=3 rts datasets","trials=20")))][dav$id]
   
-  trialwise_data = read.csv(here::here("data","beta=3 rts datasets",file))
+  trialwise_data = read.csv(here::here("data","beta=3 rts datasets","trials=20",file))
           
   params = trialwise_data %>% arrange(sessions, subs)
   
