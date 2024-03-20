@@ -17,7 +17,7 @@ source(here::here("realshit","run_ICC_psychoRT.R"))
 
 parameters = expand.grid(subs = c(30),
                          trials = seq(20,100,20),
-                         replicate = 1:5)
+                         replicate = 1:15)
 
 parameters <- parameters[sample(nrow(parameters)), ]
 
@@ -25,16 +25,16 @@ parameters = parameters %>% mutate(id = 1:nrow(.))
 
 data_list <- split(parameters, parameters$id)
 
-cores = 7
+cores = 15
   
 plan(multisession, workers = cores)
   
 possfit_model = possibly(.f = together, otherwise = "Error")
 
-#test = together(data_list[[25]])
+test = together(data_list[[25]])
 
-results <- future_map(data_list, ~possfit_model(.x), .progress = TRUE, .options = furrr_options(seed = TRUE,scheduling = 2L))
-save.image(here::here("ICC_psycho_lowtrials_finished_beta=3 comparison RT.RData"))
+results <- future_map(data_list, ~possfit_model(.x), .progress = TRUE, .options = furrr_options(seed = TRUE))
+save.image(here::here("ICC_psycho_lowtrials_finished_beta=3 comparison RT (up_to200trials).RData"))
 
 
 rstudioapi::restartSession()
