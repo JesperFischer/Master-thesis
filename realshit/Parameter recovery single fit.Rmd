@@ -1,0 +1,68 @@
+---
+title: "Parameter recovery single"
+output: html_document
+date: "2024-03-19"
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+pacman::p_load(tidyverse,RWiener, tidybayes, posterior, furrr,gganimate, cmdstanr,patchwork, gamlss,truncnorm,extraDistr,flextable,lmerTest,lme4,Matrix,pracma,brms,HDInterval)
+```
+
+## R Markdown
+
+```{r}
+source(here::here("realshit","Run_single_nopathfinder.R"))
+
+parameters = expand.grid(trials = c(100),
+                         replicate = 1:100)
+
+parameters <- parameters[sample(nrow(parameters)), ]
+
+parameters = parameters %>% mutate(id = 1:nrow(.))
+
+data_list <- split(parameters, parameters$id)
+
+cores = 4
+  
+plan(multisession, workers = cores)
+  
+possfit_model = possibly(.f = together, otherwise = "Error")
+
+#test = together(data_list[[25]])
+
+results <- future_map(data_list, ~possfit_model(.x), .progress = TRUE, .options = furrr_options(seed = TRUE))
+
+save.image("~/Master-thesis/workspace psychometric/Single_sub.RData")
+```
+
+
+
+```{r}
+load("~/Master-thesis/workspace psychometric/Single_sub.RData")
+
+parameters = map_dfr(results,1)
+
+without = parameters %>% filter(mean_div == 0) %>% pivot_longer(cols = contains("_con")) %>% 
+  filter(name == paste0("real_",variable,"_con")) %>% ggplot(aes(y = mean, x = value, col = variable))+geom_point()+
+  facet_wrap(~variable, scales = "free",ncol = 1)+geom_abline()+theme_classic()
+
+with = parameters %>% filter(mean_div == 0) %>% pivot_longer(cols = contains("_con")) %>% 
+  filter(name == paste0("real_",variable,"_con")) %>% ggplot(aes(x = value,y = mean, ymin = q5,ymax = q95, col = variable))+geom_pointrange()+facet_wrap(~variable, scales = "free",ncol = 1)+geom_abline()+theme_classic()
+
+without+with+ plot_layout(guides = "collect")
+```
+
+
+```{r}
+
+
+with = parameters %>% filter(mean_div == 0) %>% pivot_longer(cols = contains("_con")) %>% 
+  filter(name == paste0("real_",variable,"_con")) %>% ggplot(aes(x = value,y = mean, ymin = q5,ymax = q95, col = variable))+geom_pointrange()+facet_wrap(~variable, scales = "free")+geom_abline()+theme_classic()
+with
+
+
+cor.test()
+```
