@@ -106,7 +106,7 @@ get_params = function(subs, trials){
   
   inter_uncon = rnorm(subs,-2,0.5)
   
-  betarts_uncon = rnorm(subs,1.5,0.3)
+  betarts_uncon = rnorm(subs,1,0.3)
   
   sigma_uncon = rnorm(subs,-1,0.3)
   
@@ -187,7 +187,7 @@ get_ICC_psychometric = function(trialwise_data){
   
   
   
-  write.csv(trialwise_data, here::here("data","beta=3_rt_mean=1.5_sd=0.3",paste0("subs = ", max(trialwise_data$subs),
+  write.csv(trialwise_data, here::here("data","beta=3_rt_mean=1_sd=0.3",paste0("subs = ", max(trialwise_data$subs),
                                                                 " trials = ", trialwise_data$trials[1],
                                                                 " id = ", rnorm(1,0,10),".csv")))
   
