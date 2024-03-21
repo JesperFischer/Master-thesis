@@ -31,10 +31,10 @@ plan(multisession, workers = cores)
   
 possfit_model = possibly(.f = together, otherwise = "Error")
 
-test = together(data_list[[25]])
+#test = together(data_list[[25]])
 
 results <- future_map(data_list, ~possfit_model(.x), .progress = TRUE, .options = furrr_options(seed = TRUE))
-save.image(here::here("ICC_psycho_lowtrials_finished_beta=3 comparison RT (up_to200trials).RData"))
+save.image(here::here("ICC_psycho_lowtrials_finished_beta=3 comparison RT (beta=1.5).RData"))
 
 
 rstudioapi::restartSession()
