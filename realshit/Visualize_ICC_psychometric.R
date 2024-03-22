@@ -87,7 +87,7 @@ ICC = function(results,string){
     # params_icc %>% filter(variable == "ICC_alpha", residual_variance == T) %>% arrange(subs,trials) %>% ggplot(aes(x = trials, y = mean, col = as.factor(subs)))+geom_point()
     
     
-    mod = cmdstanr::cmdstan_model(here::here("Exponential decrease measurement.stan"))
+    mod = cmdstanr::cmdstan_model(here::here("Stanmodels","Exponential decrease measurement.stan"))
     
     datastan = list(N = nrow(ii2), 
                     trials = ii2$trials,

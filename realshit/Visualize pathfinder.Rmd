@@ -1,0 +1,157 @@
+---
+title: "Visualize pathfinder"
+output: html_document
+date: "2024-03-21"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+pacman::p_load(pracma, tidyverse, ggh4x, patchwork, furrr)
+
+```
+
+## R Markdown
+
+# Single run
+
+```{r, fig.height=6,fig.width=8}
+source(here::here("realshit","Visualizing pathfinder scripts.R"))
+#df = get_params_single(50)
+
+load(here::here("workspace psychometric","visualize_pathfinder.RData"))
+
+
+# 1 is pathfinder 2 is unif
+
+reals_path = df[[1]][[1]] %>% select(variable,alpha_reals,beta_reals,lambda_reals) %>% 
+  pivot_longer(cols = c("alpha_reals","beta_reals","lambda_reals"))%>% 
+  filter(gsub("psy_", "",variable) == gsub("_reals","",name)) %>% distinct()
+
+
+pathfinder = df[[1]][[1]] %>% ggplot(aes(x = trials, y = mean, ymin = q5, ymax = q95, col = variable))+
+  geom_pointrange() +
+  facet_wrap(~variable, scales = "free")+
+  geom_hline(data = reals_path, aes(yintercept = value))+
+  theme_classic()
+
+  
+pathfinder = pathfinder+
+  facetted_pos_scales(
+    y = list(
+      variable == "psy_alpha" ~ scale_y_continuous(limits = c(-20, 20), breaks = c(-20,-10,0,10,20)),
+      variable == "psy_beta" ~ scale_y_continuous(limits = c(0, 30), breaks = c(0,10,20,30))
+      
+    )
+  )
+  
+
+
+
+reals_unif = df[[2]] %>% select(variable,alpha_reals,beta_reals,lambda_reals) %>% 
+  pivot_longer(cols = c("alpha_reals","beta_reals","lambda_reals"))%>% 
+  filter(gsub("psy_", "",variable) == gsub("_reals","",name)) %>% distinct()
+
+
+uniform = df[[2]] %>% ggplot(aes(x = trials, y = mean, ymin = q5, ymax = q95, col = variable))+
+  geom_pointrange() +
+  facet_wrap(~variable, scales = "free")+
+  geom_hline(data = reals_unif, aes(yintercept = value))+
+  theme_classic()
+
+
+  
+uniform = uniform+
+  facetted_pos_scales(
+    y = list(
+      variable == "psy_alpha" ~ scale_y_continuous(limits = c(-20, 20), breaks = c(-20,-10,0,10,20)),
+      variable == "psy_beta" ~ scale_y_continuous(limits = c(0, 30), breaks = c(0,10,20,30))
+      
+    )
+  )
+  
+
+reals_psi = df[[3]][[1]] %>% rename(lambda = lapse) %>% select(alpha,beta,lambda) %>% 
+  pivot_longer(cols = c("alpha","beta","lambda"))%>% distinct() %>% rename(variable = name)
+
+
+psi = df[[3]][[1]] %>% mutate(trials = 1:nrow(.)) %>%
+  pivot_longer(cols = starts_with("q5_"), names_to = "q_type", values_to = "q5") %>%
+  mutate(q_type = gsub("q5_", "", q_type)) %>%
+  pivot_longer(cols = starts_with("q95_"), names_to = "q_type2", values_to = "q95") %>%
+  mutate(q_type2 = gsub("q95_", "", q_type2)) %>%
+  pivot_longer(cols = starts_with("Estimated"), names_to = "q_type3", values_to = "mean") %>%
+  mutate(q_type3 = gsub("mean_", "", q_type3)) %>%
+  filter(q_type == q_type2 & str_remove(q_type3, "Estimated") == q_type) %>%
+  select(-c(q_type2, q_type3)) %>% rename(variable = q_type) %>% 
+  mutate(variable = ifelse(variable == "threshold", "alpha","beta")) %>% 
+  ggplot(aes(x = trials, y = mean, ymin = q5, ymax = q95, col = variable))+
+  geom_pointrange() +
+  facet_wrap(~variable, scales = "free")+
+  geom_hline(data = reals_psi, aes(yintercept = value))+
+  theme_classic()
+
+
+
+  
+psi = psi+
+  facetted_pos_scales(
+    y = list(
+      variable == "alpha" ~ scale_y_continuous(limits = c(-20, 20), breaks = c(-20,-10,0,10,20)),
+      variable == "beta" ~ scale_y_continuous(limits = c(0, 30), breaks = c(0,10,20,30))
+      
+    )
+  )
+
+
+path = pathfinder+ggtitle("Pathfinder")+theme(plot.title = element_text(hjust = 0.5))
+
+uni = uniform+ggtitle("Uniform")+theme(plot.title = element_text(hjust = 0.5))
+
+psi = psi+ggtitle("PSI")+theme(plot.title = element_text(hjust = 0.5))
+
+p1 = (path/uni/psi) + plot_layout(guides = "collect")
+p1
+ggsave(here::here("Figures","Pathfinder.PNG"), p1)
+
+df[[1]][[2]]
+df[[3]][[2]]
+
+```
+
+
+
+
+# Many runs:
+
+
+```{r}
+
+parameters = expand.grid(trials = seq(20,100,by = 10),
+                         replicate = 1:10) %>% 
+  mutate(id = rev(1:nrow(.)))
+
+
+data_list <- split(parameters, parameters$id)
+
+cores = 4
+  
+plan(multisession, workers = cores)
+  
+possfit_model = possibly(.f = get_params_single_multiple, otherwise = "Error")
+
+results <- future_map(data_list, ~possfit_model(.x), .progress = TRUE, .options = furrr_options(seed = TRUE))
+
+parameters = c("alpha","beta","lambda")
+
+pathfinder <- map_dfr(results, ~ .x[[1]])
+
+pathfinder %>% filter(variable %in% parameters) %>% ggplot(aes(x = sd))+geom_histogram(col = "black")+facet_wrap(~variable, scales = "free")
+
+uniform <- map_dfr(results, ~ .x[[2]])
+
+psi <- map_dfr(results, ~ .x[[3]])
+
+```
+
+

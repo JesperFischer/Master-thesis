@@ -2,53 +2,21 @@
 
 
 
-fit_pathfinder_static_v2 = function(parameters){
+fit_static = function(parameters){
   
   N = parameters$trials
-  
   
   r = array(NA,N)
   p = array(NA,N)
   x = array(NA,N)
   
-  parm_ev = data.frame()
   
-  x[1] = 0
-  p[1] = parameters$real_lambda_con + (1 - 2 * parameters$real_lambda_con) * (0.5+0.5*erf((x[1]-parameters$real_alpha_con)/(parameters$real_beta_con*sqrt(2))))
-  r[1] = rbinom(1,1,p[1])
+  x = seq(-50,50,length.out = N)
   
+  p = parameters$real_lambda_con + (1 - 2 * parameters$real_lambda_con) * (0.5+0.5*erf((x-parameters$real_alpha_con)/(parameters$real_beta_con*sqrt(2))))
   
-  mod = cmdstanr::cmdstan_model(here::here("report","DDM","Stan Models","pathfinder.stan"))
+  r = rbinom(N,1,p)
   
-  for(i in 1:N){
-    
-    
-    data_stan = list(trials = nrow((data.frame(r) %>% drop_na())),
-                     x = data.frame(x) %>% drop_na() %>% .$x,
-                     r = data.frame(r) %>% drop_na() %>% .$r)
-    
-    fit_psy <- mod$pathfinder(data = data_stan,refresh=0)
-    
-    if(i < 5){
-      x[i] = data.frame(fit_psy$summary("psy_alpha")) %>% .$mean
-    }else{
-      sign = sample(c(-1,1),1)
-      x[i] = fit_psy$draws("psy_alpha")[sample(1:1000,1)]+sign*fit_psy$draws("psy_beta")[sample(1:1000,1)]
-    }
-    
-    if(abs(x[i]) > 50){
-      print("to high")
-      x[i] = data.frame(fit_psy$summary("psy_alpha")) %>% .$mean
-    }
-    
-    
-    c_trial = data.frame(fit_psy$summary(c("psy_alpha","psy_beta","psy_lambda"))) %>% mutate(trials = i)
-    
-    parm_ev = rbind(c_trial,parm_ev)
-    p[i] = parameters$real_lambda_con + (1 - 2 * parameters$real_lambda_con) * (0.5+0.5*erf((x[i]-parameters$real_alpha_con)/(parameters$real_beta_con*sqrt(2))))
-    r[i] = rbinom(1,1,p[i])
-    
-  }
   
   df_trial = data.frame(X = x,
                         prob = p,
@@ -66,22 +34,17 @@ fit_pathfinder_static_v2 = function(parameters){
                         model = "normal",
                         trials = 1:N)
   
-  #df_trial = full_join(parm_ev,df_trial)
   
   
-  return(list(df_trial))
+  return(df_trial)
 }
 
 
-get_params = function(subs, trials){
+get_params_nopath = function(subs,trials){
   
   alpha_uncon = rnorm(subs,0,10)
-  beta_uncon = rnorm(subs,3,0.6)
+  beta_uncon = rnorm(subs,2,0.6)
   lambda_uncon = rnorm(subs,-4,2)    
-  
-  beta_uncon = rnorm(subs,3,0.6)
-  beta_uncon = rnorm(subs,3,0.6)
-  
   
   
   replicate = 1:2
@@ -115,7 +78,7 @@ get_params = function(subs, trials){
   
   #adding safety for if something goes wrong then it just outputs "Error" instead of crashing
   
-  possfit_model = possibly(.f = fit_pathfinder_static_v2, otherwise = "Error")
+  possfit_model = possibly(.f = fit_static, otherwise = "Error")
   
   #test that it works
   #test  = possfit_model(data_list2[[1]])
@@ -125,31 +88,25 @@ get_params = function(subs, trials){
   
   
   trialwise_data = map_dfr(results, bind_rows)
-  
-  # write.csv(trialwise_data, here::here("datasets",paste0("subs = ", max(trialwise_data$subs),
-  #                                                      " trials = ", trialwise_data$trials[1],
-  #                                                      " id = ", rnorm(1,0,10),".csv")))
-  # 
-  # 
   return(trialwise_data)
 }
 
 
 
 
-get_ICC_psychometric = function(trialwise_data){
+
+
+get_ICC_psychometric_singe_fit = function(trialwise_data){
   
   sim_n_id = rnorm(1,0,10)
   
-  #  mod = cmdstanr::cmdstan_model(here::here("report","DDM","Stan Models","Psychometric_2_ICC.stan"))
-  mod = cmdstanr::cmdstan_model(here::here("report","DDM","Stan Models","Psychometric_2_ICC_MSE.stan"))
+  #mod = cmdstanr::cmdstan_model(here::here("report","DDM","Stan Models","Psychometric_2_ICC.stan"))
+  mod = cmdstanr::cmdstan_model(here::here("Stanmodels","Psychometric_2_ICC_MSE.stan"))
   
   
   # 
-  # write.csv(trialwise_data, here::here("beta=3 datasets",paste0("subs = ", max(trialwise_data$subs),
-  #                                                               " trials = ", trialwise_data$trials[1],
-  #                                                               " id = ", rnorm(1,0,10),".csv")))
-  # 
+  write.csv(trialwise_data, here::here("data","singlesubjectfit","single and hier fit.csv"))
+
   
   
   params = trialwise_data %>% arrange(sessions, subs)
@@ -169,18 +126,7 @@ get_ICC_psychometric = function(trialwise_data){
                    
   )
   
-  #trialwise_data <- read_csv("datasets/subs = 14 trials = 90 id = 1.78080543202527.csv")
-  # trialwise_data %>% pivot_longer(cols = c("real_lambda","real_alpha","real_beta")) %>% group_by(name) %>% summarize(mean = mean(value), sd = sd(value))
-  # 
-  # vector = fit$summary("beta") %>% .$mean
-  # pairs <- lapply(1:(length(vector)/2), function(i) vector[c(i, i+14)])
-  # pairwise_sd <- function(pair) {
-  #   sd(pair)
-  # }
-  # 
-  # # Calculate standard deviations of pairs
-  # pairwise_sds <- unlist(lapply(pairs, pairwise_sd))
-  # mean(pairwise_sds)
+
   
   fit <- mod$sample(
     data = data_stan,
@@ -264,16 +210,59 @@ get_ICC_psychometric = function(trialwise_data){
   #plot:
   # trial_estimates %>% dplyr::select(-c("X","resp","prob","trials.1")) %>% distinct() %>% pivot_longer(cols = c("real_lambda","real_alpha","real_beta"), names_to = "real_parameternames",values_to = "real_values") %>% filter(paste0("real_",parameter) == real_parameternames) %>% ggplot(aes(x = mean, y = real_values))+geom_point()+facet_wrap(~parameter, scales = "free")
   
+  mod = cmdstanr::cmdstan_model(here::here("Stanmodels","single_sub_psycho.stan"))
   
   
+  big_df = data.frame()
   
-  return(list(df, trial_estimates,correlations))
+  for(i in 1:length(unique(trialwise_data$id))){
+    trialwise_data1 = trialwise_data %>% filter(id == unique(trialwise_data$id)[i])
+    
+    datastan = list(N = nrow(trialwise_data1),
+                    x = trialwise_data1$X,
+                    y = trialwise_data1$resp)
+    
+    
+    fit = mod$sample(data = datastan,
+                     chains = 4,
+                     refresh = 500,
+                     iter_warmup = 1000,
+                     iter_sampling = 1000,
+                     parallel_chains = 4,
+                     adapt_delta = 0.90,
+                     max_treedepth = 12)
+    
+    
+    
+    df_single_sub = data.frame(fit$summary(c("alpha","beta","lambda","alpha_unconstrained","beta_unconstrained","lambda_unconstrained"))) %>% 
+      mutate(trials = unique(trialwise_data1$trials),
+             sim_id = sim_n_id,
+             real_lambda_con = unique(trialwise_data1$real_lambda_con),
+             real_lambda_uncon = unique(trialwise_data1$real_lambda_uncon),
+             real_beta_con = unique(trialwise_data1$real_beta_con),
+             real_beta_uncon = unique(trialwise_data1$real_beta_uncon),
+             real_alpha_con = unique(trialwise_data1$real_alpha_con),
+             real_alpha_uncon = unique(trialwise_data1$real_alpha_uncon),
+             id = unique(trialwise_data1$id),
+             mean_div = data.frame(fit$diagnostic_summary()) %>% summarize(mean_div = mean(num_divergent)) %>% .$mean_div,
+             tree_depth = data.frame(fit$diagnostic_summary()) %>% summarize(mean_treedepth = mean(num_max_treedepth)) %>% .$mean_treedepth)
+    
+    big_df = rbind(big_df,df_single_sub)
+    
+  }  
+  
+  
+  return(list(df, trial_estimates,correlations, big_df))
+  
   
 }
 
 
 together = function(parameters){
-  iccs = get_ICC_psychometric(get_params(parameters$subs,parameters$trials))
+  iccs = get_ICC_psychometric_singe_fit(get_params_nopath(parameters$subs,parameters$trials))
   return(list(iccs))
   
 }
+
+
+

@@ -40,7 +40,7 @@ possfit_model = possibly(.f = together, otherwise = "Error")
 ```{r, fig.height=6, fig.width=8}
 source(here::here("realshit","Visualize_ICC_psychometric.R"))
 
-load("~/HDDM_stan/workspace psychometric/ICC_psycho_lowtrials_finished_beta=1.RData")
+load(here::here("workspace psychometric","ICC_psycho_lowtrials_finished_beta=1.RData"))
 ICC1 = ICC(results,"beta = 1")
 correlation1 = Correlations(results,"beta = 1")
 ICC_raw1 = ICC_raw(results,"beta = 1")
@@ -49,13 +49,13 @@ trialwise_beta1 = plot_trialwise(results,"beta")
 trialwise_lambda1 = plot_trialwise(results,"lambda")
 
 
-load("~/HDDM_stan/workspace psychometric/ICC_psycho_lowtrials_finished_beta=2.RData")
+load(here::here("workspace psychometric","ICC_psycho_lowtrials_finished_beta=2.RData"))
 ICC2 = ICC(results,"beta = 2")
 correlation2 = Correlations(results,"beta = 2")
 ICC_raw2 = ICC_raw(results,"beta = 2")
 
 
-load("~/HDDM_stan/workspace psychometric/ICC_psycho_lowtrials_finished_beta=3.RData")
+load(here::here("workspace psychometric","ICC_psycho_lowtrials_finished_beta=3.RData"))
 ICC3 = ICC(results,"beta = 3")
 correlation3 = Correlations(results,"beta = 3")
 ICC_raw3 = ICC_raw(results,"beta = 3")
@@ -101,14 +101,14 @@ rbind(ICC_raw1,ICC_raw2,ICC_raw3) %>% filter(grepl("ICC", variable), residual_va
 
 
 ```{r, fig.height=6, fig.width=8}
-trialwise_alpha1
+trialwise_alpha1+ ggtitle("Beta = 3")
 trialwise_beta1
 trialwise_lambda1
 ```
 
 
 ```{r, fig.height=6, fig.width=8}
-trialwise_alpha3
+trialwise_alpha3+ ggtitle("Beta = 3")
 trialwise_beta3
 trialwise_lambda3
 
