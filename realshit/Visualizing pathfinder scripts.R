@@ -241,6 +241,7 @@ get_params_single_multiple = function(params){
   
   
   pathfinder = get_pathfinder(parameters)
+  
   timer = pathfinder[[2]]$toc - pathfinder[[2]]$tic
   pathfinder = pathfinder[[1]]
   

@@ -25,7 +25,7 @@ def get_line_intervals(data, parameter):
         rg = np.arange(-50.5, 50.5, 1)  # Assuming this is the correct equivalent for seq(0.1, 25, by = 0.1)
     elif parameter == "beta":
         confidence = ci(np.mean(data, axis=0))
-        rg = np.arange(0.1, 100.1, 0.1)  # Assuming this is the correct equivalent for seq(0.1, 25, by = 0.1)
+        rg = np.arange(0.1, 20.1, 0.1)  # Assuming this is the correct equivalent for seq(0.1, 25, by = 0.1)
     
     
     
@@ -56,7 +56,7 @@ def get_stim(lapse,alpha,beta,trials):
           nTrials=trials,
           intensRange=[-50.5, 50.5],
           alphaRange=[-50.5, 50.5],
-          betaRange=[0.1, 100],
+          betaRange=[0.1, 20],
           intensPrecision=1,
           alphaPrecision=1,
           betaPrecision=0.1,

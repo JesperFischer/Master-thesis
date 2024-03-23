@@ -127,6 +127,9 @@ df[[3]][[2]]
 
 ```{r}
 
+source(here::here("realshit","Visualizing pathfinder scripts.R"))
+
+
 parameters = expand.grid(trials = seq(20,100,by = 10),
                          replicate = 1:10) %>% 
   mutate(id = rev(1:nrow(.)))
@@ -134,7 +137,7 @@ parameters = expand.grid(trials = seq(20,100,by = 10),
 
 data_list <- split(parameters, parameters$id)
 
-cores = 4
+cores = 10
   
 plan(multisession, workers = cores)
   
@@ -150,7 +153,27 @@ pathfinder %>% filter(variable %in% parameters) %>% ggplot(aes(x = sd))+geom_his
 
 uniform <- map_dfr(results, ~ .x[[2]])
 
+uniform %>% filter(variable %in% parameters) %>% ggplot(aes(x = sd))+geom_histogram(col = "black")+facet_wrap(~variable, scales = "free")
+
+
 psi <- map_dfr(results, ~ .x[[3]])
+
+psi %>% filter(variable %in% parameters) %>% ggplot(aes(x = sd))+geom_histogram(col = "black")+facet_wrap(~variable, scales = "free")
+
+
+rbind(psi %>% mutate(method = "psi"),
+      uniform%>% mutate(method = "uniform"),
+      pathfinder%>% mutate(method = "pathfinder"))%>% filter(variable %in% parameters) %>% filter(sd < 50) %>% 
+  ggplot(aes(x = sd, fill = method))+geom_histogram(col = "black")+
+  facet_grid(trials~variable, scales = "free")+ggtitle("Estimation uncertainty")
+
+
+rbind(psi %>% mutate(method = "psi"),
+      uniform%>% mutate(method = "uniform"),
+      pathfinder%>% mutate(method = "pathfinder")) %>% 
+  filter(variable %in% parameters) %>% pivot_longer(cols = c("real_beta_con","real_alpha_con","real_lambda_con"), names_to = "real_names",values_to = "real_values") %>% filter(real_names == paste0("real_",variable,"_con")) %>% mutate(bias = mean-real_values) %>% ggplot(aes(x = bias, fill = method))+
+  geom_histogram(col = "black")+facet_grid(trials~variable, scales = "free")+ggtitle("Bias")
+
 
 ```
 
