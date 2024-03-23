@@ -126,24 +126,32 @@ df[[3]][[2]]
 
 
 ```{r}
-
 source(here::here("realshit","Visualizing pathfinder scripts.R"))
 
 
 parameters = expand.grid(trials = seq(20,100,by = 10),
-                         replicate = 1:10) %>% 
+                         replicate = 1:100) %>% 
   mutate(id = rev(1:nrow(.)))
 
 
 data_list <- split(parameters, parameters$id)
 
-cores = 10
+cores = 40
   
-plan(multisession, workers = cores)
+#plan(multisession, workers = cores)
   
-possfit_model = possibly(.f = get_params_single_multiple, otherwise = "Error")
+#possfit_model = possibly(.f = get_params_single_multiple, otherwise = "Error")
 
-results <- future_map(data_list, ~possfit_model(.x), .progress = TRUE, .options = furrr_options(seed = TRUE))
+#results <- future_map(data_list, ~possfit_model(.x), .progress = TRUE, .options = furrr_options(seed = TRUE))
+
+
+```
+
+
+```{r}
+load("~/Master-thesis/workspace psychometric/100sims_pathfinder_comparison_beta=2.RData")
+
+results = results[-c(203,226,541,609,699)]
 
 parameters = c("alpha","beta","lambda")
 
@@ -163,18 +171,117 @@ psi %>% filter(variable %in% parameters) %>% ggplot(aes(x = sd))+geom_histogram(
 
 rbind(psi %>% mutate(method = "psi"),
       uniform%>% mutate(method = "uniform"),
-      pathfinder%>% mutate(method = "pathfinder"))%>% filter(variable %in% parameters) %>% filter(sd < 50) %>% 
+      pathfinder%>% mutate(method = "pathfinder"))%>% filter(variable %in% parameters) %>% 
+  filter(sd < 50) %>% 
   ggplot(aes(x = sd, fill = method))+geom_histogram(col = "black")+
   facet_grid(trials~variable, scales = "free")+ggtitle("Estimation uncertainty")
+
+
+
+rbind(psi %>% mutate(method = "psi"),
+      uniform%>% mutate(method = "uniform"),
+      pathfinder%>% mutate(method = "pathfinder"))%>% filter(variable %in% parameters) %>% 
+  filter(sd < 50) %>% 
+  group_by(trials,method, variable) %>% 
+  summarize(meansd = mean(sd), sesd = sd(sd)/sqrt(n())) %>% 
+  ggplot(aes(x = trials, y = meansd, ymin = meansd-sesd,ymax = meansd+sesd,  col = method))+geom_pointrange()+
+  facet_wrap(~variable, scales = "free")+ggtitle("Estimation uncertainty")
+
 
 
 rbind(psi %>% mutate(method = "psi"),
       uniform%>% mutate(method = "uniform"),
       pathfinder%>% mutate(method = "pathfinder")) %>% 
-  filter(variable %in% parameters) %>% pivot_longer(cols = c("real_beta_con","real_alpha_con","real_lambda_con"), names_to = "real_names",values_to = "real_values") %>% filter(real_names == paste0("real_",variable,"_con")) %>% mutate(bias = mean-real_values) %>% ggplot(aes(x = bias, fill = method))+
-  geom_histogram(col = "black")+facet_grid(trials~variable, scales = "free")+ggtitle("Bias")
+  filter(variable %in% parameters) %>% 
+  filter(sd < 50, mean <50) %>%
+  pivot_longer(cols = c("real_beta_con","real_alpha_con","real_lambda_con"), names_to = "real_names",values_to = "real_values") %>% 
+  filter(real_names == paste0("real_",variable,"_con")) %>% 
+  mutate(bias = mean-real_values) %>% 
+  ggplot(aes(x = bias, fill = method))+
+  geom_histogram(col = "black")+
+  facet_grid(trials~variable, scales = "free")+ggtitle("Bias")
 
+
+rbind(psi %>% mutate(method = "psi"),
+      uniform%>% mutate(method = "uniform"),
+      pathfinder%>% mutate(method = "pathfinder")) %>% 
+  filter(variable %in% parameters) %>% 
+  filter(sd < 50, mean <50) %>%
+  pivot_longer(cols = c("real_beta_con","real_alpha_con","real_lambda_con"), names_to = "real_names",values_to = "real_values") %>% 
+  filter(real_names == paste0("real_",variable,"_con")) %>% 
+  mutate(bias = mean-real_values) %>% 
+  group_by(trials,method, variable) %>% 
+  summarize(meansd = mean(bias), sesd = sd(bias)/sqrt(n())) %>% 
+  ggplot(aes(x = trials, y = meansd, ymin = meansd-sesd,ymax = meansd+sesd,  col = method))+geom_pointrange()+
+  facet_wrap(~variable, scales = "free")+ggtitle("Bias")
 
 ```
 
+
+```{r}
+load("~/Master-thesis/workspace psychometric/100sims_pathfinder_comparison_beta=1.RData")
+
+
+parameters = c("alpha","beta","lambda")
+
+pathfinder <- map_dfr(results, ~ .x[[1]])
+
+pathfinder %>% filter(variable %in% parameters) %>% ggplot(aes(x = sd))+geom_histogram(col = "black")+facet_wrap(~variable, scales = "free")
+
+uniform <- map_dfr(results, ~ .x[[2]])
+
+uniform %>% filter(variable %in% parameters) %>% ggplot(aes(x = sd))+geom_histogram(col = "black")+facet_wrap(~variable, scales = "free")
+
+
+psi <- map_dfr(results, ~ .x[[3]])
+
+psi %>% filter(variable %in% parameters) %>% ggplot(aes(x = sd))+geom_histogram(col = "black")+facet_wrap(~variable, scales = "free")
+
+
+rbind(psi %>% mutate(method = "psi"),
+      uniform%>% mutate(method = "uniform"),
+      pathfinder%>% mutate(method = "pathfinder"))%>% filter(variable %in% parameters) %>% 
+  filter(sd < 50) %>% 
+  ggplot(aes(x = sd, fill = method))+geom_histogram(col = "black")+
+  facet_grid(trials~variable, scales = "free")+ggtitle("Estimation uncertainty")
+
+
+
+rbind(psi %>% mutate(method = "psi"),
+      uniform%>% mutate(method = "uniform"),
+      pathfinder%>% mutate(method = "pathfinder"))%>% filter(variable %in% parameters) %>% 
+  filter(sd < 50) %>% 
+  group_by(trials,method, variable) %>% 
+  summarize(meansd = mean(sd), sesd = sd(sd)/sqrt(n())) %>% 
+  ggplot(aes(x = trials, y = meansd, ymin = meansd-sesd,ymax = meansd+sesd,  col = method))+geom_pointrange()+
+  facet_wrap(~variable, scales = "free")+ggtitle("Estimation uncertainty")
+
+
+
+rbind(psi %>% mutate(method = "psi"),
+      uniform%>% mutate(method = "uniform"),
+      pathfinder%>% mutate(method = "pathfinder")) %>% 
+  filter(variable %in% parameters) %>% 
+  filter(sd < 50, mean <50) %>%
+  pivot_longer(cols = c("real_beta_con","real_alpha_con","real_lambda_con"), names_to = "real_names",values_to = "real_values") %>% 
+  filter(real_names == paste0("real_",variable,"_con")) %>% 
+  mutate(bias = mean-real_values) %>% 
+  ggplot(aes(x = bias, fill = method))+
+  geom_histogram(col = "black")+
+  facet_grid(trials~variable, scales = "free")+ggtitle("Bias")
+
+
+rbind(psi %>% mutate(method = "psi"),
+      uniform%>% mutate(method = "uniform"),
+      pathfinder%>% mutate(method = "pathfinder")) %>% 
+  filter(variable %in% parameters) %>% 
+  filter(sd < 50, mean <50) %>%
+  pivot_longer(cols = c("real_beta_con","real_alpha_con","real_lambda_con"), names_to = "real_names",values_to = "real_values") %>% 
+  filter(real_names == paste0("real_",variable,"_con")) %>% 
+  mutate(bias = mean-real_values) %>% 
+  group_by(trials,method, variable) %>% 
+  summarize(meansd = mean(bias), sesd = sd(bias)/sqrt(n())) %>% 
+  ggplot(aes(x = trials, y = meansd, ymin = meansd-sesd,ymax = meansd+sesd,  col = method))+geom_pointrange()+
+  facet_wrap(~variable, scales = "free")+ggtitle("Bias")
+```
 
