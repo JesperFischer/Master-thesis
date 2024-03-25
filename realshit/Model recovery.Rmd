@@ -17,7 +17,7 @@ pacman::p_load(tidyverse,RWiener, tidybayes, posterior, furrr,gganimate, cmdstan
 ```{r}
 source(here::here("realshit","model_recovery.R"))
 
-parameters = expand.grid(subs = c(10),
+parameters = expand.grid(subs = c(50),
                          trials = c(100),
                          beta = seq(1,3,by = 0.5),
                          lamda = seq(-6,-2,by = 0.5),

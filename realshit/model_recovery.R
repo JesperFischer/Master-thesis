@@ -228,6 +228,8 @@ get_ICC_psychometric = function(trialwise_data){
   
   mod_norm = cmdstanr::cmdstan_model(here::here("Stanmodels","Model_comparison_normal.stan"))
   
+  mod_gumbel = cmdstanr::cmdstan_model(here::here("Stanmodels","Model_comparison_gumbel.stan"))
+  
   datanormal = trialwise_data %>% filter(model == "normal")
   
   
@@ -252,6 +254,18 @@ get_ICC_psychometric = function(trialwise_data){
     max_treedepth = 12)
   
   
+  
+  fit_gumb_data_norm <- mod_gumbel$sample(
+    data = datastan,
+    chains = 4,
+    refresh = 500,
+    init = 0,
+    parallel_chains = 4,
+    adapt_delta = 0.9,
+    max_treedepth = 12)
+  
+  
+  
   fit_norm_data_norm <- mod_norm$sample(
     data = datastan,
     chains = 4,
@@ -262,14 +276,16 @@ get_ICC_psychometric = function(trialwise_data){
     max_treedepth = 12)
   
   
-  loo_datanorm = data.frame(loo::loo_compare(list(logs = fit_logs_data_norm$loo(),norm = fit_norm_data_norm$loo()))) %>% 
+  loo_datanorm = data.frame(loo::loo_compare(list(logs = fit_logs_data_norm$loo(),norm = fit_norm_data_norm$loo(), gumbel = fit_gumb_data_norm$loo()))) %>% 
     mutate(trials = unique(trialwise_data$trials),
            subs = length(unique(trialwise_data$subs)),
            sim_id = sim_n_id,
            mean_div_normal = mean(fit_norm_data_norm$diagnostic_summary("divergences")$num_divergent),
            mean_div_logistic = mean(fit_logs_data_norm$diagnostic_summary("divergences")$num_divergent),
            mean_tree_normal = mean(fit_norm_data_norm$diagnostic_summary("treedepth")$num_max_treedepth),
-           mean_tree_logistic = mean(fit_logs_data_norm$diagnostic_summary("treedepth")$num_max_treedepth))
+           mean_tree_logistic = mean(fit_logs_data_norm$diagnostic_summary("treedepth")$num_max_treedepth),
+           mean_div_gumbel = mean(fit_gumb_data_norm$diagnostic_summary("divergences")$num_divergent),
+           mean_tree_gumbel = mean(fit_gumb_data_norm$diagnostic_summary("treedepth")$num_max_treedepth))
   
   individual_esti = fit_norm_data_norm$summary(c("gm","tau_u","alpha","beta")) %>% mutate(trials = unique(trialwise_data$trials),
                                                                                              subs = length(unique(trialwise_data$subs)),
