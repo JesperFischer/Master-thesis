@@ -144,14 +144,12 @@ fit_pathfinder_static_normaldata = function(parameters){
 }
 
 
-get_params = function(subs, trials){
+get_params = function(subs, trials, beta, lambda, alpha){
   
-  alpha_uncon = rnorm(subs,0,10)
-  beta_uncon = rnorm(subs,3,0.6)
-  lambda_uncon = rnorm(subs,-4,2)    
-  
-  beta_uncon = rnorm(subs,3,0.6)
-  beta_uncon = rnorm(subs,3,0.6)
+  alpha_uncon = rnorm(subs,alpha,10)
+  beta_uncon = rnorm(subs,beta,0.6)
+  lambda_uncon = rnorm(subs,lambda,2)    
+
   
   
   parameters = data.frame(real_alpha_uncon = alpha_uncon,
@@ -201,6 +199,10 @@ get_params = function(subs, trials){
   trialwise_datanormal = trialwise_datanormal %>% mutate(model = "normal")
   
   trialwise_data = rbind(trialwise_datalog, trialwise_datanormal)
+  
+  trialwise_data$simulated_alpha = alpha  
+  trialwise_data$simulated_beta = beta
+  trialwise_data$simulated_lapse = lapse
   
   
   return(trialwise_data)
