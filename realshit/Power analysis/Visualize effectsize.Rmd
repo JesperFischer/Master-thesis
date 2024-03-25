@@ -1,0 +1,165 @@
+---
+title: "Visualize_effectsize"
+output: html_document
+date: "`r Sys.Date()`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+
+```{r}
+dd = data.frame()
+for(i in 1:2000){
+  
+  effectsize = 0.4
+  
+  var_alpha1 = 7.75^2
+  var_alpha2 = 1.5*var_alpha1
+  
+  mu_difference = effectsize * sqrt((var_alpha2 + var_alpha1) / 2)
+  
+  sd_difference = sqrt(var_alpha2-var_alpha1)
+  
+  library(faux)
+  d = data.frame(correlation = 0)
+  while(!(d$correlation > 0.3 & d$correlation < 0.7)){
+    d = rnorm_multi(n = 40, 
+                         mu = c(-9,-9),
+                         sd = c(7.75, 7.75),
+                         r = 0.56, 
+                         varnames = c("alpha_1", "alpha_2"),
+                         empirical = FALSE) %>% 
+      mutate(alpha22 = alpha_2 + rnorm(40, mu_difference, sd_difference)) %>% 
+      summarize(meandif = mean(alpha22)-mean(alpha_1),
+                sd2 = sd(alpha22),
+                sd1 = sd(alpha_1),
+                poolsd = sqrt((sd(alpha_1)^2 + sd(alpha22)^2) / 2),
+                correlation = cor.test(alpha_2,alpha_1)$estimate) %>% 
+      mutate(effectsize = meandif/poolsd)
+  }
+    dd = rbind(dd, d)
+}
+mean(dd$sd2)
+HDInterval::hdi(dd$effectsize)
+mean(dd$effectsize)
+
+
+hist(dd$effectsize)
+hist(dd$correlation)
+
+
+dd = data.frame()
+for(i in 1:2000){
+  
+  effectsize = 0.4
+  
+  var_beta1 = 0.17^2
+  var_beta2 = 1.5*var_alpha1
+  
+  mu_difference = effectsize * sqrt((var_beta2 + var_beta1) / 2)
+  
+  sd_difference = sqrt(var_beta2-var_beta1)
+  
+  library(faux)
+  d = data.frame(correlation = -0.5)
+  while(!(d$correlation > 0 & d$correlation < 0.4)){
+    d = rnorm_multi(n = 40, 
+                         mu = c(0.25,0.25),
+                         sd = c(0.17, 0.17),
+                         r = 0.3, 
+                         varnames = c("beta_1", "beta_2"),
+                         empirical = FALSE) %>% 
+      
+      mutate(beta22 = beta_2 + rnorm(40, mu_difference, sd_difference)) %>% 
+      
+      summarize(meandif = mean(beta22)-mean(beta_1),
+                sd2 = sd(beta22),
+                sd1 = sd(beta_1),
+                poolsd = sqrt((sd(beta_1)^2 + sd(beta22)^2) / 2),
+                correlation = cor.test(beta_2,beta_1)$estimate) %>% 
+      mutate(effectsize = meandif/poolsd)
+  }
+    dd = rbind(dd, d)
+}
+
+mean(dd$sd2)
+HDInterval::hdi(dd$effectsize)
+mean(dd$effectsize)
+
+```
+
+
+
+```{r}
+
+
+get_moving_estimates = function(effectsize, sd, mean, correlation, correlation_upper, correlation_lower, subs){
+  
+  
+  var_alpha1 = sd^2
+  var_alpha2 = 1.5*var_alpha1
+  
+  mu_difference = effectsize * sqrt((var_alpha2 + var_alpha1) / 2)
+  
+  sd_difference = sqrt(var_alpha2-var_alpha1)
+  
+  library(faux)
+  d = data.frame(correlation = 0)
+  
+  while(!(d$correlation > correlation_lower & d$correlation < correlation_upper)){
+    dd = rnorm_multi(n = subs, 
+                         mu = c(mean,mean),
+                         sd = c(sd, sd),
+                         r = correlation, 
+                         varnames = c("param_1", "param_2"),
+                         empirical = FALSE) %>% 
+      mutate(param_2 = param_2 + rnorm(subs, mu_difference, sd_difference))
+  
+    d$correlation = cor.test(dd$param_1, dd$param_2)$estimate
+  }
+  return(dd)
+  
+}
+
+get_moving_estimates(effectsize = 1,
+                     sd = 7.75,
+                     mean = -9,
+                     correlation = 0.56,
+                     correlation_upper = 0.8,
+                     correlation_lower = 0.3,
+                     subs = 400) %>% pivot_longer(everything()) %>% ggplot(aes(x = value, fill = name))+geom_histogram(col = "black", position = "identity",alpha = 0.75)
+
+get_stationary_estimates = function(sd, mean, correlation, correlation_upper, correlation_lower, subs){
+  
+  library(faux)
+  d = data.frame(correlation = 0)
+  
+  while(!(d$correlation > correlation_lower & d$correlation < correlation_upper)){
+    dd = rnorm_multi(n = subs, 
+                         mu = c(mean,mean),
+                         sd = c(sd, sd),
+                         r = correlation, 
+                         varnames = c("param_1", "param_2"),
+                         empirical = FALSE)
+  
+    d$correlation = cor.test(dd$param_1, dd$param_2)$estimate
+  }
+  return(dd)
+  
+}
+
+get_stationary_estimates(
+                     sd = 7.75,
+                     mean = -9,
+                     correlation = 0.56,
+                     correlation_upper = 0.8,
+                     correlation_lower = 0.3,
+                     subs = 400) %>% pivot_longer(everything()) %>% ggplot(aes(x = value, fill = name))+geom_histogram(col = "black", position = "identity",alpha = 0.75)
+
+
+```
+

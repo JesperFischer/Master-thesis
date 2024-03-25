@@ -188,21 +188,23 @@ get_params = function(subs, trials, beta, lambda, alpha){
   #test  = possfit_model(data_list2[[1]])
   
   #run simulations!
-  results_log <- future_map(data_list2, ~possfit_model(.x), .progress = TRUE, .options = furrr_options(seed = TRUE))
+  #results_log <- future_map(data_list2, ~possfit_model(.x), .progress = TRUE, .options = furrr_options(seed = TRUE))
   
-  trialwise_datalog = map_dfr(results_log, bind_rows)
+  #trialwise_datalog = map_dfr(results_log, bind_rows)
   
   
-  trialwise_datalog = trialwise_datalog %>% mutate(model = "logistic")
+  #trialwise_datalog = trialwise_datalog %>% mutate(model = "logistic")
 
   
   trialwise_datanormal = trialwise_datanormal %>% mutate(model = "normal")
   
-  trialwise_data = rbind(trialwise_datalog, trialwise_datanormal)
+  #trialwise_data = rbind(trialwise_datalog, trialwise_datanormal)
+
+  trialwise_data = trialwise_datanormal
   
   trialwise_data$simulated_alpha = alpha  
   trialwise_data$simulated_beta = beta
-  trialwise_data$simulated_lapse = lapse
+  trialwise_data$simulated_lapse = lambda
   
   
   return(trialwise_data)
@@ -263,55 +265,67 @@ get_ICC_psychometric = function(trialwise_data){
   loo_datanorm = data.frame(loo::loo_compare(list(logs = fit_logs_data_norm$loo(),norm = fit_norm_data_norm$loo()))) %>% 
     mutate(trials = unique(trialwise_data$trials),
            subs = length(unique(trialwise_data$subs)),
-           sim_id = sim_n_id)
+           sim_id = sim_n_id,
+           mean_div_normal = mean(fit_norm_data_norm$diagnostic_summary("divergences")$num_divergent),
+           mean_div_logistic = mean(fit_logs_data_norm$diagnostic_summary("divergences")$num_divergent),
+           mean_tree_normal = mean(fit_norm_data_norm$diagnostic_summary("treedepth")$num_max_treedepth),
+           mean_tree_logistic = mean(fit_logs_data_norm$diagnostic_summary("treedepth")$num_max_treedepth))
+  
+  individual_esti = fit_norm_data_norm$summary(c("gm","tau_u","alpha","beta")) %>% mutate(trials = unique(trialwise_data$trials),
+                                                                                             subs = length(unique(trialwise_data$subs)),
+                                                                                             sim_id = sim_n_id)
+  
+  simulated_esti = datanormal %>% dplyr::select(-c(X,prob,resp)) %>% distinct() %>% mutate(trials = unique(trialwise_data$trials),
+                                                                                           subs = length(unique(trialwise_data$subs)),
+                                                                                           sim_id = sim_n_id)
   
   
-  datalogs = trialwise_data %>% filter(model == "logistic")
+  # datalogs = trialwise_data %>% filter(model == "logistic")
+  # 
+  # df = datalogs %>% group_by(subs,X) %>% summarize(yn = sum(resp), n = n())
+  # 
+  # 
+  # datastan = list(Y = df$yn,
+  #                 N = nrow(df),
+  #                 npx = df$n,
+  #                 S = length(unique(df$subs)),
+  #                 S_id = df$subs,
+  #                 X = df$X)
+  # 
+  # fit_logs_data_logs <- mod_logs$sample(
+  #   data = datastan,
+  #   chains = 4,
+  #   refresh = 500,
+  #   init = 0,
+  #   parallel_chains = 4,
+  #   adapt_delta = 0.9,
+  #   max_treedepth = 12)
+  # 
+  # 
+  # fit_norm_data_logs <- mod_norm$sample(
+  #   data = datastan,
+  #   chains = 4,
+  #   refresh = 500,
+  #   init = 0,
+  #   parallel_chains = 4,
+  #   adapt_delta = 0.9,
+  #   max_treedepth = 12)
+  # 
+  # loo_datalog = data.frame(loo::loo_compare(list(logs = fit_logs_data_logs$loo(),norm = fit_norm_data_logs$loo()))) %>%
+  #   mutate(trials = unique(trialwise_data$trials),
+  #          subs = length(unique(trialwise_data$subs)),
+  #          sim_id = sim_n_id)
+  # 
+  # 
+  loos = list(normaldata = loo_datanorm)
   
-  df = datalogs %>% group_by(subs,X) %>% summarize(yn = sum(resp), n = n())
-  
-  
-  datastan = list(Y = df$yn,
-                  N = nrow(df),
-                  npx = df$n,
-                  S = length(unique(df$subs)),
-                  S_id = df$subs,
-                  X = df$X)
-  
-  fit_logs_data_logs <- mod_logs$sample(
-    data = datastan,
-    chains = 4,
-    refresh = 500,
-    init = 0,
-    parallel_chains = 4,
-    adapt_delta = 0.9,
-    max_treedepth = 12)
-  
-  
-  fit_norm_data_logs <- mod_norm$sample(
-    data = datastan,
-    chains = 4,
-    refresh = 500,
-    init = 0,
-    parallel_chains = 4,
-    adapt_delta = 0.9,
-    max_treedepth = 12)
-  
-  loo_datalog = data.frame(loo::loo_compare(list(logs = fit_logs_data_logs$loo(),norm = fit_norm_data_logs$loo()))) %>%
-    mutate(trials = unique(trialwise_data$trials),
-           subs = length(unique(trialwise_data$subs)),
-           sim_id = sim_n_id)
-  
-  
-  loos = list(normaldata = loo_datanorm,logdata = loo_datalog)
-  
-  return(list(loos))
+  return(list(loos, individual_esti, simulated_esti))
   
 }
 
 
 together = function(parameters){
-  iccs = get_ICC_psychometric(get_params(parameters$subs,parameters$trials))
+  iccs = get_ICC_psychometric(get_params(parameters$subs,parameters$trials, parameters$beta, parameters$lamda, parameters$alpha))
   return(list(iccs))
   
 }
