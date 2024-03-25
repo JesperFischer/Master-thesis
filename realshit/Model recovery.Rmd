@@ -19,6 +19,9 @@ source(here::here("realshit","model_recovery.R"))
 
 parameters = expand.grid(subs = c(10),
                          trials = c(100),
+                         beta = seq(1,3,by = 0.5),
+                         lamda = seq(-6,-2,by = 0.5),
+                         alpha = seq(-10,10,by = 5),
                          replicate = 1:4)
 
 parameters <- parameters[sample(nrow(parameters)), ]
