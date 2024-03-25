@@ -301,7 +301,7 @@ get_ICC_psychometric = function(trialwise_data){
            sim_id = sim_n_id)
   
   
-  loos = list(data = trialwise_data,normaldata = loo_datanorm,logdata = loo_datalog)
+  loos = list(normaldata = loo_datanorm,logdata = loo_datalog)
   
   return(list(loos))
   

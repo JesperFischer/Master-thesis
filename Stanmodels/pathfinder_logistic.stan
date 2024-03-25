@@ -24,7 +24,7 @@ transformed parameters{
   
   real psy_beta = exp(psy_beta_uncon);
   for(i in 1:trials){
-    phi[i] = psy_lambda + (1 - 2 * psy_lambda) *  (1/(1+exp(-psy_beta*(x[i]-psy_alpha))));
+    phi[i] = psy_lambda + (1 - 2 * psy_lambda) *  1/(1+exp(-(1.7/psy_beta)*(x[i]-psy_alpha)));
     }
     } 
 

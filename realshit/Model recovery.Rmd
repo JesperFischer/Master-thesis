@@ -17,8 +17,8 @@ pacman::p_load(tidyverse,RWiener, tidybayes, posterior, furrr,gganimate, cmdstan
 ```{r}
 source(here::here("realshit","model_recovery.R"))
 
-parameters = expand.grid(subs = c(10,30,50),
-                         trials = seq(100,200,50),
+parameters = expand.grid(subs = c(10),
+                         trials = c(100),
                          replicate = 1:2)
 
 parameters <- parameters[sample(nrow(parameters)), ]
@@ -27,9 +27,9 @@ parameters = parameters %>% mutate(id = 1:nrow(.))
 
 data_list <- split(parameters, parameters$id)
 
-cores = 15
+#cores = 15
   
-plan(multisession, workers = cores)
+#plan(multisession, workers = cores)
   
 possfit_model = possibly(.f = together, otherwise = "Error")
 
