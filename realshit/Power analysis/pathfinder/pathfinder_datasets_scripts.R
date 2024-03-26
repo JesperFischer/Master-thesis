@@ -35,7 +35,7 @@ power_analysis_v2 = function(parameters){
   
   data_list2 <-  split(df, df$n)
   
-  plan(multisession, workers = 5)
+  plan(multisession, workers = 3)
   
   #adding safety for if something goes wrong then it just outputs "Error" instead of crashing
   

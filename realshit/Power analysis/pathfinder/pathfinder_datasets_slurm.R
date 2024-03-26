@@ -1,18 +1,21 @@
 
-pacman::p_load(cmdstanr, tidyverse,posterior, bayesplot, tidybayes, furrr,bridgesampling, rstan, brms, faux,LRO.utilities,reticulate)
+pacman::p_load(cmdstanr, tidyverse,posterior, bayesplot, tidybayes,brms,faux,tictoc,
+               furrr,bridgesampling, rstan, brms, faux,LRO.utilities,reticulate)
 print("runnning")
 Run_poweranalysis = function(subjects, trials, effectsize_alpha,effectsize_beta){
-  pacman::p_load(cmdstanr, tidyverse,posterior, bayesplot, tidybayes, furrr,bridgesampling, rstan, brms, faux,LRO.utilities,reticulate)
+  pacman::p_load(cmdstanr, tidyverse,posterior, bayesplot, tidybayes,brms,faux,tictoc,
+                 furrr,bridgesampling, rstan, brms, faux,LRO.utilities,reticulate)
+  
   
   message("Number of CPU cores in R: ", parallelly::availableCores())
   
-  source(here::here("realshit","Power analysis", "pathfinder_datasets_scripts.R"))
+  source(here::here("realshit","Power analysis","pathfinder", "pathfinder_datasets_scripts.R"))
   
   # 
   subjects = 40
   trials = 100
-  effectsize_alpha = 0.5
-  effectsize_beta = 1
+  effectsize_alpha = 0.4
+  effectsize_beta = 0.6
   
   
   subjects = subjects
@@ -34,7 +37,7 @@ Run_poweranalysis = function(subjects, trials, effectsize_alpha,effectsize_beta)
   data_list <- split(parameters, parameters$id)
   
   
-  cores = parallelly::availableCores()
+  cores = 10
   
   plan(multisession, workers = cores)
   
