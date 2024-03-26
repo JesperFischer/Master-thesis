@@ -14,7 +14,7 @@ Run_poweranalysis = function(subjects, trials, effectsize_alpha,effectsize_beta)
   # 
   subjects = 40
   trials = 100
-  effectsize_alpha = 0.4
+  effectsize_alpha = 0.2
   effectsize_beta = 0.6
   
   
@@ -35,7 +35,6 @@ Run_poweranalysis = function(subjects, trials, effectsize_alpha,effectsize_beta)
     mutate(id = 1:nrow(.))
   
   data_list <- split(parameters, parameters$id)
-  
   
   cores = 10
   
