@@ -1,30 +1,36 @@
 power_analysis_v2 = function(parameters){
   
-  source(here::here("realshit","Power analysis", "Make_datasets_scripts.R"))
+  source(here::here("realshit","Power analysis", "Make_datasets_scripts_con.R"))
   
   a = get_sub_paramers(parameters = data.frame(subjects = parameters$subjects,
-                                              effect_size_alpha = parameters$effect_size_alpha,
-                                              effect_size_beta = parameters$effect_size_beta
+                                               effect_size_alpha = parameters$effect_size_alpha,
+                                               effect_size_beta = parameters$effect_size_beta
   ))
   
   
   effectsizedata_beta = a %>% group_by(sessions) %>% summarize(mean = mean(beta), sd = sd(beta))
   
-  change_in_beta = (effectsizedata_beta[1,2]-effectsizedata_beta[2,2])[[1]]
-  change_in_sd_cohens_beta = ((effectsizedata_beta[1,2]-effectsizedata_beta[2,2])/(sqrt((effectsizedata_beta[1,3]^2 + effectsizedata_beta[2,3]^2)/2)))[[1]]
-  change_in_sd_cohens_beta
+  # change_in_beta = (effectsizedata_beta[1,2]-effectsizedata_beta[2,2])[[1]]
+  change_in_sd_cohens_beta1 = ((effectsizedata_beta[1,2]-effectsizedata_beta[2,2])/(sqrt((effectsizedata_beta[1,3]^2 + effectsizedata_beta[2,3]^2)/2)))[[1]]
+  change_in_sd_cohens_beta2 = ((effectsizedata_beta[1,2]-effectsizedata_beta[3,2])/(sqrt((effectsizedata_beta[1,3]^2 + effectsizedata_beta[3,3]^2)/2)))[[1]]
+  
+  
   
   effectsizedata_alpha = a %>% group_by(sessions) %>% summarize(mean = mean(alpha), sd = sd(alpha))
   
   change_in_alpha = (effectsizedata_alpha[1,2]-effectsizedata_alpha[2,2])[[1]]
-  change_in_sd_cohens_alpha = -((effectsizedata_alpha[1,2]-effectsizedata_alpha[2,2])/(sqrt((effectsizedata_alpha[1,3]^2 + effectsizedata_alpha[2,3]^2)/2)))[[1]]
-  change_in_sd_cohens_alpha
+  change_in_sd_cohens_alpha1 = -((effectsizedata_alpha[1,2]-effectsizedata_alpha[2,2])/(sqrt((effectsizedata_alpha[1,3]^2 + effectsizedata_alpha[2,3]^2)/2)))[[1]]
+  change_in_sd_cohens_alpha2 = -((effectsizedata_alpha[1,2]-effectsizedata_alpha[3,2])/(sqrt((effectsizedata_alpha[1,3]^2 + effectsizedata_alpha[3,3]^2)/2)))[[1]]
+  
   
   #getting Psi stimuli
   df = a %>% arrange(sessions,participant_id) %>% mutate(trials = parameters$trials)
   
-  df$alpha_obs_power = change_in_sd_cohens_alpha
-  df$beta_obs_power = change_in_sd_cohens_beta
+  df$alpha_obs_power1 = change_in_sd_cohens_alpha1
+  df$beta_obs_power1 = change_in_sd_cohens_beta1
+
+  df$alpha_obs_power2 = change_in_sd_cohens_alpha2
+  df$beta_obs_power2 = change_in_sd_cohens_beta2
   
   print("Timer for PSI")
   tictoc::tic()
@@ -39,7 +45,7 @@ power_analysis_v2 = function(parameters){
                     data %>% 
                       dplyr::select(resp,X,participant_id,sessions,Estimatedthreshold, Estimatedslope,q5_threshold,q95_threshold,q5_slope,q95_slope),
                     by = c("participant_id","sessions")
-                    )
+  )
   
   
   
@@ -49,8 +55,10 @@ power_analysis_v2 = function(parameters){
            subjects = parameters$subjects,
            trials = parameters$trials,
            parameter = parameters$parameter,
-           observed_effectsize_alpha = change_in_sd_cohens_alpha,
-           observed_effectsize_beta = change_in_sd_cohens_beta)
+           observed_effectsize_alpha1 = change_in_sd_cohens_alpha1,
+           observed_effectsize_beta1 = change_in_sd_cohens_beta1,
+           observed_effectsize_alpha2 = change_in_sd_cohens_alpha2,
+           observed_effectsize_beta2 = change_in_sd_cohens_beta2)
   
   directory = paste0("effect_size_alpha = " , parameters$effect_size_alpha,
                      " effect_size_beta = ", parameters$effect_size_beta,
@@ -336,7 +344,7 @@ get_moving_estimates = function(effectsize, sd, mean, correlation, correlation_u
   
   var_alpha1 = sd^2
   var_alpha2 = 1.5*var_alpha1
-  
+
   mu_difference = effectsize * sqrt((var_alpha2 + var_alpha1) / 2)
   
   sd_difference = sqrt(var_alpha2-var_alpha1)
@@ -346,12 +354,13 @@ get_moving_estimates = function(effectsize, sd, mean, correlation, correlation_u
   
   while(!(d$correlation > correlation_lower & d$correlation < correlation_upper)){
     dd = rnorm_multi(n = subs, 
-                     mu = c(mean,mean),
-                     sd = c(sd, sd),
-                     r = correlation, 
-                     varnames = c("param_1", "param_2"),
+                     mu = c(mean,mean,mean),
+                     sd = c(sd, sd,sd),
+                     r = c(correlation), 
+                     varnames = c("param_1", "param_2","param_3"),
                      empirical = FALSE) %>% 
-      mutate(param_2 = param_2 + rnorm(subs, mu_difference, sd_difference))
+      mutate(param_2 = param_2 + rnorm(subs, mu_difference, sd_difference),
+             param_3 = param_3 + rnorm(subs, 2*mu_difference, sd_difference))
     
     d$correlation = cor.test(dd$param_1, dd$param_2)$estimate
   }
@@ -366,10 +375,10 @@ get_stationary_estimates = function(sd, mean, correlation, correlation_upper, co
   
   while(!(d$correlation > correlation_lower & d$correlation < correlation_upper)){
     dd = rnorm_multi(n = subs, 
-                     mu = c(mean,mean),
-                     sd = c(sd, sd),
+                     mu = c(mean,mean,mean),
+                     sd = c(sd, sd, sd),
                      r = correlation, 
-                     varnames = c("param_1", "param_2"),
+                     varnames = c("param_1", "param_2", "param_3"),
                      empirical = FALSE)
     
     d$correlation = cor.test(dd$param_1, dd$param_2)$estimate
@@ -389,14 +398,14 @@ get_sub_paramers = function(parameters){
                                 correlation_lower = 0.4,
                                 subs = parameters$subjects)
   
-
+  
   betas = exp(get_moving_estimates(effectsize = parameters$effect_size_beta,
-                                sd = 0.31,
-                                mean = 2.3,
-                                correlation = 0.4,
-                                correlation_upper = 0.6,
-                                correlation_lower = 0.17,
-                                subs = parameters$subjects))
+                                   sd = 0.31,
+                                   mean = 2.3,
+                                   correlation = 0.4,
+                                   correlation_upper = 0.6,
+                                   correlation_lower = 0.17,
+                                   subs = parameters$subjects))
   
   
   
@@ -410,17 +419,17 @@ get_sub_paramers = function(parameters){
   
   
   lapse = data.frame(lambdas) %>% mutate(participant_id = 1:parameters$subjects) %>% 
-    pivot_longer(c("param_1","param_2"), names_to = "sessions",values_to = "lapse")
+    pivot_longer(c("param_1","param_2","param_3"), names_to = "sessions",values_to = "lapse")
   
   alpha = data.frame(alphas) %>% mutate(participant_id = 1:parameters$subjects) %>% 
-    pivot_longer(c("param_1","param_2"), names_to = "sessions",values_to = "alpha")
+    pivot_longer(c("param_1","param_2","param_3"), names_to = "sessions",values_to = "alpha")
   
   beta = data.frame(betas) %>% mutate(participant_id = 1:parameters$subjects) %>% 
-    pivot_longer(c("param_1","param_2"), names_to = "sessions",values_to = "beta") 
+    pivot_longer(c("param_1","param_2","param_3"), names_to = "sessions",values_to = "beta") 
   
   parameters2 = inner_join(inner_join(lapse,alpha,by = join_by(sessions, participant_id)),
                            beta,by = join_by(sessions, participant_id))%>% 
-    mutate(id = 1:nrow(.),sessions = ifelse(sessions == "param_1", 1,ifelse(sessions == "param_2",2,NA)))
+    mutate(id = 1:nrow(.),sessions = ifelse(sessions == "param_1", 1,ifelse(sessions == "param_2",2,ifelse(sessions == "param_3",3,NA))))
   
   return(parameters2)
 }
@@ -461,7 +470,7 @@ get_psi_stim = function(parameters){
                  q95_threshold =  unlist(dd$q95_threshold), q5_slope =  unlist(dd$q5_slope), q95_slope =  unlist(dd$q95_slope))
   
   
-
+  
   
   return(d)
   

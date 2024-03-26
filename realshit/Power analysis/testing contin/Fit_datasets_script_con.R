@@ -1,24 +1,25 @@
 
 power_analysis_without_psi = function(parameters){
+
   
+  source(here::here("realshit","Power analysis", "Make_datasets_scripts_con.R"))
   
-  source(here::here("realshit","Power analysis", "Make_datasets_scripts.R"))
-  
-  source(here::here("realshit","Power analysis", "Fit_datasets_script.R"))
+  source(here::here("realshit","Power analysis", "Fit_datasets_script_con.R"))
   
   
   pattern = paste0("effect_size_alpha = ",
-                   as.character(parameters$effect_size_alpha[1]),
-                   " effect_size_beta = ",
-                   as.character(parameters$effect_size_beta[1]),
-                   " trials = ",as.character(parameters$trials[1]),
-                   " subjects = ",as.character(parameters$subjects[1]))
+         as.character(parameters$effect_size_alpha[1]),
+         " effect_size_beta = ",
+         as.character(parameters$effect_size_beta[1]),
+         " trials = ",as.character(parameters$trials[1]),
+         " subjects = ",as.character(parameters$subjects[1]))
   
   
   # Get a list of all files in the directory
   files <- sort(list.files(path = here::here("realshit","Power analysis","datasets",pattern), full.names = TRUE))
   
   data = read.csv(files[parameters$id])
+  
   
   #wrangling the data
   
@@ -52,7 +53,7 @@ power_analysis_without_psi = function(parameters){
                      npx = data %>% .$npx
     )
     
-    
+  
     fit_nocentered <- mod_noncent$sample(
       data = data_stan,
       iter_sampling = 1000,
@@ -78,7 +79,7 @@ power_analysis_without_psi = function(parameters){
   
   
   data_rows = transform_data_to_stan(data)
-  data_rows = data_rows %>% arrange(sessions, participant_id)
+  
   
   diags = data.frame(fit_norm$diagnostic_summary())
   
@@ -113,8 +114,7 @@ power_analysis_without_psi = function(parameters){
   }
   
   
-  rows = data_rows %>% group_by(sessions,participant_id) %>% 
-    summarize(n = n()) %>% ungroup() %>% mutate(rows = cumsum(n)) %>% .$rows
+  rows = data_rows %>% group_by(participant_id, sessions) %>% summarize(n = n()) %>% ungroup() %>% mutate(rows = cumsum(n)) %>% .$rows
   
   
   alphas = data.frame(fit_norm$summary("alpha"))[rows,]
@@ -145,16 +145,6 @@ power_analysis_without_psi = function(parameters){
                                                  treedepths = mean(diags$num_max_treedepth)
   )
   
-  indi_estimates$session = session = rep(c(rep(1,length(unique(indi_estimates$participant_id))),rep(2,length(unique(indi_estimates$participant_id)))),2)
-  
-
-  #Plot!
-  # indi_estimates %>% 
-  #   mutate(session = rep(c(rep(1,length(unique(indi_estimates$participant_id))),rep(2,length(unique(indi_estimates$participant_id)))),2)) %>% 
-  #   ggplot(aes(x = mean, y = real_values, xmin = q5, xmax = q95, col = session))+
-  #   geom_pointrange()+facet_wrap(~parameter, scales = "free")
-  
-  
   #saving
   difs = data.frame(fit_norm$summary(c("gm[1]","gm[2]","gm[3]","gm[4]","gm[5]",
                                        "tau_u[1]","tau_u[2]","tau_u[3]","tau_u[4]","tau_u[5]"))) %>% mutate(iter = data$iter[1])%>% 
@@ -177,6 +167,8 @@ power_analysis_without_psi = function(parameters){
   return(list(difs,indi_estimates))
   
 }
+
+
 
 
 transform_data_to_stan = function(data){

@@ -1,10 +1,11 @@
 power_analysis_v2 = function(parameters){
   
   source(here::here("realshit","Power analysis", "Make_datasets_scripts.R"))
+  source(here::here("realshit","Power analysis","pathfinder", "pathfinder_datasets_scripts.R"))
   
   a = get_sub_paramers(parameters = data.frame(subjects = parameters$subjects,
-                                              effect_size_alpha = parameters$effect_size_alpha,
-                                              effect_size_beta = parameters$effect_size_beta
+                                               effect_size_alpha = parameters$effect_size_alpha,
+                                               effect_size_beta = parameters$effect_size_beta
   ))
   
   
@@ -26,10 +27,25 @@ power_analysis_v2 = function(parameters){
   df$alpha_obs_power = change_in_sd_cohens_alpha
   df$beta_obs_power = change_in_sd_cohens_beta
   
-  print("Timer for PSI")
+  print("Timer for Pathfinder")
   tictoc::tic()
+  
   ########################################################################################################### GETTING PSI!
-  data = get_psi_stim(df)
+  df = df %>% mutate(n = 1:n())
+  
+  data_list2 <-  split(df, df$n)
+  
+  plan(multisession, workers = 5)
+  
+  #adding safety for if something goes wrong then it just outputs "Error" instead of crashing
+  
+  possfit_model = possibly(.f = get_pathfinder_stim, otherwise = "Error")
+  
+  results_normal <- future_map(data_list2, ~possfit_model(.x), .progress = TRUE, .options = furrr_options(seed = TRUE))
+  
+  data = map_dfr(results_normal, bind_rows)
+  
+
   ###########################################################################################################
   tictoc::toc()
   
@@ -37,9 +53,9 @@ power_analysis_v2 = function(parameters){
   
   data = inner_join(df,
                     data %>% 
-                      dplyr::select(resp,X,participant_id,sessions,Estimatedthreshold, Estimatedslope,q5_threshold,q95_threshold,q5_slope,q95_slope),
+                      dplyr::select(resp,X,participant_id,sessions),
                     by = c("participant_id","sessions")
-                    )
+  )
   
   
   
@@ -68,12 +84,12 @@ power_analysis_v2 = function(parameters){
                    " trials = ",as.character(parameters$trials[1]),
                    " subjects = ",as.character(parameters$subjects[1]))
   
-  if(!dir.exists(here::here("realshit","Power analysis","datasets",pattern))){
-    dir.create(here::here("realshit","Power analysis","datasets",pattern))
+  if(!dir.exists(here::here("realshit","Power analysis","pathfinder","datasets",pattern))){
+    dir.create(here::here("realshit","Power analysis","pathfinder","datasets",pattern))
   }
   
   
-  write.csv(data,here::here("realshit","Power analysis","datasets",pattern,directory))
+  write.csv(data,here::here("realshit","Power analysis","pathfinder","datasets",pattern,directory))
   
   if(parameters$psi_only == T){
     print("done with")
@@ -389,14 +405,14 @@ get_sub_paramers = function(parameters){
                                 correlation_lower = 0.4,
                                 subs = parameters$subjects)
   
-
+  
   betas = exp(get_moving_estimates(effectsize = parameters$effect_size_beta,
-                                sd = 0.31,
-                                mean = 2.3,
-                                correlation = 0.4,
-                                correlation_upper = 0.6,
-                                correlation_lower = 0.17,
-                                subs = parameters$subjects))
+                                   sd = 0.31,
+                                   mean = 2.3,
+                                   correlation = 0.4,
+                                   correlation_upper = 0.6,
+                                   correlation_lower = 0.17,
+                                   subs = parameters$subjects))
   
   
   
@@ -425,43 +441,72 @@ get_sub_paramers = function(parameters){
   return(parameters2)
 }
 
-get_psi_stim = function(parameters){
+get_pathfinder_stim = function(parameters){
   
-  python_script <- here::here("realshit","Power analysis","PSI.py")
-  
-  alpha = parameters$alpha
-  
-  beta = parameters$beta
-  
-  lapse = parameters$lapse
-  
-  trials = as.integer(parameters$trials)
-  
-  ids = as.integer(parameters$participant_id)
-  
-  subjects = max(as.integer(unique(parameters$participant_id)))
-  
-  sessions = max(as.integer(unique(parameters$sessions)))
-  
-  library(reticulate)
-  
-  # Use reticulate to run the Python script with arguments
-  
-  source_python(python_script, convert = FALSE)
-  
-  d = get_stim(lapse, alpha, beta, ids, trials, subjects, sessions)
-  
-  #Produces a warning about will be removed in future versions (but seems to be a thing with reticulate and not my code)
-  dd = reticulate::py_to_r(d)
-  dd = reticulate::py_to_r(d)
-  
-  d = data.frame(lapse = dd$lapse, alpha = dd$alpha, beta = dd$beta, participant_id = unlist(dd$participant_id),
-                 trials = unlist(dd$trials), subs = unlist(dd$subs), X = unlist(dd$X), resp = unlist(dd$resp), sessions = unlist(dd$sessions),
-                 Estimatedthreshold = unlist(dd$Estimatedthreshold), Estimatedslope = unlist(dd$Estimatedslope), q5_threshold =  unlist(dd$q5_threshold),
-                 q95_threshold =  unlist(dd$q95_threshold), q5_slope =  unlist(dd$q5_slope), q95_slope =  unlist(dd$q95_slope))
+  N = parameters$trials
   
   
-
+  r = array(NA,N)
+  p = array(NA,N)
+  x = array(NA,N)
+  
+  parm_ev = data.frame()
+  
+  x[1] = 0
+  p[1] = parameters$lapse + (1 - 2 * parameters$lapse) * (0.5+0.5*erf((x[1]-parameters$alpha)/(parameters$beta*sqrt(2))))
+  r[1] = rbinom(1,1,p[1])
+  
+  
+  mod = cmdstanr::cmdstan_model(here::here("Stanmodels","pathfinder.stan"))
+  
+  for(i in 1:N){
+    
+    
+    data_stan = list(trials = nrow((data.frame(r) %>% drop_na())),
+                     x = data.frame(x) %>% drop_na() %>% .$x,
+                     r = data.frame(r) %>% drop_na() %>% .$r)
+    
+    fit_psy <- mod$pathfinder(data = data_stan,refresh=0, init = 0)
+    
+    if(i < 5){
+      x[i] = data.frame(fit_psy$summary("psy_alpha")) %>% .$mean
+    }else{
+      sign = sample(c(-1,1),1)
+      x[i] = fit_psy$draws("psy_alpha")[sample(1:1000,1)]+sign*fit_psy$draws("psy_beta")[sample(1:1000,1)]
+    }
+    
+    if(abs(x[i]) > 50){
+      print("to high")
+      x[i] = data.frame(fit_psy$summary("psy_alpha")) %>% .$mean
+    }
+    
+    
+    c_trial = data.frame(fit_psy$summary(c("psy_alpha","psy_beta","psy_lambda"))) %>% mutate(trials = i)
+    
+    parm_ev = rbind(c_trial,parm_ev)
+    p[i] = parameters$lapse + (1 - 2 * parameters$lapse) * (0.5+0.5*erf((x[i]-parameters$alpha)/(parameters$beta*sqrt(2))))
+    r[i] = rbinom(1,1,p[i])
+    
+  }
+  
+  df_trial = data.frame(X = x,
+                        prob = p,
+                        resp = r,
+                        trials = 1:N) %>% mutate(trials = parameters$trials,
+                                                 lapse = parameters$lapse,
+                                                 alpha = parameters$alpha,
+                                                 beta = parameters$beta,
+                                                 id =  rnorm(1,0,1000),
+                                                 participant_id = parameters$participant_id,
+                                                 sessions = parameters$sessions,
+                                                 model = "normal")
+  
+  #df_trial = full_join(parm_ev,df_trial)
+  
+  
+  return(list(df_trial))
+  
+  
   
   return(d)
   

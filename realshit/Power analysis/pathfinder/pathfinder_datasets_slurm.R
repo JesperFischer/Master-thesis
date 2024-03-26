@@ -6,13 +6,13 @@ Run_poweranalysis = function(subjects, trials, effectsize_alpha,effectsize_beta)
   
   message("Number of CPU cores in R: ", parallelly::availableCores())
   
-  source(here::here("realshit","Power analysis", "Make_datasets_scripts.R"))
-
+  source(here::here("realshit","Power analysis", "pathfinder_datasets_scripts.R"))
+  
   # 
-  # subjects = 10
-  # trials = 100
-  # effectsize_alpha = 0.5
-  # effectsize_beta = 1
+  subjects = 40
+  trials = 100
+  effectsize_alpha = 0.5
+  effectsize_beta = 1
   
   
   subjects = subjects
@@ -77,4 +77,3 @@ print(effectsize_beta)
 # Call your function with the extracted arguments
 Run_poweranalysis(subjects, trials, effectsize_alpha,effectsize_beta)
 
-  

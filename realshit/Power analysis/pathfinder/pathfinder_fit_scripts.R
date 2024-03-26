@@ -2,9 +2,9 @@
 power_analysis_without_psi = function(parameters){
   
   
-  source(here::here("realshit","Power analysis", "Make_datasets_scripts.R"))
+  source(here::here("realshit","Power analysis","pathfinder", "pathfinder_datasets_scripts.R"))
   
-  source(here::here("realshit","Power analysis", "Fit_datasets_script.R"))
+  source(here::here("realshit","Power analysis","pathfinder", "pathfinder_fit_scripts.R"))
   
   
   pattern = paste0("effect_size_alpha = ",
@@ -16,7 +16,7 @@ power_analysis_without_psi = function(parameters){
   
   
   # Get a list of all files in the directory
-  files <- sort(list.files(path = here::here("realshit","Power analysis","datasets",pattern), full.names = TRUE))
+  files <- sort(list.files(path = here::here("realshit","Power analysis","pathfinder","datasets",pattern), full.names = TRUE))
   
   data = read.csv(files[parameters$id])
   
@@ -121,15 +121,15 @@ power_analysis_without_psi = function(parameters){
   
   alphas = alphas %>% mutate(real_values = data_rows$alpha[rows],
                              parameter = "alpha",
-                             participant_id = data_rows$participant_id[rows],
-                             psiestimate = data %>% group_by(participant_id,sessions) %>% summarize(psi_estimate_threshold = last(Estimatedthreshold)) %>% .$psi_estimate_threshold
-  )
+                             participant_id = data_rows$participant_id[rows]
+                             )
   
   betas = data.frame(fit_norm$summary("beta"))[rows,]
+  
   betas = betas %>% mutate(real_values = data_rows$beta[rows],
                            parameter = "beta",
-                           participant_id = data_rows$participant_id[rows],
-                           psiestimate = data %>% group_by(participant_id,sessions) %>% summarize(psi_estimate_slope = last(Estimatedslope)) %>% .$psi_estimate_slope)
+                           participant_id = data_rows$participant_id[rows]
+                           )
   
   
   indi_estimates = rbind(alphas,betas)%>% mutate(iter = data$iter[1],
@@ -147,7 +147,7 @@ power_analysis_without_psi = function(parameters){
   
   indi_estimates$session = session = rep(c(rep(1,length(unique(indi_estimates$participant_id))),rep(2,length(unique(indi_estimates$participant_id)))),2)
   
-
+  
   #Plot!
   # indi_estimates %>% 
   #   mutate(session = rep(c(rep(1,length(unique(indi_estimates$participant_id))),rep(2,length(unique(indi_estimates$participant_id)))),2)) %>% 
