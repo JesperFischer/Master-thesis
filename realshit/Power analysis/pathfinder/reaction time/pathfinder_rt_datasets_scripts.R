@@ -9,13 +9,13 @@ power_analysis_v2 = function(parameters){
   ))
   
   
-  effectsizedata_beta = a %>% group_by(sessions) %>% summarize(mean = mean(beta), sd = sd(beta))
+  effectsizedata_beta = a %>% group_by(sessions) %>% dplyr::summarize(mean = mean(beta), sd = sd(beta))
   
   change_in_beta = (effectsizedata_beta[1,2]-effectsizedata_beta[2,2])[[1]]
   change_in_sd_cohens_beta = ((effectsizedata_beta[1,2]-effectsizedata_beta[2,2])/(sqrt((effectsizedata_beta[1,3]^2 + effectsizedata_beta[2,3]^2)/2)))[[1]]
   change_in_sd_cohens_beta
   
-  effectsizedata_alpha = a %>% group_by(sessions) %>% summarize(mean = mean(alpha), sd = sd(alpha))
+  effectsizedata_alpha = a %>% group_by(sessions) %>% dplyr::summarize(mean = mean(alpha), sd = sd(alpha))
   
   change_in_alpha = (effectsizedata_alpha[1,2]-effectsizedata_alpha[2,2])[[1]]
   change_in_sd_cohens_alpha = -((effectsizedata_alpha[1,2]-effectsizedata_alpha[2,2])/(sqrt((effectsizedata_alpha[1,3]^2 + effectsizedata_alpha[2,3]^2)/2)))[[1]]
@@ -35,7 +35,7 @@ power_analysis_v2 = function(parameters){
   
   data_list2 <-  split(df, df$n)
   
-  plan(multisession, workers = 5)
+  plan(multisession, workers = 3)
   
   #adding safety for if something goes wrong then it just outputs "Error" instead of crashing
   
@@ -559,7 +559,7 @@ get_sub_paramers_multi = function(parameters){
   
   joint_covariance_matrix <- Matrix::nearPD(covariance_matrix)$mat
   
-  q = data.frame(mvrnorm(n = 40, mu = mus, Sigma = joint_covariance_matrix))
+  q = data.frame(mvrnorm(n = parameters$subjects[1], mu = mus, Sigma = joint_covariance_matrix))
   
   ses1 = paste0(c("alpha_session","beta_session","lapse_session","intercept_session","betart_session","sigma_session","ndt_session"),"1")
   ses2 = paste0(c("alpha_session","beta_session","lapse_session","intercept_session","betart_session","sigma_session","ndt_session"),"2")
@@ -570,14 +570,14 @@ get_sub_paramers_multi = function(parameters){
   parameters2 = q %>% pivot_longer(cols = starts_with("alpha") | starts_with("beta") |starts_with("lapse") |starts_with("intercept") |starts_with("betart") | starts_with("sigma") | starts_with("ndt"),
                        names_to = c(".value", "session"),
                      names_pattern = "(alpha|beta|lapse|intercept|betart|sigma|ndt)_(session\\d+)",
-                       values_to = c("value", "session")) %>% mutate(participant_id = rep(1:40,each = 2))
+                       values_to = c("value", "session")) %>% mutate(participant_id = rep(1:parameters$subjects[1],each = 2))
   
   
   parameters2 = parameters2 %>% 
     mutate(alpha = ifelse(session == "session1", alpha,
-                          ifelse(session == "session2", alpha+rnorm(40,mu_difference_alpha,sd_difference_alpha), NA))) %>% 
+                          ifelse(session == "session2", alpha+rnorm(parameters$subjects[1],mu_difference_alpha,sd_difference_alpha), NA))) %>% 
     mutate(beta = ifelse(session == "session1", beta,
-                          ifelse(session == "session2", beta+rnorm(40,mu_difference_beta,sd_difference_beta), NA)))
+                          ifelse(session == "session2", beta+rnorm(parameters$subjects[1],mu_difference_beta,sd_difference_beta), NA)))
   
   parameters2$beta = exp(parameters2$beta)
   parameters2$lapse = brms::inv_logit_scaled(parameters2$lapse) / 2

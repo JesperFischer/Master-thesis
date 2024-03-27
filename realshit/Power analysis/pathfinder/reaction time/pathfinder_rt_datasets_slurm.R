@@ -2,17 +2,17 @@
 pacman::p_load(cmdstanr, tidyverse,posterior, bayesplot, tidybayes, furrr,bridgesampling, rstan, brms, faux,LRO.utilities,reticulate)
 print("runnning")
 Run_poweranalysis = function(subjects, trials, effectsize_alpha,effectsize_beta){
-  pacman::p_load(cmdstanr, tidyverse,posterior, bayesplot, tidybayes, furrr,bridgesampling, rstan, brms, faux,LRO.utilities,reticulate)
+  pacman::p_load(cmdstanr, tidyverse,posterior, bayesplot, tidybayes, furrr,bridgesampling, rstan, brms, faux,LRO.utilities,reticulate, tictoc,rockchalk)
   
   message("Number of CPU cores in R: ", parallelly::availableCores())
   
   source(here::here("realshit","Power analysis","pathfinder","reaction time", "pathfinder_rt_datasets_scripts.R"))
   
   # 
-  subjects = 40
+  subjects = 20
   trials = 100
-  effectsize_alpha = 0.2
-  effectsize_beta = 0.4
+  effectsize_alpha = seq(0,0.4,by = 0.2)
+  effectsize_beta = seq(0,0.4,by = 0.2)
   
   
   subjects = subjects
@@ -20,7 +20,7 @@ Run_poweranalysis = function(subjects, trials, effectsize_alpha,effectsize_beta)
   effect_size_alpha = effectsize_alpha
   effect_size_beta = effectsize_beta
   
-  replicate = 1:10
+  replicate = 1:100
   
   parameters = expand.grid(subjects = subjects,
                            trials = trials,
@@ -36,7 +36,7 @@ Run_poweranalysis = function(subjects, trials, effectsize_alpha,effectsize_beta)
   
   #cores = parallelly::availableCores()
   
-  plan(multisession, workers = cores)
+  plan(multisession, workers = 10)
   
   possfit_model = possibly(.f = power_analysis_v2, otherwise = "Error")
   
