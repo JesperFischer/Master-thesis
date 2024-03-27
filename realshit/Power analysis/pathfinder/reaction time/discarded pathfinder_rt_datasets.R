@@ -1,15 +1,16 @@
+#discarded pathfinder_rt_datasets
+
+
 power_analysis_v2 = function(parameters){
   
   
   source(here::here("realshit","Power analysis","pathfinder","reaction time", "pathfinder_rt_datasets_scripts.R"))
   
   a = get_sub_paramers_multi(parameters = data.frame(subjects = parameters$subjects,
-                                               effect_size_alpha = parameters$effect_size_alpha,
-                                               effect_size_beta = parameters$effect_size_beta
+                                                     effect_size_alpha = parameters$effect_size_alpha,
+                                                     effect_size_beta = parameters$effect_size_beta
   ))
-  # cor.test(a %>% filter(session  == "session1") %>% .$alpha,a %>% filter(session  == "session2") %>% .$alpha)$estimate
-  # cor.test(a %>% filter(session  == "session1") %>% .$beta,a %>% filter(session  == "session2") %>% .$beta)$estimate
-  # 
+  
   
   effectsizedata_beta = a %>% group_by(sessions) %>% dplyr::summarize(mean = mean(beta), sd = sd(beta))
   
@@ -37,7 +38,7 @@ power_analysis_v2 = function(parameters){
   
   data_list2 <-  split(df, df$n)
   
-  plan(multisession, workers = 10)
+  plan(multisession, workers = 5)
   
   #adding safety for if something goes wrong then it just outputs "Error" instead of crashing
   
@@ -510,13 +511,22 @@ get_sub_paramers = function(parameters){
 
 get_sub_paramers_multi = function(parameters){
   
- 
   
-  mus = read.csv(here::here("realshit","Power analysis","pathfinder","reaction time","Legrand reults","means.csv")) %>% .$x
-
-  variances = read.csv(here::here("realshit","Power analysis","pathfinder","reaction time","Legrand reults","between_variance.csv")) %>% .$x
-    
-  cor_matrix = as.matrix(read.csv(here::here("realshit","Power analysis","pathfinder","reaction time","Legrand reults","correlation matrix.csv")) %>% dplyr::select(-X))
+  cor_within = c(0.5630976, 0.3781995, 0.2646381, 0.8077163, 0.6406204, 0.7909347, 0.6958420)
+  
+  mus = rep(c(-8.9956494, 2.4899667, -7.2164855, 0.1955140, 0.9287620, -0.7470533, 0.1871637),2)
+  
+  variances = rep(c(7.9069781, 0.1676622, 1.0187857, 0.3613710, 0.2779782, 0.2380293, 0.9541641),2)
+  
+  cor_matrix <- matrix(c(1.00000000, -0.28897384, 0.20872121, 0.06619407, -0.49967039, 0.1516506, 0.03742202,
+                         -0.28897384, 1.00000000, -0.19383077, 0.14795528, 0.05224078, -0.2180983, -0.30485191,
+                         0.20872121, -0.19383077, 1.00000000, -0.07869334, -0.19292210, 0.1908102, 0.13200333,
+                         0.06619407, 0.14795528, -0.07869334, 1.00000000, -0.55246657, -0.8630869, -0.95483215,
+                         -0.49967039, 0.05224078, -0.19292210, -0.55246657, 1.00000000, 0.2286585, 0.38276192,
+                         0.15165063, -0.21809834, 0.19081017, -0.86308694, 0.22865848, 1.0000000, 0.93485363,
+                         0.03742202, -0.30485191, 0.13200333, -0.95483215, 0.38276192, 0.9348536, 1.00000000), nrow = 7, byrow = TRUE)
+  
+  
   
   real_variances1 = variances[1]^2
   real_variances2 = 1.5*real_variances1
@@ -533,11 +543,26 @@ get_sub_paramers_multi = function(parameters){
   sd_difference_beta = sqrt(real_variances2-real_variances1)
   
   
-  covariance_matrix <- cor_matrix * outer(variances, variances)
+  v = rbind(cor_matrix,cor_matrix)
+  for(i in 1:7){
+    v[7+i,i:7] = 0
+    v[7:14,i] = 0
+    
+    v[7+i,i] = cor_within[i]
+  }
   
-  #joint_covariance_matrix <- Matrix::nearPD(covariance_matrix)$mat
+  a = as.matrix(cbind(data.frame(v), data.frame(rbind(v[8:14,1:7],v[1:7,1:7]))))
   
-  q = data.frame(mvrnorm(n = parameters$subjects[1], mu = mus, Sigma = joint_covariance_matrix))
+  
+  a <- Matrix::nearPD(a)$mat
+  
+  diag(a) = 1
+  
+  covariance_matrix <- a * outer(variances, variances)
+  
+  joint_covariance_matrix <- Matrix::nearPD(covariance_matrix)$mat
+  
+  q = data.frame(mvrnorm(n = 40, mu = mus, Sigma = joint_covariance_matrix))
   
   ses1 = paste0(c("alpha_session","beta_session","lapse_session","intercept_session","betart_session","sigma_session","ndt_session"),"1")
   ses2 = paste0(c("alpha_session","beta_session","lapse_session","intercept_session","betart_session","sigma_session","ndt_session"),"2")
@@ -546,16 +571,16 @@ get_sub_paramers_multi = function(parameters){
   
   
   parameters2 = q %>% pivot_longer(cols = starts_with("alpha") | starts_with("beta") |starts_with("lapse") |starts_with("intercept") |starts_with("betart") | starts_with("sigma") | starts_with("ndt"),
-                       names_to = c(".value", "session"),
-                     names_pattern = "(alpha|beta|lapse|intercept|betart|sigma|ndt)_(session\\d+)",
-                       values_to = c("value", "session")) %>% mutate(participant_id = rep(1:parameters$subjects[1],each = 2))
+                                   names_to = c(".value", "session"),
+                                   names_pattern = "(alpha|beta|lapse|intercept|betart|sigma|ndt)_(session\\d+)",
+                                   values_to = c("value", "session")) %>% mutate(participant_id = rep(1:40,each = 2))
   
   
   parameters2 = parameters2 %>% 
     mutate(alpha = ifelse(session == "session1", alpha,
-                          ifelse(session == "session2", alpha+rnorm(parameters$subjects[1],mu_difference_alpha,sd_difference_alpha), NA))) %>% 
+                          ifelse(session == "session2", alpha+rnorm(40,mu_difference_alpha,sd_difference_alpha), NA))) %>% 
     mutate(beta = ifelse(session == "session1", beta,
-                          ifelse(session == "session2", beta+rnorm(parameters$subjects[1],mu_difference_beta,sd_difference_beta), NA)))
+                         ifelse(session == "session2", beta+rnorm(40,mu_difference_beta,sd_difference_beta), NA)))
   
   parameters2$beta = exp(parameters2$beta)
   parameters2$lapse = brms::inv_logit_scaled(parameters2$lapse) / 2
@@ -632,20 +657,20 @@ fit_pathfinder_static_rts = function(parameters){
                         prob = p,
                         resp = r,
                         trials = 1:N) %>% mutate(
-                        rts = rts,
-                        trials = parameters$trials,
-                        lapse = parameters$lapse,
-                        alpha = parameters$alpha,
-                        beta = parameters$beta,
-                        
-                        intercept = parameters$intercept,
-                        betart = parameters$betart,
-                        sigma = parameters$sigma,
-                        ndt = parameters$ndt,
-                        id =  rnorm(1,0,1000),
-                        participant_id = parameters$participant_id,
-                        sessions = parameters$sessions,
-                        model = "normal")
+                          rts = rts,
+                          trials = parameters$trials,
+                          lapse = parameters$lapse,
+                          alpha = parameters$alpha,
+                          beta = parameters$beta,
+                          
+                          intercept = parameters$intercept,
+                          betart = parameters$betart,
+                          sigma = parameters$sigma,
+                          ndt = parameters$ndt,
+                          id =  rnorm(1,0,1000),
+                          participant_id = parameters$participant_id,
+                          sessions = parameters$sessions,
+                          model = "normal")
   
   return(list(df_trial))
 }

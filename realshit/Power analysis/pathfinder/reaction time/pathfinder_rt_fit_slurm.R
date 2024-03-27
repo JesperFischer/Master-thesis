@@ -5,8 +5,8 @@ Run_poweranalysis = function(subjects, trials, effectsize_alpha, effectsize_beta
   message("Number of CPU cores in R: ", parallelly::availableCores())
   
   
-  source(here::here("realshit","Power analysis","pathfinder", "pathfinder_datasets_scripts.R"))
-  source(here::here("realshit","Power analysis","pathfinder", "pathfinder_fit_scripts.R"))
+  source(here::here("realshit","Power analysis","pathfinder","reaction time", "pathfinder_rt_datasets_scripts.R"))
+  source(here::here("realshit","Power analysis","pathfinder","reaction time", "pathfinder_rt_fit_scripts.R"))
   
   
   # subjects = 10
@@ -20,7 +20,7 @@ Run_poweranalysis = function(subjects, trials, effectsize_alpha, effectsize_beta
   effect_size_beta = effectsize_beta
   
   parameter = "both"
-  replicate = 1:100
+  replicate = 1:10
   
   parameters = expand.grid(subjects = subjects,
                            trials = trials,

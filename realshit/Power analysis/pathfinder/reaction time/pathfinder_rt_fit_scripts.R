@@ -20,39 +20,42 @@ power_analysis_without_psi = function(parameters){
   
   data = read.csv(files[parameters$id])
   
+  
+  #data = data %>% filter(participant_id < 20)
+  
   #wrangling the data
   
   fit_model = function(data){
     
-    mod_noncent = cmdstanr::cmdstan_model(here::here("realshit","Power analysis","pathfinder","reaction time","parameterized_RT.stan"),stanc_options = list("O1"))
+    mod_noncent = cmdstanr::cmdstan_model(here::here("realshit","Power analysis","pathfinder","reaction time","parameterized_NORT.stan"),stanc_options = list("O1"))
     
-    data = data %>% 
+    data_trans = data %>% 
       mutate(session = ifelse(sessions == 1, 0 ,ifelse(sessions == 2, 1, 2)))
     
-    data = transform_data_to_stan(data)
+    data_trans = transform_data_to_stan(data_trans)
     
     #data = data %>% filter(sessions == 1 |sessions == 3)
     
-    data = data %>% arrange(sessions, participant_id)
+    data_trans = data_trans %>% arrange(sessions, participant_id)
     
-    data_stan = list(T = nrow(data),
-                     S = length(unique(data$participant_id)),
-                     S_id = as.numeric(data$participant_id ),
-                     X = data %>% .$X,
-                     X_lapse = as.matrix(data.frame(int = rep(1,nrow(data)))),
-                     X_alpha = as.matrix(data.frame(int = rep(1,nrow(data)),
-                                                    session = data %>% .$sessions)),
-                     X_beta = as.matrix(data.frame(int = rep(1,nrow(data)),
-                                                   session = data %>% .$sessions)),
+    data_stan = list(T = nrow(data_trans),
+                     S = length(unique(data_trans$participant_id)),
+                     S_id = as.numeric(data_trans$participant_id ),
+                     X = data_trans %>% .$X,
+                     X_lapse = as.matrix(data.frame(int = rep(1,nrow(data_trans)))),
+                     X_alpha = as.matrix(data.frame(int = rep(1,nrow(data_trans)),
+                                                    session = data_trans %>% .$sessions)),
+                     X_beta = as.matrix(data.frame(int = rep(1,nrow(data_trans)),
+                                                   session = data_trans %>% .$sessions)),
                      N_alpha = 2,
                      N_beta = 2,
                      N_lapse = 1,
-                     Y = data %>% .$resp,
-                     npx = data %>% .$npx
+                     Y = data_trans %>% .$resp,
+                     npx = data_trans %>% .$npx
     )
     
     
-    fit_nocentered <- mod_noncent$sample(
+    fit_norm <- mod_noncent$sample(
       data = data_stan,
       iter_sampling = 1000,
       iter_warmup = 1000,
@@ -60,120 +63,220 @@ power_analysis_without_psi = function(parameters){
       init = 0,
       parallel_chains = 4,
       refresh = 500,
-      adapt_delta = 0.9,
+      adapt_delta = 0.95,
       max_treedepth = 12
     )
     
-    diags_nocentered = data.frame(fit_nocentered$diagnostic_summary())
-    rhat_nocentered = data.frame(fit_nocentered$summary(c("gm[1]","gm[2]","gm[3]","gm[4]","gm[5]",
+    diags_nocentered = data.frame(fit_norm$diagnostic_summary())
+    rhat_nocentered = data.frame(fit_norm$summary(c("gm[1]","gm[2]","gm[3]","gm[4]","gm[5]",
                                                           "tau_u[1]","tau_u[2]","tau_u[3]","tau_u[4]","tau_u[5]"))) %>% 
       .$rhat
     
-    return(fit_nocentered)
-  }
-  
-  
-  fit_norm = fit_model(data)
-  
-  
-  data_rows = transform_data_to_stan(data)
-  data_rows = data_rows %>% arrange(sessions, participant_id)
-  
-  diags = data.frame(fit_norm$diagnostic_summary())
-  
-  
-  alpha_draws = as_draws_df(fit_norm$draws("gm[5]")) %>% .$`gm[5]`
-  beta_draws = as_draws_df(fit_norm$draws("gm[2]")) %>% .$`gm[2]`
-  
-  p_zero_alpha = sum(alpha_draws<0)/length(alpha_draws)
-  
-  
-  
-  if(data$parameter[1] == "both"){
-    if(data$real_effectsize_beta[1] > 0){
-      p_zero_beta = sum(beta_draws<0)/length(beta_draws)
-    }else if(data$real_effectsize_beta[1] < 0){
-      p_zero_beta = sum(beta_draws>0)/length(beta_draws)
-    }else{
+    
+    
+    data_rows = transform_data_to_stan(data)
+    data_rows = data_rows %>% arrange(sessions, participant_id)
+    
+    diags = data.frame(fit_norm$diagnostic_summary())
+    
+    
+    alpha_draws = as_draws_df(fit_norm$draws("gm[2]")) %>% .$`gm[2]`
+    beta_draws = as_draws_df(fit_norm$draws("gm[4]")) %>% .$`gm[4]`
+    
+    p_zero_alpha = sum(alpha_draws<0)/length(alpha_draws)
+    
+    
+    
+    if(data$parameter[1] == "both"){
+      if(data$real_effectsize_beta[1] > 0){
+        p_zero_beta = sum(beta_draws<0)/length(beta_draws)
+      }else if(data$real_effectsize_beta[1] < 0){
+        p_zero_beta = sum(beta_draws>0)/length(beta_draws)
+      }else{
+        p_zero_beta = sum(beta_draws<0)/length(beta_draws)
+      }
+    }
+    if(data$parameter[1] == "beta"){
+      if(data$real_effectsize_beta[1] > 0){
+        p_zero_beta = sum(beta_draws<0)/length(beta_draws)
+      }else if(data$real_effectsize_beta[1] < 0){
+        p_zero_beta = sum(beta_draws>0)/length(beta_draws)
+      }else{
+        p_zero_beta = sum(beta_draws<0)/length(beta_draws)
+      }
+    }
+    if(data$parameter[1] == "alpha"){
       p_zero_beta = sum(beta_draws<0)/length(beta_draws)
     }
-  }
-  if(data$parameter[1] == "beta"){
-    if(data$real_effectsize_beta[1] > 0){
-      p_zero_beta = sum(beta_draws<0)/length(beta_draws)
-    }else if(data$real_effectsize_beta[1] < 0){
-      p_zero_beta = sum(beta_draws>0)/length(beta_draws)
-    }else{
-      p_zero_beta = sum(beta_draws<0)/length(beta_draws)
-    }
-  }
-  if(data$parameter[1] == "alpha"){
-    p_zero_beta = sum(beta_draws<0)/length(beta_draws)
-  }
-  
-  
-  rows = data_rows %>% group_by(sessions,participant_id) %>% 
-    summarize(n = n()) %>% ungroup() %>% mutate(rows = cumsum(n)) %>% .$rows
-  
-  
-  alphas = data.frame(fit_norm$summary("alpha"))[rows,]
-  
-  alphas = alphas %>% mutate(real_values = data_rows$alpha[rows],
-                             parameter = "alpha",
+    
+    
+    rows = data_rows %>% group_by(sessions,participant_id) %>% 
+      summarize(n = n()) %>% ungroup() %>% mutate(rows = cumsum(n)) %>% .$rows
+    
+    
+    alphas = data.frame(fit_norm$summary("alpha"))[rows,]
+    
+    alphas = alphas %>% mutate(real_values = data_rows$alpha[rows],
+                               parameter = "alpha",
+                               participant_id = data_rows$participant_id[rows]
+    )
+    
+    betas = data.frame(fit_norm$summary("beta"))[rows,]
+    
+    betas = betas %>% mutate(real_values = data_rows$beta[rows],
+                             parameter = "beta",
                              participant_id = data_rows$participant_id[rows]
-  )
+    )
+    
+    
+   
+    
+    #saving
+    difs = data.frame(fit_norm$summary(c("gm[1]","gm[2]","gm[3]","gm[4]","gm[5]",
+                                         "tau_u[1]","tau_u[2]","tau_u[3]","tau_u[4]","tau_u[5]"))) %>% mutate(iter = data$iter[1])%>% 
+      mutate(obs_effectsize_alpha = data$observed_effectsize_alpha[1],
+             obs_effectsize_beta = data$observed_effectsize_beta[1],
+             subjects = data$subjects[1],
+             trials = data$trials[1],
+             sim_alphacor = data$sim_alphacor[1],
+             sim_betacor = data$sim_betacor[1],
+             divergences = mean(diags$num_divergent),
+             treedepths = mean(diags$num_max_treedepth),
+             p_alpha = p_zero_alpha,
+             p_beta = p_zero_beta,
+             real_effectsize_alpha = data$real_effectsize_alpha[1],
+             real_effectsize_beta = data$real_effectsize_beta[1],
+             centered_model = data.frame(as_draws_df(fit_norm$draws("centered")))[1,1])
+    
+    
+    
+    
+    
+    
+    return(list(difs))
+    
+  }
   
-  betas = data.frame(fit_norm$summary("beta"))[rows,]
+  fit_model_rt = function(data){
+    
+    mod_noncent_rt = cmdstanr::cmdstan_model(here::here("realshit","Power analysis","pathfinder","reaction time","parameterized_RT.stan"),stanc_options = list("O1"))
+    
+    data_trans = data %>% 
+      mutate(session = ifelse(sessions == 1, 0 ,ifelse(sessions == 2, 1, 2)))
+    
+    data_trans = transform_data_to_stan(data_trans)
+    
+    #data = data %>% filter(sessions == 1 |sessions == 3)
+    
+    data_trans = data_trans %>% arrange(sessions, participant_id)
+    
+    data_stan = list(T = nrow(data_trans),
+                     S = length(unique(data_trans$participant_id)),
+                     S_id = as.numeric(data_trans$participant_id),
+                     X = data_trans %>% .$X,
+                     X_alpha = as.matrix(data.frame(int = rep(1,nrow(data_trans)),
+                                                    session = data %>% .$sessions)),
+                     X_beta = as.matrix(data.frame(int = rep(1,nrow(data_trans)),
+                                                   session = data_trans %>% .$sessions)),
+                     
+                     Y = data_trans %>% .$resp,
+                     RT = data_trans %>% .$rts,
+                     min_RT = data_trans %>% group_by(participant_id) %>% dplyr::summarize(min = min(rts)) %>% .$min
+    )
+    
+    
+    fit_norm <- mod_noncent_rt$sample(
+      data = data_stan,
+      iter_sampling = 1000,
+      iter_warmup = 1000,
+      chains = 4,
+      parallel_chains = 4,
+      refresh = 500,
+      adapt_delta = 0.95,
+      max_treedepth = 12
+    )
+    
+    diags_nocentered = data.frame(fit_norm$diagnostic_summary())
+    rhat_nocentered = data.frame(fit_norm$summary(c(paste0("gm[",1:9,"]"),paste0("tau_u[",1:9,"]")))) %>% 
+      .$rhat
+    
+    
+    data_rows = transform_data_to_stan(data)
+    data_rows = data_rows %>% arrange(sessions, participant_id)
+    
+    diags = data.frame(fit_norm$diagnostic_summary())
+    
+    
+    alpha_draws = as_draws_df(fit_norm$draws("gm[2]")) %>% .$`gm[2]`
+    beta_draws = as_draws_df(fit_norm$draws("gm[4]")) %>% .$`gm[4]`
+    
+    p_zero_alpha = sum(alpha_draws<0)/length(alpha_draws)
+    
+    
+    
+    if(data$parameter[1] == "both"){
+      if(data$real_effectsize_beta[1] > 0){
+        p_zero_beta = sum(beta_draws<0)/length(beta_draws)
+      }else if(data$real_effectsize_beta[1] < 0){
+        p_zero_beta = sum(beta_draws>0)/length(beta_draws)
+      }else{
+        p_zero_beta = sum(beta_draws<0)/length(beta_draws)
+      }
+    }
+    if(data$parameter[1] == "beta"){
+      if(data$real_effectsize_beta[1] > 0){
+        p_zero_beta = sum(beta_draws<0)/length(beta_draws)
+      }else if(data$real_effectsize_beta[1] < 0){
+        p_zero_beta = sum(beta_draws>0)/length(beta_draws)
+      }else{
+        p_zero_beta = sum(beta_draws<0)/length(beta_draws)
+      }
+    }
+    if(data$parameter[1] == "alpha"){
+      p_zero_beta = sum(beta_draws<0)/length(beta_draws)
+    }
+    
+    
+    rows = data_rows %>% group_by(sessions,participant_id) %>% 
+      summarize(n = n()) %>% ungroup() %>% mutate(rows = cumsum(n)) %>% .$rows
+    
+    
+    
+    #saving
+    difs = data.frame(fit_norm$summary(c(paste0("gm[",1:9,"]"),paste0("tau_u[",1:9,"]")))) %>% 
+      mutate(iter = data$iter[1])%>% 
+      mutate(obs_effectsize_alpha = data$observed_effectsize_alpha[1],
+             obs_effectsize_beta = data$observed_effectsize_beta[1],
+             subjects = data$subjects[1],
+             trials = data$trials[1],
+             sim_alphacor = data$sim_alphacor[1],
+             sim_betacor = data$sim_betacor[1],
+             divergences = mean(diags$num_divergent),
+             treedepths = mean(diags$num_max_treedepth),
+             p_alpha = p_zero_alpha,
+             p_beta = p_zero_beta,
+             real_effectsize_alpha = data$real_effectsize_alpha[1],
+             real_effectsize_beta = data$real_effectsize_beta[1],
+             centered_model = data.frame(as_draws_df(fit_norm$draws("centered")))[1,1])
+    
+    
+    
+    
+    
+    
+    return(list(difs))
+  }
   
-  betas = betas %>% mutate(real_values = data_rows$beta[rows],
-                           parameter = "beta",
-                           participant_id = data_rows$participant_id[rows]
-  )
   
   
-  indi_estimates = rbind(alphas,betas)%>% mutate(iter = data$iter[1],
-                                                 real_effectsize_alpha = data$real_effectsize_alpha[1],
-                                                 real_effectsize_beta = data$real_effectsize_beta[1],
-                                                 obs_effectsize_alpha = data$observed_effectsize_alpha[1],
-                                                 obs_effectsize_beta = data$observed_effectsize_beta[1],
-                                                 subjects = data$subjects[1],
-                                                 trials = data$trials[1],
-                                                 sim_alphacor = data$sim_alphacor[1],
-                                                 sim_betacor = data$sim_betacor[1],
-                                                 divergences = mean(diags$num_divergent),
-                                                 treedepths = mean(diags$num_max_treedepth)
-  )
+  rts = fit_model_rt(data)
   
-  indi_estimates$session = session = rep(c(rep(1,length(unique(indi_estimates$participant_id))),rep(2,length(unique(indi_estimates$participant_id)))),2)
-  
-  
-  #Plot!
-  # indi_estimates %>% 
-  #   mutate(session = rep(c(rep(1,length(unique(indi_estimates$participant_id))),rep(2,length(unique(indi_estimates$participant_id)))),2)) %>% 
-  #   ggplot(aes(x = mean, y = real_values, xmin = q5, xmax = q95, col = session))+
-  #   geom_pointrange()+facet_wrap(~parameter, scales = "free")
-  
-  
-  #saving
-  difs = data.frame(fit_norm$summary(c("gm[1]","gm[2]","gm[3]","gm[4]","gm[5]",
-                                       "tau_u[1]","tau_u[2]","tau_u[3]","tau_u[4]","tau_u[5]"))) %>% mutate(iter = data$iter[1])%>% 
-    mutate(obs_effectsize_alpha = data$observed_effectsize_alpha[1],
-           obs_effectsize_beta = data$observed_effectsize_beta[1],
-           subjects = data$subjects[1],
-           trials = data$trials[1],
-           sim_alphacor = data$sim_alphacor[1],
-           sim_betacor = data$sim_betacor[1],
-           divergences = mean(diags$num_divergent),
-           treedepths = mean(diags$num_max_treedepth),
-           p_alpha = p_zero_alpha,
-           p_beta = p_zero_beta,
-           real_effectsize_alpha = data$real_effectsize_alpha[1],
-           real_effectsize_beta = data$real_effectsize_beta[1],
-           centered_model = data.frame(as_draws_df(fit_norm$draws("centered")))[1,1])
+  norts = fit_model(data)
   
   
   
-  return(list(difs,indi_estimates))
+  
+  return(list(rts,norts))
   
 }
 

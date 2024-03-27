@@ -11,8 +11,8 @@ Run_poweranalysis = function(subjects, trials, effectsize_alpha,effectsize_beta)
   # 
   subjects = 20
   trials = 100
-  effectsize_alpha = seq(0,0.4,by = 0.2)
-  effectsize_beta = seq(0,0.4,by = 0.2)
+  effectsize_alpha = 0.5
+  effectsize_beta = 0.5
   
   
   subjects = subjects
