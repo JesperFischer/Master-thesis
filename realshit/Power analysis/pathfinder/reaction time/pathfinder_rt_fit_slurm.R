@@ -9,10 +9,10 @@ Run_poweranalysis = function(subjects, trials, effectsize_alpha, effectsize_beta
   source(here::here("realshit","Power analysis","pathfinder","reaction time", "pathfinder_rt_fit_scripts.R"))
   
   
-  # subjects = 10
-  # trials = 100
-  # effectsize_alpha = 0.5
-  # effectsize_beta = 1
+  subjects = 20
+  trials = 100
+  effectsize_alpha = 0.6
+  effectsize_beta = 1
   
   subjects = subjects
   trials = trials
@@ -20,7 +20,7 @@ Run_poweranalysis = function(subjects, trials, effectsize_alpha, effectsize_beta
   effect_size_beta = effectsize_beta
   
   parameter = "both"
-  replicate = 1:10
+  replicate = 1:2
   
   parameters = expand.grid(subjects = subjects,
                            trials = trials,

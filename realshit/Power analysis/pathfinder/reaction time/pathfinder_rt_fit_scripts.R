@@ -269,14 +269,14 @@ power_analysis_without_psi = function(parameters){
   
   
   
-  rts = fit_model_rt(data)
+ # rts = fit_model_rt(data)
   
   norts = fit_model(data)
   
   
   
   
-  return(list(rts,norts))
+  return(list(norts))
   
 }
 
