@@ -37,7 +37,7 @@ power_analysis_v2 = function(parameters){
   
   data_list2 <-  split(df, df$n)
   
-  plan(multisession, workers = 10)
+  plan(multisession, workers = 3)
   
   #adding safety for if something goes wrong then it just outputs "Error" instead of crashing
   
@@ -537,7 +537,7 @@ get_sub_paramers_multi = function(parameters){
   
   #joint_covariance_matrix <- Matrix::nearPD(covariance_matrix)$mat
   
-  q = data.frame(mvrnorm(n = parameters$subjects[1], mu = mus, Sigma = joint_covariance_matrix))
+  q = data.frame(mvrnorm(n = parameters$subjects[1], mu = mus, Sigma = covariance_matrix))
   
   ses1 = paste0(c("alpha_session","beta_session","lapse_session","intercept_session","betart_session","sigma_session","ndt_session"),"1")
   ses2 = paste0(c("alpha_session","beta_session","lapse_session","intercept_session","betart_session","sigma_session","ndt_session"),"2")

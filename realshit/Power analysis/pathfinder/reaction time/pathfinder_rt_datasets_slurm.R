@@ -11,8 +11,8 @@ Run_poweranalysis = function(subjects, trials, effectsize_alpha,effectsize_beta)
   # 
   subjects = 20
   trials = 100
-  effectsize_alpha = 0.5
-  effectsize_beta = 0.5
+  effectsize_alpha = seq(0,1,by = 0.2)
+  effectsize_beta = seq(0,1,by = 0.2)
   
   
   subjects = subjects
@@ -36,9 +36,11 @@ Run_poweranalysis = function(subjects, trials, effectsize_alpha,effectsize_beta)
   
   #cores = parallelly::availableCores()
   
-  plan(multisession, workers = 10)
+  plan(multisession, workers = 30)
   
   possfit_model = possibly(.f = power_analysis_v2, otherwise = "Error")
+  
+  #test = power_analysis_v2(data_list[[1]])
   
   results <- future_map(data_list, ~possfit_model(.x), .options = furrr_options(seed = TRUE))
   
