@@ -81,24 +81,26 @@ transformed parameters{
 model{
   // Defining priors.
 
+
+  gm[1] ~ normal(0,20); //global mean of alpha
+
+  gm[2] ~ normal(0,20); //global mean of alpha
+
   gm[3] ~ normal(0,3); //global mean of beta
   
   gm[4] ~ normal(0, 3); //global mean of beta
   
   gm[5] ~ normal(-4,2); //global mean of lapse
 
-  gm[1] ~ normal(0,20); //global mean of alpha
-
-  gm[2] ~ normal(0,20); //global mean of alpha
-  
 
   to_vector(z_expo) ~ std_normal();
+  
+  tau_u[1] ~ normal(10, 10);
+  tau_u[2] ~ normal(10, 10);
   
   tau_u[3] ~ normal(0, 3);
   tau_u[4] ~ normal(0, 3);
   tau_u[5] ~ normal(0, 3);
-  tau_u[1] ~ normal(0, 10);
-  tau_u[2] ~ normal(0, 10);
     
   L_u ~ lkj_corr_cholesky(2);
   
