@@ -1,0 +1,209 @@
+---
+title: "Understanding effect_sizes"
+output: html_document
+date: "2024-03-30"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+pacman::p_load(cmdstanr, tidyverse,posterior, bayesplot, tidybayes, furrr,bridgesampling, rstan, brms, faux,LRO.utilities,reticulate, tictoc,rockchalk)
+  
+source(here::here("realshit","Power analysis","pathfinder","reaction time", "pathfinder_rt_datasets_scripts.R"))
+```
+
+## R Markdown
+
+
+```{r}
+mu1 = 4
+mu2 = 8
+sd1 = 2
+sd2 = 4
+
+hist(rnorm(10000,mu1,sd1)-rnorm(10000,mu2,sd2))
+
+hist(rnorm(10000,mu1-mu2,sqrt(sd1^2+sd2^2)))
+
+```
+
+
+```{r}
+effectsize = seq(0,2,by = 0.1)
+
+correlation = seq(0,0.9,by = 0.3)
+
+
+replicate = 1:25
+  
+parameters = expand.grid(effectsize = effectsize,
+                         correlation = correlation,
+                         replicate = replicate) %>% 
+  mutate(id = 1:nrow(.))
+
+data_list <- split(parameters, parameters$id)
+  
+
+get_ttest = function(parameters){
+
+  N = 50
+  mus = rep(c(10,5,-5),2)
+  
+  variances = rep(c(2,4,6),2)
+    
+  
+  cor_matrix = as.matrix(read.csv("realshit/Legrand reanalysis/savedcsv/correlation matrix.csv") %>% dplyr::select(-X))
+  
+  cor_matrix[4,1] = parameters$correlation
+   
+    
+  real_variances1 = variances[1]^2
+  real_variances2 = 1.5*real_variances1
+  
+  mu_difference_alpha = parameters$effectsize * sqrt((real_variances1 + real_variances2) / 2)
+  
+  sd_difference_alpha = sqrt(real_variances2+real_variances1)
+  
+  real_variances1 = variances[2]^2
+  real_variances2 = 1.5*real_variances1
+  
+  covariance_matrix <- cor_matrix * outer(variances, variances)
+  
+  #joint_covariance_matrix <- Matrix::nearPD(covariance_matrix)$mat
+  
+  q = data.frame(mvrnorm(n = N, mu = mus, Sigma = covariance_matrix))
+  
+  obs_cor = cor.test(q$X1, q$X4)$estimate[[1]]
+  
+  q$X4 = q$X4+rnorm(N,mu_difference_alpha,sd_difference_alpha)
+  
+  a = t.test(q$X1,q$X4)
+  
+  tval = data.frame(tval = a$statistic)
+  
+  tval$effectsize = parameters$effectsize
+  tval$real_correlation = parameters$correlation
+  tval$obs_cor = obs_cor
+  tval$replicate = parameters$replicate
+  return((tval))
+
+}
+
+get_ttest(data_list[[1]])
+
+
+plan(multisession, workers = 8)
+
+possfit_model = possibly(.f = get_ttest, otherwise = "Error")
+
+#test = power_analysis_without_psi(data_list[[1]])
+
+results <- future_map(data_list, ~possfit_model(.x), .options = furrr_options(seed = TRUE),.progress = TRUE)
+
+
+q = map_dfr(results,bind_rows)
+
+q %>% ggplot(aes(effectsize, tval, col = real_correlation))+geom_point()
+
+q %>% group_by(effectsize,real_correlation) %>% dplyr::summarize(meantval = mean(tval), sdtval = sd(tval)) %>% 
+  ggplot(aes(x = effectsize,y = meantval,ymin = meantval-sdtval, ymax = meantval+sdtval, col = real_correlation))+geom_pointrange(position=position_dodge(width=0.1))+facet_wrap(~real_correlation)
+
+
+q %>% group_by(effectsize,real_correlation) %>% dplyr::summarize(meantval = mean(tval), sdtval = sd(tval)) %>% ggplot(aes(x = effectsize, y = sdtval,col = as.factor(real_correlation)))+geom_point()+facet_wrap(~real_correlation)
+```
+
+
+
+
+
+```{r}
+effectsize = seq(0,2,by = 0.1)
+effectsize = 0.5
+correlation = seq(0,0.9,by = 0.3)
+
+
+replicate = 1:500
+  
+parameters = expand.grid(effectsize = effectsize,
+                         correlation = correlation,
+                         replicate = replicate) %>% 
+  mutate(id = 1:nrow(.))
+
+data_list <- split(parameters, parameters$id)
+  
+
+get_ttest = function(parameters){
+
+  N = 100
+  mus = rep(c(10,5,-5),2)
+  
+  variances = rep(c(2,4,6),2)
+    
+  
+  cor_matrix = as.matrix(read.csv("realshit/Legrand reanalysis/savedcsv/correlation matrix.csv") %>% dplyr::select(-X))
+  
+  cor_matrix[4,1] = parameters$correlation
+   
+    
+  real_variances1 = variances[1]^2
+  real_variances2 = 1.5*real_variances1
+  
+  mu_difference_alpha = parameters$effectsize * sqrt((real_variances1 + real_variances2) / 2)
+  
+  sd_difference_alpha = sqrt(real_variances2+real_variances1)
+  
+  real_variances1 = variances[2]^2
+  real_variances2 = 1.5*real_variances1
+  
+  covariance_matrix <- cor_matrix * outer(variances, variances)
+  
+  #joint_covariance_matrix <- Matrix::nearPD(covariance_matrix)$mat
+  
+  q = data.frame(mvrnorm(n = N, mu = mus, Sigma = covariance_matrix))
+  
+  obs_cor = cor.test(q$X1, q$X4)$estimate[[1]]
+  
+  q$X4 = q$X4+rnorm(N,mu_difference_alpha,sd_difference_alpha)
+  
+  a = t.test(q$X1,q$X4)
+  
+  tval = data.frame(tval = a$statistic)
+  
+  tval$effectsize = parameters$effectsize
+  tval$real_correlation = parameters$correlation
+  tval$obs_cor = obs_cor
+  tval$replicate = parameters$replicate
+  tval$obs_effectsize =  (mean(q$X4)-mean(q$X1))/sqrt((sd(q$X1)^2 + sd(q$X4)^2)/2)
+  
+  return((tval))
+
+}
+
+get_ttest(data_list[[1]])
+
+
+plan(multisession, workers = 8)
+
+possfit_model = possibly(.f = get_ttest, otherwise = "Error")
+
+#test = power_analysis_without_psi(data_list[[1]])
+
+results <- future_map(data_list, ~possfit_model(.x), .options = furrr_options(seed = TRUE),.progress = TRUE)
+
+
+q = map_dfr(results,bind_rows)
+
+
+q %>% ggplot(aes(obs_effectsize, fill = as.factor(real_correlation)))+
+  geom_histogram(col = "black", position = "identity", alpha = 0.75)
+
+
+q %>% ggplot(aes(effectsize, tval, col = real_correlation))+geom_point()
+
+q %>% group_by(effectsize,real_correlation) %>% dplyr::summarize(meantval = mean(tval), sdtval = sd(tval)) %>% 
+  ggplot(aes(x = effectsize,y = meantval,ymin = meantval-sdtval, ymax = meantval+sdtval, col = real_correlation))+geom_pointrange(position=position_dodge(width=0.1))+facet_wrap(~real_correlation)
+
+
+q %>% group_by(effectsize,real_correlation) %>% dplyr::summarize(meantval = mean(tval), sdtval = sd(tval)) %>% ggplot(aes(x = effectsize, y = sdtval,col = as.factor(real_correlation)))+geom_point()+facet_wrap(~real_correlation)
+```
+
+
