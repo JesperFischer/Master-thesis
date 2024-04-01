@@ -510,8 +510,6 @@ get_sub_paramers = function(parameters){
 
 get_sub_paramers_multi = function(parameters){
   
- 
-  
   mus = read.csv(here::here("realshit","Power analysis","pathfinder","reaction time","Legrand reults","means.csv")) %>% .$x
 
   variances = read.csv(here::here("realshit","Power analysis","pathfinder","reaction time","Legrand reults","between_variance.csv")) %>% .$x
@@ -523,14 +521,14 @@ get_sub_paramers_multi = function(parameters){
   
   mu_difference_alpha = parameters$effect_size_alpha * sqrt((real_variances1 + real_variances2) / 2)
   
-  sd_difference_alpha = sqrt(real_variances2-real_variances1)
+  sd_difference_alpha = sqrt(real_variances2+real_variances1)
   
   real_variances1 = variances[2]^2
   real_variances2 = 1.5*real_variances1
   
   mu_difference_beta = parameters$effect_size_beta* sqrt((real_variances1 + real_variances2) / 2)
   
-  sd_difference_beta = sqrt(real_variances2-real_variances1)
+  sd_difference_beta = sqrt(real_variances2+real_variances1)
   
   
   covariance_matrix <- cor_matrix * outer(variances, variances)

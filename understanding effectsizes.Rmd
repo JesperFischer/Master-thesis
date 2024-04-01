@@ -28,6 +28,64 @@ hist(rnorm(10000,mu1-mu2,sqrt(sd1^2+sd2^2)))
 
 
 ```{r}
+
+replicate = 1:50
+
+mu_dif = seq(0,1,by = 0.1)
+sd_dif = seq(0.1,1,by = 0.1)
+
+
+parameters = expand.grid(replicate = replicate,
+                         mu_dif = mu_dif,
+                         sd_dif = sd_dif) %>% 
+  mutate(id = 1:nrow(.))
+
+data_list <- split(parameters, parameters$id)
+  
+
+get_ttest = function(parameters){
+
+  N = 50
+  
+  sessions1 = rnorm(N,0,1)
+  sessions2 = rnorm(N,0,1) + rnorm(N,parameters$mu_dif,parameters$sd_dif)
+  
+  effectsize = (mean(sessions2)-mean(sessions1) / (sqrt(sd(sessions1)^2 + sd(sessions2)^2) - 2 * 0 * sd(sessions1) * sd(sessions2))) * sqrt(2 * (1-cor))
+  
+  tval = data.frame(obs_effect_size = effectsize,
+               mu_dif = parameters$mu_dif,
+               sd_dif = parameters$sd_dif,
+               replicate = parameters$replicate,
+               sd_ses2 = sd(sessions2)
+               )
+  
+  return(tval)
+
+}
+
+get_ttest(data_list[[1]])
+
+
+plan(multisession, workers = 8)
+
+possfit_model = possibly(.f = get_ttest, otherwise = "Error")
+
+#test = power_analysis_without_psi(data_list[[1]])
+
+results <- future_map(data_list, ~possfit_model(.x), .options = furrr_options(seed = TRUE),.progress = TRUE)
+
+
+q = map_dfr(results,bind_rows)
+
+q %>% group_by(sd_dif, cor) %>% dplyr::summarize(mean = mean(sd_ses2), correlation = mean(cor)) %>% mutate(calculated = sqrt(1^2+sd_dif^2))
+
+q %>% ggplot(aes(obs_effect_size, mu_dif, col = as.factor(sd_dif)))+geom_point()+facet_wrap(~sd_dif)
+
+
+```
+
+
+```{r}
 effectsize = seq(0,2,by = 0.1)
 
 correlation = seq(0,0.9,by = 0.3)
