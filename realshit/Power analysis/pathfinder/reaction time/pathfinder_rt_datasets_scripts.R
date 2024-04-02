@@ -4,8 +4,8 @@ power_analysis_v2 = function(parameters){
   source(here::here("realshit","Power analysis","pathfinder","reaction time", "pathfinder_rt_datasets_scripts.R"))
   
   a = get_sub_paramers_multi(parameters = data.frame(subjects = parameters$subjects,
-                                               effect_size_alpha = parameters$effect_size_alpha,
-                                               effect_size_beta = parameters$effect_size_beta
+                                                     effect_size_alpha = parameters$effect_size_alpha,
+                                                     effect_size_beta = parameters$effect_size_beta
   ))
   # cor.test(a %>% filter(session  == "session1") %>% .$alpha,a %>% filter(session  == "session2") %>% .$alpha)$estimate
   # cor.test(a %>% filter(session  == "session1") %>% .$beta,a %>% filter(session  == "session2") %>% .$beta)$estimate
@@ -86,12 +86,12 @@ power_analysis_v2 = function(parameters){
                    " trials = ",as.character(parameters$trials[1]),
                    " subjects = ",as.character(parameters$subjects[1]))
   
-  if(!dir.exists(here::here("realshit","Power analysis","pathfinder","reaction time","datasets",pattern))){
-    dir.create(here::here("realshit","Power analysis","pathfinder","reaction time","datasets",pattern))
+  if(!dir.exists(here::here("realshit","Power analysis","pathfinder","reaction time","datasets_single",pattern))){
+    dir.create(here::here("realshit","Power analysis","pathfinder","reaction time","datasets_single",pattern))
   }
   
   
-  write.csv(data,here::here("realshit","Power analysis","pathfinder","reaction time","datasets",pattern,directory))
+  write.csv(data,here::here("realshit","Power analysis","pathfinder","reaction time","datasets_single",pattern,directory))
   
   if(parameters$psi_only == T){
     print("done with")
@@ -511,9 +511,9 @@ get_sub_paramers = function(parameters){
 get_sub_paramers_multi = function(parameters){
   
   mus = read.csv(here::here("realshit","Power analysis","pathfinder","reaction time","Legrand reults","means.csv")) %>% .$x
-
+  
   variances = read.csv(here::here("realshit","Power analysis","pathfinder","reaction time","Legrand reults","between_variance.csv")) %>% .$x
-    
+  
   cor_matrix = as.matrix(read.csv(here::here("realshit","Power analysis","pathfinder","reaction time","Legrand reults","correlation matrix.csv")) %>% dplyr::select(-X))
   
   real_variances1 = variances[1]^2
@@ -544,16 +544,16 @@ get_sub_paramers_multi = function(parameters){
   
   
   parameters2 = q %>% pivot_longer(cols = starts_with("alpha") | starts_with("beta") |starts_with("lapse") |starts_with("intercept") |starts_with("betart") | starts_with("sigma") | starts_with("ndt"),
-                       names_to = c(".value", "session"),
-                     names_pattern = "(alpha|beta|lapse|intercept|betart|sigma|ndt)_(session\\d+)",
-                       values_to = c("value", "session")) %>% mutate(participant_id = rep(1:parameters$subjects[1],each = 2))
+                                   names_to = c(".value", "session"),
+                                   names_pattern = "(alpha|beta|lapse|intercept|betart|sigma|ndt)_(session\\d+)",
+                                   values_to = c("value", "session")) %>% mutate(participant_id = rep(1:parameters$subjects[1],each = 2))
   
   
   parameters2 = parameters2 %>% 
     mutate(alpha = ifelse(session == "session1", alpha,
                           ifelse(session == "session2", alpha+rnorm(parameters$subjects[1],mu_difference_alpha,sd_difference_alpha), NA))) %>% 
     mutate(beta = ifelse(session == "session1", beta,
-                          ifelse(session == "session2", beta+rnorm(parameters$subjects[1],mu_difference_beta,sd_difference_beta), NA)))
+                         ifelse(session == "session2", beta+rnorm(parameters$subjects[1],mu_difference_beta,sd_difference_beta), NA)))
   
   parameters2$beta = exp(parameters2$beta)
   parameters2$lapse = brms::inv_logit_scaled(parameters2$lapse) / 2
@@ -630,20 +630,20 @@ fit_pathfinder_static_rts = function(parameters){
                         prob = p,
                         resp = r,
                         trials = 1:N) %>% mutate(
-                        rts = rts,
-                        trials = parameters$trials,
-                        lapse = parameters$lapse,
-                        alpha = parameters$alpha,
-                        beta = parameters$beta,
-                        
-                        intercept = parameters$intercept,
-                        betart = parameters$betart,
-                        sigma = parameters$sigma,
-                        ndt = parameters$ndt,
-                        id =  rnorm(1,0,1000),
-                        participant_id = parameters$participant_id,
-                        sessions = parameters$sessions,
-                        model = "normal")
+                          rts = rts,
+                          trials = parameters$trials,
+                          lapse = parameters$lapse,
+                          alpha = parameters$alpha,
+                          beta = parameters$beta,
+                          
+                          intercept = parameters$intercept,
+                          betart = parameters$betart,
+                          sigma = parameters$sigma,
+                          ndt = parameters$ndt,
+                          id =  rnorm(1,0,1000),
+                          participant_id = parameters$participant_id,
+                          sessions = parameters$sessions,
+                          model = "normal")
   
   return(list(df_trial))
 }

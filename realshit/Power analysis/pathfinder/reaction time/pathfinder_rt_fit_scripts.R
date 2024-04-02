@@ -16,7 +16,7 @@ power_analysis_without_psi = function(parameters){
   
   
   # Get a list of all files in the directory
-  files <- sort(list.files(path = here::here("realshit","Power analysis","pathfinder","reaction time","datasets",pattern), full.names = TRUE))
+  files <- sort(list.files(path = here::here("realshit","Power analysis","pathfinder","reaction time","datasets_single",pattern), full.names = TRUE))
   
   data = read.csv(files[parameters$id])
   
@@ -28,6 +28,7 @@ power_analysis_without_psi = function(parameters){
   fit_model = function(data){
     
     mod_noncent = cmdstanr::cmdstan_model(here::here("realshit","Power analysis","pathfinder","reaction time","parameterized_NORT.stan"),stanc_options = list("O1"))
+    mod_noncent = cmdstanr::cmdstan_model(here::here("realshit","Power analysis","pathfinder","reaction time","parameterized_NORT_halfparam.stan"),stanc_options = list("O1"))
     
     data_trans = data %>% 
       mutate(session = ifelse(sessions == 1, 0 ,ifelse(sessions == 2, 1, 2)))
@@ -63,13 +64,13 @@ power_analysis_without_psi = function(parameters){
       init = 0,
       parallel_chains = 4,
       refresh = 500,
-      adapt_delta = 0.95,
-      max_treedepth = 12
+      adapt_delta = 0.8,
+      max_treedepth = 10
     )
     
     diags_nocentered = data.frame(fit_norm$diagnostic_summary())
     rhat_nocentered = data.frame(fit_norm$summary(c("gm[1]","gm[2]","gm[3]","gm[4]","gm[5]",
-                                                          "tau_u[1]","tau_u[2]","tau_u[3]","tau_u[4]","tau_u[5]"))) %>% 
+                                                    "tau_u[1]","tau_u[2]","tau_u[3]","tau_u[4]","tau_u[5]"))) %>% 
       .$rhat
     
     
@@ -110,15 +111,15 @@ power_analysis_without_psi = function(parameters){
     }
     
     
-    rows = data_rows %>% group_by(sessions,participant_id) %>% 
-      summarize(n = n()) %>% ungroup() %>% mutate(rows = cumsum(n)) %>% .$rows
+    rows = data_rows %>% dplyr::group_by(sessions,participant_id) %>% 
+      dplyr::summarize(n = n()) %>% dplyr::ungroup() %>% dplyr::mutate(rows = cumsum(n)) %>% .$rows
     
     
     alphas = data.frame(fit_norm$summary("alpha"))[rows,]
     
-    alphas = alphas %>% mutate(real_values = data_rows$alpha[rows],
-                               parameter = "alpha",
-                               participant_id = data_rows$participant_id[rows]
+    alphas = alphas %>% dplyr::mutate(real_values = data_rows$alpha[rows],
+                                      parameter = "alpha",
+                                      participant_id = data_rows$participant_id[rows]
     )
     
     betas = data.frame(fit_norm$summary("beta"))[rows,]
@@ -129,7 +130,7 @@ power_analysis_without_psi = function(parameters){
     )
     
     
-   
+    
     
     #saving
     difs = data.frame(fit_norm$summary(c("gm[1]","gm[2]","gm[3]","gm[4]","gm[5]",
@@ -156,6 +157,12 @@ power_analysis_without_psi = function(parameters){
     return(list(difs))
     
   }
+  
+  norts = fit_model(data)
+  
+  
+  return(norts)
+  
   
   fit_model_rt = function(data){
     
@@ -192,8 +199,9 @@ power_analysis_without_psi = function(parameters){
       chains = 4,
       parallel_chains = 4,
       refresh = 500,
-      adapt_delta = 0.95,
-      max_treedepth = 12
+      init = 0,
+      adapt_delta = 0.8,
+      max_treedepth = 10
     )
     
     diags_nocentered = data.frame(fit_norm$diagnostic_summary())
@@ -237,8 +245,8 @@ power_analysis_without_psi = function(parameters){
     }
     
     
-    rows = data_rows %>% group_by(sessions,participant_id) %>% 
-      summarize(n = n()) %>% ungroup() %>% mutate(rows = cumsum(n)) %>% .$rows
+    rows = data_rows %>% dplyr::group_by(sessions,participant_id) %>% 
+      dplyr::summarize(n = n()) %>% dplyr::ungroup() %>% dplyr::mutate(rows = cumsum(n)) %>% .$rows
     
     
     
@@ -267,16 +275,10 @@ power_analysis_without_psi = function(parameters){
     return(list(difs))
   }
   
+  rts = fit_model_rt(data)
   
+  return(list(norts,rts))
   
- # rts = fit_model_rt(data)
-  
-  norts = fit_model(data)
-  
-  
-  
-  
-  return(list(norts))
   
 }
 

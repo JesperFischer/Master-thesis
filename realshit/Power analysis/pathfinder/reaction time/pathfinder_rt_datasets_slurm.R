@@ -9,9 +9,9 @@ Run_poweranalysis = function(subjects, trials, effectsize_alpha,effectsize_beta)
   source(here::here("realshit","Power analysis","pathfinder","reaction time", "pathfinder_rt_datasets_scripts.R"))
   
   # 
-  subjects = c(10,15,20,25,30,40,50,100)
-  trials = c(50,100,150)
-  effectsize_alpha = seq(0,2,by = 0.2)
+  subjects = c(5,6,7,8,9,10,12,15,20)
+  trials = c(20,30,40,50,75,100,150)
+  effectsize_alpha = seq(0,1,by = 0.2)
   effectsize_beta = 0
   
   
@@ -34,15 +34,13 @@ Run_poweranalysis = function(subjects, trials, effectsize_alpha,effectsize_beta)
   data_list <- split(parameters, parameters$id)
   
   
-  #cores = parallelly::availableCores()
+  cores = parallelly::availableCores()
   
-  plan(multisession, workers = 30)
+  plan(multisession, workers = cores)
   
   possfit_model = possibly(.f = power_analysis_v2, otherwise = "Error")
   
-  #test = power_analysis_v2(data_list[[1]])
-  
-  results <- future_map(data_list, ~possfit_model(.x), .options = furrr_options(seed = TRUE))
+  results <- future_map(data_list, ~possfit_model(.x), .options = furrr_options(seed = TRUE), .progress = T)
   
   
   print("saved it! ")

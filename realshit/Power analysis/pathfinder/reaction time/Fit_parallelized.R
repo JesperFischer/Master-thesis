@@ -9,10 +9,16 @@ Run_poweranalysis = function(subjects, trials, effectsize_alpha, effectsize_beta
   source(here::here("realshit","Power analysis","pathfinder","reaction time", "pathfinder_rt_fit_scripts.R"))
   
   
-  subjects = 20
-  trials = 100
-  effectsize_alpha = 0.4
-  effectsize_beta = 0.2
+  
+  # 
+  subjects = c(5,6,7,8,9,10,12,15,20)
+  trials = c(20,30,40,50,75,100,150)
+  
+#  subjects = c(5,6)
+ # trials = c(20,30)
+  
+  effectsize_alpha = seq(0,1,by = 0.2)
+  effectsize_beta = 0
   
   subjects = subjects
   trials = trials
@@ -20,7 +26,7 @@ Run_poweranalysis = function(subjects, trials, effectsize_alpha, effectsize_beta
   effect_size_beta = effectsize_beta
   
   parameter = "both"
-  replicate = 1:100
+  replicate = 1:20
   
   parameters = expand.grid(subjects = subjects,
                            trials = trials,
@@ -33,8 +39,8 @@ Run_poweranalysis = function(subjects, trials, effectsize_alpha, effectsize_beta
   
   data_list <- split(parameters, parameters$id)
   
-
-  cores = 4
+  
+  #cores = 16*2
   
   plan(multisession, workers = cores)
   
@@ -42,8 +48,8 @@ Run_poweranalysis = function(subjects, trials, effectsize_alpha, effectsize_beta
   
   
   results <- future_map(data_list, ~possfit_model(.x), .options = furrr_options(seed = TRUE),.progress = TRUE)
-
-
+  
+  
   saveRDS(results,here::here("realshit","Power analysis","pathfinder","reaction time", "results","effectsize_alpha = 0.4, effectsize_beta = 0.2.rds"))
   
   
