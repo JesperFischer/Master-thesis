@@ -1,0 +1,183 @@
+---
+title: "Legrand ICC"
+output: html_document
+date: "2024-03-27"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+
+## Get data nort
+```{r}
+source(here::here("realshit","Legrand reanalysis","legrand_scripts.R"))
+
+hrd = get_data_rt(rt_threshold_s = 0.1)
+```
+
+## Fit nort
+```{r}
+mod = cmdstanr::cmdstan_model(here::here("realshit","Legrand reanalysis","ICC","stanmodels","ICC_nort.stan"))
+
+df = hrd
+
+df = df %>% arrange(s,session)
+
+trials_per_subject_per_session = df %>% group_by(session,s) %>% summarize(n = n()) %>% .$n
+
+cols_in_x = max(trials_per_subject_per_session)
+
+P = length(unique(df$s))
+S = length(unique(df$session))
+
+
+
+X = array(NA , dim =  c(S*P,cols_in_x))
+Y = array(NA , dim =  c(S*P,cols_in_x))
+
+idx = NULL
+for(ses in 1:S){
+  for(p in 1:P){
+    df1 = df %>% filter(s == p & session == ses)
+    X[(ses-1)*P+p, 1:trials_per_subject_per_session[(ses-1)*P+p]] = df1$x
+    Y[(ses-1)*P+p, 1:trials_per_subject_per_session[(ses-1)*P+p]] = df1$y
+  }
+}
+
+X[is.na(X)] = 99
+Y[is.na(Y)] = 99
+
+
+datastan = list(Y = Y,
+                N_s1 = max(df %>% filter(session == 1) %>% group_by(s) %>% summarize(n = n()) %>% .$n),
+                N_s2 = max(df %>% filter(session == 2) %>% group_by(s) %>% summarize(n = n()) %>% .$n),
+                S = length(unique(df$session)),
+                P = length(unique(df$s)),
+                t_p_s_p_ses = trials_per_subject_per_session,
+                #npx = cbind(df %>% filter(session == 1) %>% .$n, df %>% filter(session == 2) %>% .$n),
+                
+                #S_id = cbind(df %>% filter(session == 1) %>% .$s, df %>% filter(session == 2) %>% .$s),
+                X =  X
+                )
+                  
+                  
+fit <- mod$sample(
+  data = datastan, 
+  iter_sampling = 1000,
+  iter_warmup = 1000,
+  chains = 4, 
+  seed = 123,
+  parallel_chains = 4,
+  refresh = 10,
+  adapt_delta = 0.90,
+  max_treedepth = 12,
+)
+
+fit$save_object(here::here("realshit","Legrand reanalysis","ICC","workspace","ICC_nort_new.RDS"))
+```
+
+
+
+## get data RT
+```{r}
+source(here::here("realshit","Legrand reanalysis","legrand_scripts.R"))
+
+hrd = get_data_rt(rt_threshold_s = 0.1)
+
+```
+
+## Visualize RT
+```{r, fig.height=7, fig.width=7}
+ss = "132"
+ss = "155"
+psycho = hrd %>% filter(s == ss) %>% 
+  mutate(session = as.factor(session), y1 = y/n) %>% 
+  ggplot(aes(x = x, y = y1, col = session))+
+  geom_point()+geom_smooth(method=glm, method.args= list(family = binomial(logit)), 
+              se = FALSE)
+
+RTS = hrd %>% filter(s == ss) %>% 
+  mutate(session = as.factor(session), y1 = y/n) %>% 
+  ggplot(aes(x = x, y = RT, col = session))+
+  geom_point()+geom_smooth()
+
+library(patchwork)
+psycho/RTS
+```
+
+
+## Fit RT
+```{r, fig.height=10, fig.width=7}
+mod = cmdstanr::cmdstan_model(here::here("realshit","Legrand reanalysis","ICC","stanmodels","ICC_rt.stan"))
+
+
+
+df = hrd
+
+df = df %>% arrange(s,session)
+
+min_RT = df %>% group_by(session,s) %>% summarize(min_RT = min(RT)) %>% .$min_RT
+
+
+trials_per_subject_per_session = df %>% group_by(session,s) %>% summarize(n = n()) %>% .$n
+
+cols_in_x = max(trials_per_subject_per_session)
+
+P = length(unique(df$s))
+S = length(unique(df$session))
+
+
+X = array(NA , dim =  c(S*P,cols_in_x))
+Y = array(NA , dim =  c(S*P,cols_in_x))
+RT = array(NA , dim =  c(S*P,cols_in_x))
+
+idx = NULL
+for(ses in 1:S){
+  for(p in 1:P){
+    df1 = df %>% filter(s == p & session == ses)
+    X[(ses-1)*P+p, 1:trials_per_subject_per_session[(ses-1)*P+p]] = df1$x
+    Y[(ses-1)*P+p, 1:trials_per_subject_per_session[(ses-1)*P+p]] = df1$y
+    RT[(ses-1)*P+p, 1:trials_per_subject_per_session[(ses-1)*P+p]] = df1$RT
+
+      }
+}
+
+X[is.na(X)] = 99
+Y[is.na(Y)] = 99
+RT[is.na(RT)] = 99
+
+datastan = list(Y = Y,
+                N_s1 = max(df %>% filter(session == 1) %>% group_by(s) %>% summarize(n = n()) %>% .$n),
+                N_s2 = max(df %>% filter(session == 2) %>% group_by(s) %>% summarize(n = n()) %>% .$n),
+                S = length(unique(df$session)),
+                P = length(unique(df$s)),
+                t_p_s_p_ses = trials_per_subject_per_session,
+                RT = RT,
+                min_RT = min_RT,
+                #npx = cbind(df %>% filter(session == 1) %>% .$n, df %>% filter(session == 2) %>% .$n),
+                
+                #S_id = cbind(df %>% filter(session == 1) %>% .$s, df %>% filter(session == 2) %>% .$s),
+                X =  X
+                )
+
+fit_RT <- mod$sample(
+  data = datastan, 
+  iter_sampling = 1000,
+  iter_warmup = 1000,
+  chains = 4, 
+  parallel_chains = 4,
+  refresh = 10,
+  adapt_delta = 0.90,
+  max_treedepth = 12,
+)
+#
+
+#ICC_RT$summary("ICC")
+
+fit_RT$save_object(here::here("realshit","Legrand reanalysis","ICC","workspace","ICC_RT_new2.RDS"))
+
+
+```

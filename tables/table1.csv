@@ -1,0 +1,4 @@
+"","Parameter","Mean","Sd","Transformation"
+"1","Alpha",0,10,"x"
+"2","Beta",2,0.6,"Log(x)"
+"3","Lapse",-4,2,"Logit^-1(x) / 2"

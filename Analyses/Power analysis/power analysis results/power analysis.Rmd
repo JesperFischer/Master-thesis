@@ -1,0 +1,2317 @@
+---
+title: "analysis poweranalysis"
+output: html_document
+date: "2024-04-09"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+pacman::p_load(cmdstanr, tidyverse,posterior, bayesplot, tidybayes, furrr,bridgesampling, rstan, brms, faux,LRO.utilities,reticulate)
+
+source(here::here("Analyses","Power analysis","power analysis results","helpers.R"))
+```
+
+## R Markdown
+
+```{r}
+source(here::here("Analyses", "Power analysis", "power analysis results""helpers.R"))
+
+df_alpha = get_full_df("alpha") %>% filter(effectsize < 2.1 & divergences == 0)
+
+
+# Beta  visualization for alpha
+qq = df_alpha %>% filter(variable == "mu_g[4]")%>% mutate(signifi = ifelse(q5>0,1,0)) %>% 
+  group_by(effectsize,subjects, trials) %>% 
+  summarize(hits = sum(signifi), misses = n()-sum(signifi)) %>% 
+  rowwise() %>% 
+  mutate(betas = list(rbeta(10000, 1+hits, 1+misses)))
+```
+
+
+```{r, fig.width=8, fig.height=6}
+library(scales)
+betas = qq %>% group_by(effectsize,subjects, trials) %>% summarize(betas = unlist(betas)) %>% summarize(median = median(betas), q5 = hdi(betas)[1], q95 = hdi(betas)[2]) %>% 
+  mutate(trials = as.factor(trials), subjects = as.factor(subjects))
+#display ggplot2 default hex color codes from 1 to 8
+
+length(unique(qq$subjects))*length(unique(qq$trials))
+
+intervals = qq %>% group_by(trials,subjects) %>% summarize(n()) %>% group_by(subjects) %>% summarize(n = n()) %>% .$n
+
+
+colors = hue_pal()(50)
+i = 10
+
+
+qq %>% group_by(effectsize,subjects, trials) %>% summarize(betas = unlist(betas)) %>% summarize(median = median(betas), q5 = hdi(betas)[1], q95 = hdi(betas)[2]) %>% 
+  mutate(trials = as.factor(trials), subjects = as.factor(subjects)) %>% 
+  ggplot(aes(x = effectsize, y = median, col = interaction(subjects))) + 
+  geom_pointrange(aes(ymin = q5, ymax = q95), width = 0.2,  position=position_dodge(width=0.1)) +
+  theme_classic()+
+  #  geom_smooth(method = "glm", method.args = list(family = "binomial"), se = FALSE)+
+  # scale_color_manual(values = colors[c(1:intervals[1],(1:intervals[2])+i,(1:intervals[3])+i*2,(1:intervals[4])+i*3,(1:intervals[5])+i*4,(1:intervals[6])+i*4)])+
+  # guides(color = guide_legend(ncol = 2,name = "trials.subjects"))+
+  facet_wrap(~trials, labeller = label_both)
+
+
+
+qq %>% group_by(effectsize,subjects, trials) %>% summarize(betas = unlist(betas)) %>% summarize(median = median(betas), q5 = hdi(betas)[1], q95 = hdi(betas)[2]) %>% 
+  mutate(trials = as.factor(trials), subjects = as.factor(subjects)) %>% 
+  ggplot(aes(x = effectsize, y = median, col = interaction(trials))) + 
+  geom_pointrange(aes(ymin = q5, ymax = q95), width = 0.2,  position=position_dodge(width=0.1)) +
+  theme_classic()+
+#  geom_smooth(method = "glm", method.args = list(family = "binomial"), se = FALSE)+
+  ylab("Power")+
+  # scale_color_manual(values = colors[c(1:intervals[1],(1:intervals[2])+i,(1:intervals[3])+i*2,(1:intervals[4])+i*3,(1:intervals[5])+i*4,(1:intervals[6])+i*4)])+
+  # guides(color = guide_legend(ncol = 2,name = "trials.subjects"))+
+  facet_wrap(~subjects, labeller = label_both)
+
+qq %>% group_by(effectsize,subjects, trials) %>% summarize(betas = unlist(betas)) %>% summarize(median = median(betas), q5 = hdi(betas)[1], q95 = hdi(betas)[2]) %>% 
+  mutate(trials = as.factor(trials), subjects = as.factor(subjects)) %>% 
+  ggplot(aes(x = effectsize, y = median, col = interaction(subjects), shape = trials)) + 
+  geom_pointrange(aes(ymin = q5, ymax = q95), width = 0.2,  position=position_dodge(width=0.1)) +
+  theme_classic()+
+#  geom_smooth(method = "glm", method.args = list(family = "binomial"), se = FALSE)+
+  ylab("Power")+
+   guides(color = guide_legend(ncol = 3,name = "subjects"),
+          shape = guide_legend(ncol = 2,name = "trials"))+
+  theme(legend.position = "bottom",
+        legend.box = "horizontal")
+
+```
+
+
+#teting the plot idk.
+```{r, fig.width=8, fig.height=6}
+library(RColorBrewer)
+
+mypal <- colorRampPalette(brewer.pal(intervals[1], "Blues"))
+mypal2 <- colorRampPalette(brewer.pal(intervals[2], "YlOrRd"))
+mypal3 <- colorRampPalette(brewer.pal(intervals[3], "BuGn"))
+mypal4 <- colorRampPalette(brewer.pal(intervals[4], "BuPu"))
+mypal5 <- colorRampPalette(brewer.pal(intervals[5], "Oranges"))
+
+
+qq %>% group_by(effectsize,subjects, trials) %>% summarize(betas = unlist(betas)) %>% summarize(median = median(betas), q5 = hdi(betas)[1], q95 = hdi(betas)[2]) %>% 
+  mutate(trials = as.factor(trials), subjects = as.factor(subjects)) %>% 
+  ggplot(aes(x = effectsize, y = median, col = interaction(trials,subjects))) + 
+  geom_pointrange(aes(ymin = q5, ymax = q95), width = 0.2,  position=position_dodge(width=0.1)) +
+  theme_classic()+
+#  geom_smooth(method = "glm", method.args = list(family = "binomial"), se = FALSE)+
+  ylab("Power")+
+   scale_color_manual(values = c(mypal(intervals[1]),mypal2(intervals[2]),mypal3(intervals[3]),mypal4(intervals[4]),mypal5(intervals[5]),"black"))+
+   guides(color = guide_legend(ncol = 2,name = "trials.subjects"))
+
+
+```
+
+
+# fit the function independently:
+
+```{r, fig.height=6, fig.width=8}
+source(here::here("Analyses", "Power analysis", "power analysis results","helpers.R"))
+
+
+# Here we fit the trials ans subject independently such that we can look for the underlying pattern how the threshold and slope here are related to number of subjects and trials
+
+alpha_df = fit_results_independent_trials_and_subjects(df_alpha,
+                                                       "alpha",
+                                                       0.05)
+
+independent_norm_fit = alpha_df[[2]]
+alpha_df = alpha_df[[1]]
+
+# plotting the independent parameters as functions of trials and subjects:
+
+alpha_df %>% ggplot()+
+  geom_pointrange(aes(x = subjects, y = mean, ymin = q5, ymax = q95, col = trials), width = 0.2, position=position_dodge(width=0.3))+
+  facet_wrap(~parameter)+theme_classic()
+
+
+# log / x scale
+normal_log_x = alpha_df %>% 
+  filter(trials != 10) %>% 
+  ggplot()+
+  geom_pointrange(aes(x = subjects, y = log(mean), ymin = log(q5), ymax = log(q95), col = trials), width = 0.2, position=position_dodge(width=0.3))+
+  facet_wrap(~parameter)+theme_classic()
+
+# log / log scale
+normal_log_log = alpha_df  %>% 
+  filter(trials != 10)%>% 
+  mutate(subjects = as.numeric(as.character(subjects))) %>% ggplot()+
+  geom_pointrange(aes(x = log(subjects), y = log(mean), ymin = log(q5), ymax = log(q95), col = trials), width = 0.2, position=position_dodge(width=0.3))+
+  facet_wrap(~parameter)+theme_classic()
+
+
+
+
+# effect sizes at power = power
+power = 0.8
+
+# Using these parameter estimates we can obtain values for what effect size is required for a given power level:
+
+# Here we just use the mean values of the posterior draws of the parameters for each trial and subject: 
+
+alpha_df %>% select(q5,q95,mean,parameter,trials,subjects) %>% 
+  pivot_wider(names_from = c("parameter"), values_from = c("mean","q5","q95")) %>% rowwise() %>% 
+  mutate(effectsize_at_power_mean = qnorm(power,mean_alpha,mean_beta),
+         effectsize_at_power_q5 = qnorm(power,q5_alpha,q5_beta),
+         effectsize_at_power_q95 = qnorm(power,q95_alpha,q95_beta)) %>% ggplot()+
+  geom_pointrange(aes(x = subjects, y = effectsize_at_power_mean, ymin = effectsize_at_power_q5, ymax = effectsize_at_power_q95,col = trials), width = 0.2, position=position_dodge(width=0.3))+
+  ylab(paste0("effect size at power = ", power))+theme_classic()+coord_cartesian(ylim = c(0,3.5))
+
+
+
+# psychometric fits We can also plot the psychometrics from the parameter values shown above (fit independently:)
+
+alpha_df %>% select(mean,parameter,trials,subjects) %>% 
+  pivot_wider(names_from = c("parameter"), values_from = c("mean")) %>% rowwise() %>% 
+  mutate(xs = list(seq(0,2,by = 0.1)), ys = list(pnorm(seq(0,2,by = 0.1), mean = alpha, sd = beta))) %>% 
+  unnest() %>% ggplot(aes(x = xs, y = ys, col = interaction(trials)))+geom_line()+facet_wrap(~subjects, labeller = label_both)+
+  geom_pointrange(data = betas, aes(x = effectsize, y = median, ymin = q5, ymax = q95))
+
+
+```
+
+```{r, fig.height=6, fig.width=8}
+
+psychometric = function(x, alpha,beta){
+  return(1-exp(-(x / alpha)^(1/beta)))
+}
+
+
+source(here::here("Analyses", "Power analysis", "power analysis results""helpers.R"))
+
+
+# Here we fit the trials ans subject independently such that we can look for the underlying pattern how the threshold and slope here are related to number of subjects and trials
+
+alpha_df_weibull = fit_results_independent_trials_and_subjects_v2(df_alpha,
+                                                       "alpha",
+                                                       0.05)
+
+independent_weibull_fit = alpha_df_weibull[[2]]
+alpha_df_weibull = alpha_df_weibull[[1]]
+
+
+# plotting the independent parameters as functions of trials and subjects:
+
+alpha_df_weibull %>% ggplot()+
+  geom_pointrange(aes(x = subjects, y = mean, ymin = q5, ymax = q95, col = trials), width = 0.2, position=position_dodge(width=0.3))+
+  facet_wrap(~parameter)+theme_classic()
+
+
+
+# log / x scale
+weibull_log_x = alpha_df_weibull  %>% 
+  filter(trials != 10)%>% 
+  ggplot()+
+  geom_pointrange(aes(x = subjects, y = log(mean), ymin = log(q5), ymax = log(q95), col = trials), width = 0.2, position=position_dodge(width=0.3))+
+  facet_wrap(~parameter)+theme_classic()
+
+# log / log scale
+weibull_log_log = alpha_df_weibull %>% 
+  filter(trials != 10)%>% 
+  mutate(subjects = as.numeric(as.character(subjects))) %>% ggplot()+
+  geom_pointrange(aes(x = log(subjects), y = log(mean), ymin = log(q5), ymax = log(q95), col = trials), width = 0.2, position=position_dodge(width=0.3))+
+  facet_wrap(~parameter)+theme_classic()
+
+
+
+# effect sizes at power = power
+power = 0.8
+
+# Using these parameter estimates we can obtain values for what effect size is required for a given power level:
+
+# Here we just use the mean values of the posterior draws of the parameters for each trial and subject: 
+library(VGAMextra)
+alpha_df_weibull %>% select(q5,q95,mean,parameter,trials,subjects) %>% 
+  pivot_wider(names_from = c("parameter"), values_from = c("mean","q5","q95")) %>% rowwise() %>% 
+  mutate(effectsize_at_power_mean = qinvweibull(power,mean_alpha,1/mean_beta),
+         effectsize_at_power_q5 = qinvweibull(power,q5_alpha,1/q5_beta),
+         effectsize_at_power_q95 = qinvweibull(power,q95_alpha,1/q95_beta)) %>% ggplot()+
+  geom_pointrange(aes(x = subjects, y = effectsize_at_power_mean, ymin = effectsize_at_power_q5, ymax = effectsize_at_power_q95,col = trials), width = 0.2, position=position_dodge(width=0.3))+
+  ylab(paste0("effect size at power = ", power))+theme_classic()+coord_cartesian(ylim = c(0,3.5))
+
+
+
+# psychometric fits We can also plot the psychometrics from the parameter values shown above (fit independently:)
+
+alpha_df_weibull %>% select(mean,parameter,trials,subjects) %>% 
+  pivot_wider(names_from = c("parameter"), values_from = c("mean")) %>% rowwise() %>% 
+  mutate(xs = list(seq(0,2,by = 0.1)), ys = list(psychometric(seq(0,2,by = 0.1),alpha,beta))) %>% 
+  unnest() %>% ggplot(aes(x = xs, y = ys, col = interaction(trials)))+geom_line()+facet_wrap(~subjects, labeller = label_both)+
+  geom_pointrange(data = betas, aes(x = effectsize, y = median, ymin = q5, ymax = q95))
+
+
+```
+
+
+#logistic
+```{r, fig.height=6, fig.width=8}
+psychometric_logs = function(x, alpha,beta){
+  return(1/(1+exp(-(1/beta) * (x - alpha))))
+}
+
+
+q_logit = function(x, alpha,beta){
+  return(alpha + beta * log(x / (1-x)))
+}
+
+
+source(here::here("Analyses", "Power analysis", "power analysis results""helpers.R"))
+
+# Here we fit the trials ans subject independently such that we can look for the underlying pattern how the threshold and slope here are related to number of subjects and trials
+
+alpha_df_logs = fit_results_independent_trials_and_subjects_v3(df_alpha,
+                                                       "alpha",
+                                                       0.05)
+
+independent_logs_fit = alpha_df_logs[[2]]
+alpha_df_logs = alpha_df_logs[[1]]
+
+
+# plotting the independent parameters as functions of trials and subjects:
+
+alpha_df_logs %>% 
+  ggplot()+
+  geom_pointrange(aes(x = subjects, y = mean, ymin = q5, ymax = q95, col = trials), width = 0.2, position=position_dodge(width=0.3))+
+  facet_wrap(~parameter)+theme_classic()
+
+
+# log / x scale
+logs_log_x = alpha_df_logs %>% 
+  filter(trials != 10) %>% 
+  ggplot()+
+  geom_pointrange(aes(x = subjects, y = log(mean), ymin = log(q5), ymax = log(q95), col = trials), width = 0.2, position=position_dodge(width=0.3))+
+  facet_wrap(~parameter)+theme_classic()
+
+# log / log scale
+logs_log_log = alpha_df_logs %>% 
+    filter(trials != 10) %>% 
+  mutate(subjects = as.numeric(as.character(subjects))) %>% ggplot()+
+  geom_pointrange(aes(x = log(subjects), y = log(mean), ymin = log(q5), ymax = log(q95), col = trials), width = 0.2, position=position_dodge(width=0.3))+
+  facet_wrap(~parameter)+theme_classic()
+
+
+
+# effect sizes at power = power
+power = 0.8
+
+# Using these parameter estimates we can obtain values for what effect size is required for a given power level:
+
+# Here we just use the mean values of the posterior draws of the parameters for each trial and subject: 
+library(VGAMextra)
+alpha_df_logs %>% select(q5,q95,mean,parameter,trials,subjects) %>% 
+  pivot_wider(names_from = c("parameter"), values_from = c("mean","q5","q95")) %>% rowwise() %>% 
+  mutate(effectsize_at_power_mean = q_logit(power,mean_alpha,mean_beta),
+         effectsize_at_power_q5 = q_logit(power,q5_alpha,q5_beta),
+         effectsize_at_power_q95 = q_logit(power,q95_alpha,q95_beta)) %>% ggplot()+
+  geom_pointrange(aes(x = subjects, y = effectsize_at_power_mean, ymin = effectsize_at_power_q5, ymax = effectsize_at_power_q95,col = trials), width = 0.2, position=position_dodge(width=0.3))+
+  ylab(paste0("effect size at power = ", power))+theme_classic()+coord_cartesian(ylim = c(0,3.5))
+
+
+
+# psychometric fits We can also plot the psychometrics from the parameter values shown above (fit independently:)
+
+alpha_df_logs %>% select(q95,q5,mean,parameter,trials,subjects) %>% 
+  pivot_wider(names_from = c("parameter"), values_from = c("mean","q5","q95")) %>% rowwise() %>% 
+  mutate(xs = list(seq(0,2,by = 0.01)),
+         ys = list(psychometric_logs(seq(0,2,by = 0.01),mean_alpha,mean_beta)),
+         q5 = list(psychometric_logs(seq(0,2,by = 0.01),q5_alpha,q5_beta)),
+         q95 = list(psychometric_logs(seq(0,2,by = 0.01),q95_alpha,q95_beta))) %>% 
+  unnest() %>% 
+  ggplot(aes(x = xs, y = ys, ymin = q5, ymax = q95, col = trials,fill = trials))+
+  geom_ribbon(alpha = 0.6)+
+  geom_line(aes(x = xs, y = ys), col = "black")+
+  facet_wrap(~subjects, labeller = label_both)+
+  geom_pointrange(data = betas, aes(x = effectsize, y = median, ymin = q5, ymax = q95))+
+  theme_classic()
+
+
+
+
+
+```
+
+```{r, fig.width=8, fig.height=6}
+library(patchwork)
+
+((normal_log_x+ ggtitle("model = Normal")+weibull_log_x+ ggtitle("Model = Weibull")+logs_log_x+ ggtitle("model = logistic")) / ((normal_log_log+ ggtitle("model = Normal")+weibull_log_log+ ggtitle("Model = Weibull")+logs_log_log+ ggtitle("model = logistic"))))+ plot_layout(guides = "collect") & theme(legend.position = 'bottom')
+```
+
+
+```{r}
+inde_norm_loo = independent_norm_fit$loo()
+inde_weibull_loo = independent_weibull_fit$loo()
+inde_logs_loo = independent_logs_fit$loo()
+```
+
+
+```{r}
+loo::loo_compare(list(norm = inde_norm_loo,
+                      weibull = inde_weibull_loo,
+                      logs = inde_logs_loo))
+
+
+```
+
+
+
+# Fitting the decreasing exponential functions (Normal)
+```{r}
+
+psychometric_norm = function(x, alpha,beta){
+  return(0.5+0.5 * pracma::erf((x-alpha) / (beta * sqrt(2))))
+}
+
+df_alpha1 = df_alpha %>% filter(divergences == 0)
+
+ff = get_modeling_data(df = df_alpha1,parameter = "alpha", signi_level = 0.05)
+
+ff = ff %>% filter(group_change > 0) 
+
+
+subs = scale(as.numeric(as.character(ff$subjects)))[,1]
+trials = scale(as.numeric(as.character(ff$trials)))[,1]
+int = scale(as.numeric(as.character(ff$subjects)))[,1] * scale(as.numeric(as.character(ff$trials)))[,1]
+  
+
+design_matrix = data.frame(subs = subs,
+                           trials = trials,
+                           interaction = int)
+
+
+  
+standata = list(x = ff$group_change,
+                N = nrow(ff),
+                design_matrix = design_matrix,
+                param = ncol(design_matrix),
+                y = ff$significant)
+
+
+mod = cmdstanr::cmdstan_model(here::here("Analyses", "Power analysis", "power analysis results","stanmodels","exponential decreasing functions","normal.stan"),stanc_options = list("O1"))
+
+fit_norm <- mod$sample(
+  data = standata, 
+  chains = 4,
+  refresh = 50,
+  iter_warmup = 1000,
+  iter_sampling = 1000,
+  parallel_chains = 4,
+  adapt_delta = 0.80,
+  max_treedepth = 12
+)
+
+
+mcmc_trace(fit_norm$draws(c("expo_alpha","expo_beta","intercept_alpha","intercept_beta","asym_alpha","asym_beta")))
+
+d = as_draws_df(fit_norm$draws(c("expo_alpha","expo_beta","intercept_alpha","intercept_beta","asym_alpha","asym_beta")))[sample(1:4000,500),]
+
+names(d)[1:10] = c("expo_alpha1","expo_alpha2","expo_alpha3",
+             "expo_beta1","expo_beta2","expo_beta3",
+             "intercept_alpha","intercept_beta","asym_alpha","asym_beta")
+
+
+bigdf = data.frame()
+
+unique_combinations <- unique(alpha_df[c("trials", "subjects")])
+
+unique_combinations$trials = as.numeric(as.character(unique_combinations$trials))
+unique_combinations$subjects = as.numeric(as.character(unique_combinations$subjects))
+
+for(i in 1:nrow(unique_combinations)){
+    subs1 = unique_combinations[i,2]
+    subs = (subs1-mean(as.numeric(as.character(ff$subjects)))) / sd(as.numeric(as.character(ff$subjects)))
+
+    trial1 = unique_combinations[i,1]
+    trial = (trial1 - mean(as.numeric(as.character(ff$trials)))) / sd(as.numeric(as.character(ff$trials)))
+    
+    data = d %>% rowwise() %>% 
+      mutate(alpha = exp(intercept_alpha) * exp(-(expo_alpha1*subs + expo_alpha2*trial + expo_alpha3*trial*subs))+exp(asym_alpha),
+             beta = exp(intercept_beta) * exp(-(expo_beta1*subs + expo_beta2*trial + expo_beta3*trial*subs))+exp(asym_beta))%>% 
+      mutate(power = list(psychometric_norm(seq(0,2,by = 0.01), alpha, beta)),
+           obs_effectsize = list(seq(0,2,by = 0.01))) %>% 
+    unnest() %>% mutate(subjects = subs1, trials = trial1)
+    
+    bigdf = rbind(data,bigdf)
+}
+
+library(scales)
+
+
+bigdf %>% mutate(subjects = as.factor(subjects),
+                 trials = as.factor(trials)) %>% group_by(obs_effectsize, subjects, trials) %>% 
+  summarize(mean = mean(power), q5 = quantile2(power,0.05),q95 = quantile2(power,0.95),
+            var_predict = mean((power * (1 - power)))) %>% 
+  ggplot(aes(x = obs_effectsize, y = mean, ymin = q5, ymax = q95, fill = trials, col = trials))+
+  geom_ribbon(alpha = 0.8)+
+  # geom_ribbon(aes(x = obs_effectsize, y = mean, ymin = q5 - var_predict, ymax = q95 + var_predict),alpha = 0.5)+
+  geom_pointrange(data = betas, aes(x = effectsize, y = median, ymin = q5, ymax = q95))+
+  geom_line(aes(x = obs_effectsize, y = mean), col = "black", alpha = 0.5)+
+  facet_wrap(~subjects)
+
+
+bigdf %>% mutate(subjects = as.factor(subjects),
+                 trials = as.factor(trials)) %>% group_by(obs_effectsize, subjects, trials) %>% 
+  summarize(mean = mean(power), q5 = quantile2(power,0.05),q95 = quantile2(power,0.95),
+            var_predict = mean((power * (1 - power)))) %>% filter(subjects == 10) %>% 
+  ggplot(aes(x = obs_effectsize, y = mean, ymin = q5, ymax = q95, fill = trials, col = trials))+
+  geom_ribbon(aes(x = obs_effectsize, y = mean, ymin = q5 - var_predict, ymax = q95 + var_predict),alpha = 0.5)+
+  geom_ribbon(alpha = 0.8)+
+  geom_line(aes(x = obs_effectsize, y = mean), col = "black", alpha = 0.5)+
+  geom_pointrange(data = betas%>% filter(subjects == 10), aes(x = effectsize, y = median, ymin = q5, ymax = q95))+
+  facet_wrap(~subjects)
+```
+
+# Fitting the decreasing exponential functions (weibull)
+```{r}
+psychometric = function(x, alpha,beta){
+  return(1-exp(-(x / alpha)^(1/beta)))
+}
+
+df_alpha1 = df_alpha %>% filter(divergences == 0)
+
+ff = get_modeling_data(df = df_alpha1,parameter = "alpha", signi_level = 0.05)
+
+ff = ff %>% filter(group_change > 0) 
+
+
+subs = scale(as.numeric(as.character(ff$subjects)))[,1]
+trials = scale(as.numeric(as.character(ff$trials)))[,1]
+int = scale(as.numeric(as.character(ff$subjects)))[,1] * scale(as.numeric(as.character(ff$trials)))[,1]
+  
+
+design_matrix = data.frame(subs = subs,
+                           trials = trials,
+                           interaction = int)
+
+
+  
+standata = list(x = ff$group_change,
+                N = nrow(ff),
+                design_matrix = design_matrix,
+                param = ncol(design_matrix),
+                y = ff$significant)
+
+
+mod = cmdstanr::cmdstan_model(here::here("Analyses", "Power analysis", "power analysis results","stanmodels","exponential decreasing functions","weibull.stan"),stanc_options = list("O1"))
+
+fit_weibull <- mod$sample(
+  data = standata, 
+  chains = 4,
+  refresh = 50,
+  iter_warmup = 1000,
+  iter_sampling = 1000,
+  parallel_chains = 4,
+  adapt_delta = 0.80,
+  max_treedepth = 12
+)
+
+
+mcmc_trace(fit_weibull$draws(c("expo_alpha","expo_beta","intercept_alpha","intercept_beta","asym_alpha","asym_beta")))
+
+d_wei = as_draws_df(fit_weibull$draws(c("expo_alpha","expo_beta","intercept_alpha","intercept_beta","asym_alpha","asym_beta")))[sample(1:4000,500),]
+
+names(d_wei)[1:10] = c("expo_alpha1","expo_alpha2","expo_alpha3",
+             "expo_beta1","expo_beta2","expo_beta3",
+             "intercept_alpha","intercept_beta","asym_alpha","asym_beta")
+
+
+bigdf_wei = data.frame()
+
+unique_combinations <- unique(alpha_df[c("trials", "subjects")])
+
+unique_combinations$trials = as.numeric(as.character(unique_combinations$trials))
+unique_combinations$subjects = as.numeric(as.character(unique_combinations$subjects))
+
+for(i in 1:nrow(unique_combinations)){
+    subs1 = unique_combinations[i,2]
+    subs = (subs1-mean(as.numeric(as.character(ff$subjects)))) / sd(as.numeric(as.character(ff$subjects)))
+
+    trial1 = unique_combinations[i,1]
+    trial = (trial1 - mean(as.numeric(as.character(ff$trials)))) / sd(as.numeric(as.character(ff$trials)))
+    
+    data = d_wei %>% rowwise() %>% 
+      mutate(alpha = exp(intercept_alpha) * exp(-(expo_alpha1*subs + expo_alpha2*trial + expo_alpha3*trial*subs))+exp(asym_alpha),
+             beta = exp(intercept_beta) * exp(-(expo_beta1*subs + expo_beta2*trial + expo_beta3*trial*subs))+exp(asym_beta))%>% 
+      mutate(power = list(psychometric_norm(seq(0,2,by = 0.01), alpha, beta)),
+           obs_effectsize = list(seq(0,2,by = 0.01))) %>% 
+    unnest() %>% mutate(subjects = subs1, trials = trial1)
+    
+    bigdf_wei = rbind(data,bigdf_wei)
+}
+
+library(scales)
+
+bigdf_wei %>% mutate(subjects = as.factor(subjects),
+                 trials = as.factor(trials)) %>% group_by(obs_effectsize, subjects, trials) %>% 
+  summarize(mean = mean(power), q5 = quantile2(power,0.05),q95 = quantile2(power,0.95),
+            var_predict = mean((power * (1 - power)))) %>% 
+  ggplot(aes(x = obs_effectsize, y = mean, ymin = q5, ymax = q95, fill = trials, col = trials))+
+  geom_ribbon(alpha = 0.8)+
+  # geom_ribbon(aes(x = obs_effectsize, y = mean, ymin = q5 - var_predict, ymax = q95 + var_predict),alpha = 0.5)+
+  geom_pointrange(data = betas, aes(x = effectsize, y = median, ymin = q5, ymax = q95))+
+  geom_line(aes(x = obs_effectsize, y = mean), col = "black", alpha = 0.5)+
+  facet_wrap(~subjects)
+
+
+bigdf_wei %>% mutate(subjects = as.factor(subjects),
+                 trials = as.factor(trials)) %>% group_by(obs_effectsize, subjects, trials) %>% 
+  summarize(mean = mean(power), q5 = quantile2(power,0.05),q95 = quantile2(power,0.95),
+            var_predict = mean((power * (1 - power)))) %>% filter(subjects == 10) %>% 
+  ggplot(aes(x = obs_effectsize, y = mean, ymin = q5, ymax = q95, fill = trials, col = trials))+
+  geom_ribbon(aes(x = obs_effectsize, y = mean, ymin = q5 - var_predict, ymax = q95 + var_predict),alpha = 0.5)+
+  geom_ribbon(alpha = 0.8)+
+  geom_line(aes(x = obs_effectsize, y = mean), col = "black", alpha = 0.5)+
+  geom_pointrange(data = betas%>% filter(subjects == 10), aes(x = effectsize, y = median, ymin = q5, ymax = q95))+
+  facet_wrap(~subjects)
+```
+
+
+# Fitting the decreasing exponential functions (weibull)
+```{r}
+psychometric_logs = function(x, alpha,beta){
+  return(1/(1+exp(-(1/beta) * (x - alpha))))
+}
+df_alpha1 = df_alpha %>% filter(divergences == 0)
+
+ff = get_modeling_data(df = df_alpha1,parameter = "alpha", signi_level = 0.05)
+
+ff = ff %>% filter(group_change > 0) 
+
+
+subs = scale(as.numeric(as.character(ff$subjects)))[,1]
+trials = scale(as.numeric(as.character(ff$trials)))[,1]
+int = scale(as.numeric(as.character(ff$subjects)))[,1] * scale(as.numeric(as.character(ff$trials)))[,1]
+  
+
+design_matrix = data.frame(subs = subs,
+                           trials = trials,
+                           interaction = int)
+
+
+  
+standata = list(x = ff$group_change,
+                N = nrow(ff),
+                design_matrix = design_matrix,
+                param = ncol(design_matrix),
+                y = ff$significant)
+
+
+mod = cmdstanr::cmdstan_model(here::here("Analyses", "Power analysis", "power analysis results","stanmodels","exponential decreasing functions","logistic.stan"),stanc_options = list("O1"))
+
+fit_logs <- mod$sample(
+  data = standata, 
+  chains = 4,
+  refresh = 50,
+  iter_warmup = 1000,
+  iter_sampling = 1000,
+  parallel_chains = 4,
+  adapt_delta = 0.80,
+  max_treedepth = 12
+)
+
+
+mcmc_trace(fit_logs$draws(c("expo_alpha","expo_beta","intercept_alpha","intercept_beta","asym_alpha","asym_beta")))
+
+d_logs = as_draws_df(fit_logs$draws(c("expo_alpha","expo_beta","intercept_alpha","intercept_beta","asym_alpha","asym_beta")))[sample(1:4000,500),]
+
+names(d_logs)[1:10] = c("expo_alpha1","expo_alpha2","expo_alpha3",
+             "expo_beta1","expo_beta2","expo_beta3",
+             "intercept_alpha","intercept_beta","asym_alpha","asym_beta")
+
+
+bigdf_logs = data.frame()
+
+unique_combinations <- unique(alpha_df[c("trials", "subjects")])
+
+unique_combinations$trials = as.numeric(as.character(unique_combinations$trials))
+unique_combinations$subjects = as.numeric(as.character(unique_combinations$subjects))
+
+for(i in 1:nrow(unique_combinations)){
+    subs1 = unique_combinations[i,2]
+    subs = (subs1-mean(as.numeric(as.character(ff$subjects)))) / sd(as.numeric(as.character(ff$subjects)))
+
+    trial1 = unique_combinations[i,1]
+    trial = (trial1 - mean(as.numeric(as.character(ff$trials)))) / sd(as.numeric(as.character(ff$trials)))
+    
+    data = d_logs %>% rowwise() %>% 
+      mutate(alpha = exp(intercept_alpha) * exp(-(expo_alpha1*subs + expo_alpha2*trial + expo_alpha3*trial*subs))+exp(asym_alpha),
+             beta = exp(intercept_beta) * exp(-(expo_beta1*subs + expo_beta2*trial + expo_beta3*trial*subs))+exp(asym_beta))%>% 
+      mutate(power = list(psychometric_logs(seq(0,2,by = 0.01), alpha, beta)),
+           obs_effectsize = list(seq(0,2,by = 0.01))) %>% 
+    unnest() %>% mutate(subjects = subs1, trials = trial1)
+    
+    bigdf_logs = rbind(data,bigdf_logs)
+}
+
+library(scales)
+
+bigdf_logs %>% mutate(subjects = as.factor(subjects),
+                 trials = as.factor(trials)) %>% group_by(obs_effectsize, subjects, trials) %>% 
+  summarize(mean = mean(power), q5 = quantile2(power,0.05),q95 = quantile2(power,0.95),
+            var_predict = mean((power * (1 - power)))) %>% 
+  ggplot(aes(x = obs_effectsize, y = mean, ymin = q5, ymax = q95, fill = trials, col = trials))+
+  geom_ribbon(alpha = 0.8)+
+  # geom_ribbon(aes(x = obs_effectsize, y = mean, ymin = q5 - var_predict, ymax = q95 + var_predict),alpha = 0.5)+
+  geom_pointrange(data = betas, aes(x = effectsize, y = median, ymin = q5, ymax = q95))+
+  geom_line(aes(x = obs_effectsize, y = mean), col = "black", alpha = 0.5)+
+  facet_wrap(~subjects)
+
+
+bigdf_logs %>% mutate(subjects = as.factor(subjects),
+                 trials = as.factor(trials)) %>% group_by(obs_effectsize, subjects, trials) %>% 
+  summarize(mean = mean(power), q5 = quantile2(power,0.05),q95 = quantile2(power,0.95),
+            var_predict = mean((power * (1 - power)))) %>% filter(subjects == 10) %>% 
+  ggplot(aes(x = obs_effectsize, y = mean, ymin = q5, ymax = q95, fill = trials, col = trials))+
+  geom_ribbon(aes(x = obs_effectsize, y = mean, ymin = q5 - var_predict, ymax = q95 + var_predict),alpha = 0.5)+
+  geom_ribbon(alpha = 0.8)+
+  geom_line(aes(x = obs_effectsize, y = mean), col = "black", alpha = 0.5)+
+  geom_pointrange(data = betas%>% filter(subjects == 10), aes(x = effectsize, y = median, ymin = q5, ymax = q95))+
+  facet_wrap(~subjects)
+```
+
+
+# model comparison
+```{r}
+weibull = fit_weibull$loo()
+norm = fit_norm$loo()
+logs = fit_logs$loo()
+loo::loo_compare(list(weibull = weibull,
+                      norm = norm,
+                      logs = logs))
+
+```
+
+
+
+# Fitting power laws instead with interactions
+
+```{r}
+psychometric_norm = function(x, alpha,beta){
+  return(0.5+0.5 * pracma::erf((x-alpha) / (beta * sqrt(2))))
+}
+
+df_alpha1 = df_alpha %>% filter(divergences == 0)
+
+ff = get_modeling_data(df = df_alpha1,parameter = "alpha", signi_level = 0.05)
+
+ff = ff %>% filter(group_change > 0)
+
+ff %>% ggplot(aes(x = group_change, y = significant, col = subjects))+geom_smooth()+facet_wrap(~trials)
+
+subs = (as.numeric(as.character(ff$subjects)))
+trials = (as.numeric(as.character(ff$trials)))
+int = (as.numeric(as.character(ff$subjects))) + (as.numeric(as.character(ff$trials)))
+  
+
+design_matrix = data.frame(subs = subs,
+                           trials = trials,
+                           intaction = int)
+
+
+
+  
+standata = list(x = ff$group_change,
+                N = nrow(ff),
+                design_matrix = design_matrix,
+                param = ncol(design_matrix),
+                y = ff$significant)
+
+
+mod = cmdstanr::cmdstan_model(here::here("Analyses", "Power analysis", "power analysis results","stanmodels","power laws","normal_powerfunction.stan"),stanc_options = list("O1"))
+
+
+fit_norm_power <- mod$sample(
+  data = standata, 
+  chains = 4,
+  init = 0,
+  refresh = 50,
+  iter_warmup = 1000,
+  iter_sampling = 1000,
+  parallel_chains = 4,
+  adapt_delta = 0.80,
+  max_treedepth = 12
+)
+
+mcmc_trace(fit_norm_power$draws(c("expo_alpha","expo_beta","intercept_beta","intercept_alpha")))
+
+
+d_norm = as_draws_df(fit_norm_power$draws(c("expo_alpha","expo_beta","intercept_alpha","intercept_beta")))[sample(1:4000,500),]
+
+names(d_norm)[1:8] = c("expo_alpha1","expo_alpha2","expo_alpha3",
+             "expo_beta1","expo_beta2","expo_beta3",
+             "intercept_alpha","intercept_beta")
+
+
+bigdf_norm_power = data.frame()
+unique_combinations <- unique(alpha_df[c("trials", "subjects")])
+
+unique_combinations$trials = as.numeric(as.character(unique_combinations$trials))
+unique_combinations$subjects = as.numeric(as.character(unique_combinations$subjects))
+
+for(i in 1:nrow(unique_combinations)){
+    subs = unique_combinations[i,2]
+    
+    trial = unique_combinations[i,1]
+    
+    data = d_norm %>% rowwise() %>% 
+      mutate(alpha = exp(intercept_alpha) * subs ^ expo_alpha1 * trial^expo_alpha2* (trial+subs)^expo_alpha3,
+             beta = exp(intercept_beta) * subs ^ expo_beta1 * trial^expo_beta2 * (trial+subs)^expo_beta3)%>% 
+      mutate(power = list(psychometric_norm(seq(0,2,by = 0.01), alpha, beta)),
+           obs_effectsize = list(seq(0,2,by = 0.01))) %>% 
+    unnest() %>% mutate(subjects = subs, trials = trial)
+    
+    bigdf_norm_power = rbind(data,bigdf_norm_power)
+}
+
+
+library(scales)
+
+bigdf_norm_power %>% mutate(subjects = as.factor(subjects),
+                 trials = as.factor(trials)) %>% group_by(obs_effectsize, subjects, trials) %>% 
+  summarize(mean = mean(power), q5 = quantile2(power,0.05),q95 = quantile2(power,0.95),
+            var_predict = mean((power * (1 - power)))) %>% 
+  ggplot(aes(x = obs_effectsize, y = mean, ymin = q5, ymax = q95, fill = trials, col = trials))+
+  geom_ribbon(alpha = 0.8)+
+  # geom_ribbon(aes(x = obs_effectsize, y = mean, ymin = q5 - var_predict, ymax = q95 + var_predict),alpha = 0.5)+
+  geom_pointrange(data = betas, aes(x = effectsize, y = median, ymin = q5, ymax = q95))+
+  geom_line(aes(x = obs_effectsize, y = mean), col = "black", alpha = 0.5)+
+  facet_wrap(~subjects)
+
+
+bigdf_norm_power %>% mutate(subjects = as.factor(subjects),
+                 trials = as.factor(trials)) %>% group_by(obs_effectsize, subjects, trials) %>% 
+  summarize(mean = mean(power), q5 = quantile2(power,0.05),q95 = quantile2(power,0.95),
+            var_predict = mean((power * (1 - power)))) %>% filter(subjects == 10) %>% 
+  ggplot(aes(x = obs_effectsize, y = mean, ymin = q5, ymax = q95, fill = trials, col = trials))+
+  geom_ribbon(aes(x = obs_effectsize, y = mean, ymin = q5 - var_predict, ymax = q95 + var_predict),alpha = 0.5)+
+  geom_ribbon(alpha = 0.8)+
+  geom_line(aes(x = obs_effectsize, y = mean), col = "black", alpha = 0.5)+
+  geom_pointrange(data = betas%>% filter(subjects == 10), aes(x = effectsize, y = median, ymin = q5, ymax = q95))+
+  facet_wrap(~subjects)
+
+```
+
+
+
+```{r}
+
+psychometric = function(x, alpha,beta){
+  return(1-exp(-(x / alpha)^(1/beta)))
+}
+
+df_alpha1 = df_alpha %>% filter(divergences == 0)
+
+ff = get_modeling_data(df = df_alpha1,parameter = "alpha", signi_level = 0.05)
+
+ff = ff %>% filter(group_change > 0)
+
+
+subs = (as.numeric(as.character(ff$subjects)))
+trials = (as.numeric(as.character(ff$trials)))
+int = (as.numeric(as.character(ff$subjects))) + (as.numeric(as.character(ff$trials)))
+  
+
+
+design_matrix = data.frame(subs = subs,
+                           trials = trials,
+                           int = int)
+
+
+  
+standata = list(x = ff$group_change,
+                N = nrow(ff),
+                design_matrix = design_matrix,
+                param = ncol(design_matrix),
+                y = ff$significant)
+
+
+mod = cmdstanr::cmdstan_model(here::here("Analyses", "Power analysis", "power analysis results","stanmodels","power laws","weibull2_powerfunction.stan"),stanc_options = list("O1"))
+
+
+fit_test_weibull <- mod$sample(
+  data = standata, 
+  chains = 4,
+  refresh = 50,
+  init = 0,
+  iter_warmup = 1000,
+  iter_sampling = 1000,
+  parallel_chains = 4,
+  adapt_delta = 0.80,
+  max_treedepth = 12
+)
+
+mcmc_trace(fit_test_weibull$draws(c("expo_alpha","expo_beta","intercept_beta","intercept_alpha")))
+
+
+d_wei = as_draws_df(fit_test_weibull$draws(c("expo_alpha","expo_beta","intercept_alpha","intercept_beta")))[sample(1:4000,500),]
+
+names(d_wei)[1:8] = c("expo_alpha1","expo_alpha2","expo_alpha3",
+             "expo_beta1","expo_beta2","expo_beta3",
+             "intercept_alpha","intercept_beta")
+
+bigdf_weib_power = data.frame()
+unique_combinations <- unique(alpha_df[c("trials", "subjects")])
+
+unique_combinations$trials = as.numeric(as.character(unique_combinations$trials))
+unique_combinations$subjects = as.numeric(as.character(unique_combinations$subjects))
+
+for(i in 1:nrow(unique_combinations)){
+    subs = unique_combinations[i,2]
+    
+    trial = unique_combinations[i,1]
+    
+    data = d_wei %>% rowwise() %>% 
+      mutate(alpha = exp(intercept_alpha) * subs ^ expo_alpha1 * trial^expo_alpha2* (trial+subs)^expo_alpha3,
+             beta = exp(intercept_beta) * subs ^ expo_beta1 * trial^expo_beta2 * (trial+subs)^expo_beta3)%>% 
+      mutate(power = list(psychometric(seq(0,2,by = 0.01), alpha, beta)),
+           obs_effectsize = list(seq(0,2,by = 0.01))) %>% 
+    unnest() %>% mutate(subjects = subs, trials = trial)
+    
+    bigdf_weib_power = rbind(data,bigdf_weib_power)
+}
+
+
+
+
+library(scales)
+
+bigdf_weib_power %>% mutate(subjects = as.factor(subjects),
+                 trials = as.factor(trials)) %>% group_by(obs_effectsize, subjects, trials) %>% 
+  summarize(mean = mean(power), q5 = quantile2(power,0.05),q95 = quantile2(power,0.95),
+            var_predict = mean((power * (1 - power)))) %>% 
+  ggplot(aes(x = obs_effectsize, y = mean, ymin = q5, ymax = q95, fill = trials, col = trials))+
+  geom_ribbon(alpha = 0.8)+
+  # geom_ribbon(aes(x = obs_effectsize, y = mean, ymin = q5 - var_predict, ymax = q95 + var_predict),alpha = 0.5)+
+  geom_pointrange(data = betas, aes(x = effectsize, y = median, ymin = q5, ymax = q95))+
+  geom_line(aes(x = obs_effectsize, y = mean), col = "black", alpha = 0.5)+
+  facet_wrap(~subjects)
+
+
+bigdf_weib_power %>% mutate(subjects = as.factor(subjects),
+                 trials = as.factor(trials)) %>% group_by(obs_effectsize, subjects, trials) %>% 
+  summarize(mean = mean(power), q5 = quantile2(power,0.05),q95 = quantile2(power,0.95),
+            var_predict = mean((power * (1 - power)))) %>% filter(subjects == 10) %>% 
+  ggplot(aes(x = obs_effectsize, y = mean, ymin = q5, ymax = q95, fill = trials, col = trials))+
+  geom_ribbon(aes(x = obs_effectsize, y = mean, ymin = q5 - var_predict, ymax = q95 + var_predict),alpha = 0.5)+
+  geom_ribbon(alpha = 0.8)+
+  geom_line(aes(x = obs_effectsize, y = mean), col = "black", alpha = 0.5)+
+  geom_pointrange(data = betas%>% filter(subjects == 10), aes(x = effectsize, y = median, ymin = q5, ymax = q95))+
+  facet_wrap(~subjects)
+
+```
+
+
+# Logistic with interaction
+
+```{r, fig.height=6, fig.width=8}
+psychometric_logistic = function(x, alpha,beta){
+  return(1/(1+exp(-(1/beta) * (x - alpha))))
+}
+
+df_alpha1 = df_alpha %>% filter(divergences == 0)
+
+ff = get_modeling_data(df = df_alpha1,parameter = "alpha", signi_level = 0.05)
+
+ff = ff %>% filter(group_change > 0)
+
+
+subs = (as.numeric(as.character(ff$subjects)))
+trials = (as.numeric(as.character(ff$trials)))
+int = (as.numeric(as.character(ff$subjects))) + (as.numeric(as.character(ff$trials)))
+  
+
+
+design_matrix = data.frame(subs = subs,
+                           trials = trials,
+                           int = int)
+
+
+  
+standata = list(x = ff$group_change,
+                N = nrow(ff),
+                design_matrix = design_matrix,
+                param = ncol(design_matrix),
+                y = ff$significant)
+
+
+mod = cmdstanr::cmdstan_model(here::here("Analyses", "Power analysis", "power analysis results","stanmodels","power laws","logistic_power_int.stan"),stanc_options = list("O1"))
+
+
+fit_test_logistic_int <- mod$sample(
+  data = standata, 
+  chains = 4,
+  refresh = 50,
+  init = 0,
+  iter_warmup = 1000,
+  iter_sampling = 1000,
+  parallel_chains = 4,
+  adapt_delta = 0.80,
+  max_treedepth = 12
+)
+
+mcmc_trace(fit_test_logistic_int$draws(c("expo_alpha","expo_beta","intercept_beta","intercept_alpha")))
+
+
+d_logistic_int = as_draws_df(fit_test_logistic_int$draws(c("expo_alpha","expo_beta","intercept_alpha","intercept_beta")))[sample(1:4000,500),]
+
+names(d_logistic_int)[1:8] = c("expo_alpha1","expo_alpha2","expo_alpha3",
+             "expo_beta1","expo_beta2","expo_beta3",
+             "intercept_alpha","intercept_beta")
+
+bigdf_logs_power_int = data.frame()
+unique_combinations <- unique(alpha_df[c("trials", "subjects")])
+
+unique_combinations$trials = as.numeric(as.character(unique_combinations$trials))
+unique_combinations$subjects = as.numeric(as.character(unique_combinations$subjects))
+
+for(i in 1:nrow(unique_combinations)){
+    subs = unique_combinations[i,2]
+    
+    trial = unique_combinations[i,1]
+    
+    data = d_logistic_int %>% rowwise() %>% 
+      mutate(alpha = exp(intercept_alpha) * subs ^ expo_alpha1 * trial^expo_alpha2 * (trial+subs) ^expo_alpha3,
+             beta = exp(intercept_beta) * subs ^ expo_beta1 * trial^expo_beta2 * (trial+subs) ^expo_beta3)%>% 
+      mutate(power = list(psychometric_logistic(seq(0,2,by = 0.01), alpha, beta)),
+           obs_effectsize = list(seq(0,2,by = 0.01))) %>% 
+    unnest() %>% mutate(subjects = subs, trials = trial)
+    
+    bigdf_logs_power_int = rbind(data,bigdf_logs_power_int)
+}
+
+
+
+
+library(scales)
+
+bigdf_logs_power_int %>% mutate(subjects = as.factor(subjects),
+                 trials = as.factor(trials)) %>% group_by(obs_effectsize, subjects, trials) %>% 
+  summarize(mean = mean(power), q5 = quantile2(power,0.05),q95 = quantile2(power,0.95),
+            var_predict = mean((power * (1 - power)))) %>% 
+  ggplot(aes(x = obs_effectsize, y = mean, ymin = q5, ymax = q95, fill = trials, col = trials))+
+  geom_ribbon(alpha = 0.8)+
+  # geom_ribbon(aes(x = obs_effectsize, y = mean, ymin = q5 - var_predict, ymax = q95 + var_predict),alpha = 0.5)+
+  geom_pointrange(data = betas, aes(x = effectsize, y = median, ymin = q5, ymax = q95))+
+  geom_line(aes(x = obs_effectsize, y = mean), col = "black", alpha = 0.5)+
+  facet_wrap(~subjects, scales = "free")+theme_classic()
+
+
+bigdf_logs_power_int %>% mutate(subjects = as.factor(subjects),
+                 trials = as.factor(trials)) %>% group_by(obs_effectsize, subjects, trials) %>% 
+  summarize(mean = mean(power), q5 = quantile2(power,0.05),q95 = quantile2(power,0.95),
+            var_predict = mean((power * (1 - power)))) %>% filter(subjects == 10) %>% 
+  ggplot(aes(x = obs_effectsize, y = mean, ymin = q5, ymax = q95, fill = trials, col = trials))+
+  geom_ribbon(aes(x = obs_effectsize, y = mean, ymin = q5 - var_predict, ymax = q95 + var_predict),alpha = 0.5)+
+  geom_ribbon(alpha = 0.8)+
+  geom_line(aes(x = obs_effectsize, y = mean), col = "black", alpha = 0.5)+
+  geom_pointrange(data = betas%>% filter(subjects == 10), aes(x = effectsize, y = median, ymin = q5, ymax = q95))+
+  facet_wrap(~subjects)+theme_classic()
+
+
+
+marginals = as_draws_df(fit_test_logistic_int$draws(c("expo_alpha","expo_beta","intercept_alpha","intercept_beta")))
+
+names(marginals)[1:8] = c("expo_alpha1","expo_alpha2","expo_alpha3",
+             "expo_beta1","expo_beta2","expo_beta3",
+             "intercept_alpha","intercept_beta")
+
+
+marginals %>% select(c("expo_alpha1","expo_alpha2","expo_alpha3","intercept_alpha",
+             "expo_beta1","expo_beta2","expo_beta3","intercept_beta")) %>% 
+  pivot_longer(everything()) %>% 
+  mutate(name = factor(name, levels = c("expo_alpha1", "expo_alpha2", "expo_alpha3",
+                                        "intercept_alpha", "expo_beta1", "expo_beta2",
+                                        "expo_beta3", "intercept_beta"))) %>%
+  ggplot(aes(x = value)) +
+  geom_histogram(col = "black") +
+  facet_wrap(~name, scales = "free", ncol = 4)+
+  theme_classic()
+```
+
+
+
+
+
+# compare:
+
+```{r}
+# model comparison
+
+weibull_power = fit_test_weibull$loo()
+norm_power = fit_norm_power$loo()
+
+logs_power = fit_test_logistic_int$loo()
+
+loo::loo_compare(list(weibull_power = weibull_power,
+                      norm_power = norm_power,
+                      logs_power = logs_power))
+
+```
+#all models
+```{r}
+loo::loo_compare(list(weibull_expo = weibull,
+                      norm_expo = norm,
+                      weibull_power = weibull_power,
+                      norm_power = norm_power,
+                      logs_power = logs_power))
+
+```
+
+
+
+
+
+# Fitting power laws instead witout interactions
+
+```{r}
+psychometric_norm = function(x, alpha,beta){
+  return(0.5+0.5 * pracma::erf((x-alpha) / (beta * sqrt(2))))
+}
+
+df_alpha1 = df_alpha %>% filter(divergences == 0)
+
+ff = get_modeling_data(df = df_alpha1,parameter = "alpha", signi_level = 0.05)
+
+ff = ff %>% filter(group_change > 0)
+
+ff %>% ggplot(aes(x = group_change, y = significant, col = subjects))+geom_smooth()+facet_wrap(~trials)
+
+subs = (as.numeric(as.character(ff$subjects)))
+trials = (as.numeric(as.character(ff$trials)))
+
+
+design_matrix = data.frame(subs = subs,
+                           trials = trials)
+
+
+
+  
+standata = list(x = ff$group_change,
+                N = nrow(ff),
+                design_matrix = design_matrix,
+                param = ncol(design_matrix),
+                y = ff$significant)
+
+
+mod = cmdstanr::cmdstan_model(here::here("Analyses", "Power analysis", "power analysis results","stanmodels","power laws","normal_powerfunction_noint.stan"),stanc_options = list("O1"))
+
+
+fit_norm_power_noint <- mod$sample(
+  data = standata, 
+  chains = 4,
+  init = 0,
+  refresh = 50,
+  iter_warmup = 1000,
+  iter_sampling = 1000,
+  parallel_chains = 4,
+  adapt_delta = 0.80,
+  max_treedepth = 12
+)
+
+mcmc_trace(fit_norm_power_noint$draws(c("expo_alpha","expo_beta","intercept_beta","intercept_alpha")))
+
+
+d_norm_noint = as_draws_df(fit_norm_power_noint$draws(c("expo_alpha","expo_beta","intercept_alpha","intercept_beta")))[sample(1:4000,500),]
+
+names(d_norm_noint)[1:6] = c("expo_alpha1","expo_alpha2",
+             "expo_beta1","expo_beta2",
+             "intercept_alpha","intercept_beta")
+
+
+bigdf_norm_power_noint = data.frame()
+unique_combinations <- unique(alpha_df[c("trials", "subjects")])
+
+unique_combinations$trials = as.numeric(as.character(unique_combinations$trials))
+unique_combinations$subjects = as.numeric(as.character(unique_combinations$subjects))
+
+for(i in 1:nrow(unique_combinations)){
+    subs = unique_combinations[i,2]
+    
+    trial = unique_combinations[i,1]
+    
+    data = d_norm_noint %>% rowwise() %>% 
+      mutate(alpha = exp(intercept_alpha) * subs ^ expo_alpha1 * trial^expo_alpha2,
+             beta = exp(intercept_beta) * subs ^ expo_beta1 * trial^expo_beta2 )%>% 
+      mutate(power = list(psychometric_norm(seq(0,2,by = 0.01), alpha, beta)),
+           obs_effectsize = list(seq(0,2,by = 0.01))) %>% 
+    unnest() %>% mutate(subjects = subs, trials = trial)
+    
+    bigdf_norm_power_noint = rbind(data,bigdf_norm_power_noint)
+}
+
+
+library(scales)
+
+bigdf_norm_power_noint %>% mutate(subjects = as.factor(subjects),
+                 trials = as.factor(trials)) %>% group_by(obs_effectsize, subjects, trials) %>% 
+  summarize(mean = mean(power), q5 = quantile2(power,0.05),q95 = quantile2(power,0.95),
+            var_predict = mean((power * (1 - power)))) %>% 
+  ggplot(aes(x = obs_effectsize, y = mean, ymin = q5, ymax = q95, fill = trials, col = trials))+
+  geom_ribbon(alpha = 0.8)+
+  # geom_ribbon(aes(x = obs_effectsize, y = mean, ymin = q5 - var_predict, ymax = q95 + var_predict),alpha = 0.5)+
+  geom_pointrange(data = betas, aes(x = effectsize, y = median, ymin = q5, ymax = q95))+
+  geom_line(aes(x = obs_effectsize, y = mean), col = "black", alpha = 0.5)+
+  facet_wrap(~subjects)
+
+
+bigdf_norm_power_noint %>% mutate(subjects = as.factor(subjects),
+                 trials = as.factor(trials)) %>% group_by(obs_effectsize, subjects, trials) %>% 
+  summarize(mean = mean(power), q5 = quantile2(power,0.05),q95 = quantile2(power,0.95),
+            var_predict = mean((power * (1 - power)))) %>% filter(subjects == 10) %>% 
+  ggplot(aes(x = obs_effectsize, y = mean, ymin = q5, ymax = q95, fill = trials, col = trials))+
+  geom_ribbon(aes(x = obs_effectsize, y = mean, ymin = q5 - var_predict, ymax = q95 + var_predict),alpha = 0.5)+
+  geom_ribbon(alpha = 0.8)+
+  geom_line(aes(x = obs_effectsize, y = mean), col = "black", alpha = 0.5)+
+  geom_pointrange(data = betas%>% filter(subjects == 10), aes(x = effectsize, y = median, ymin = q5, ymax = q95))+
+  facet_wrap(~subjects)
+
+```
+
+
+
+```{r}
+psychometric = function(x, alpha,beta){
+  return(1-exp(-(x / alpha)^(1/beta)))
+}
+
+df_alpha1 = df_alpha %>% filter(divergences == 0)
+
+ff = get_modeling_data(df = df_alpha1,parameter = "alpha", signi_level = 0.05)
+
+ff = ff %>% filter(group_change > 0)
+
+
+subs = (as.numeric(as.character(ff$subjects)))
+trials = (as.numeric(as.character(ff$trials)))
+
+
+
+design_matrix = data.frame(subs = subs,
+                           trials = trials)
+
+
+  
+standata = list(x = ff$group_change,
+                N = nrow(ff),
+                design_matrix = design_matrix,
+                param = ncol(design_matrix),
+                y = ff$significant)
+
+
+mod = cmdstanr::cmdstan_model(here::here("Analyses", "Power analysis", "power analysis results","stanmodels","power laws","weibull2_powerfunction_noint.stan"),stanc_options = list("O1"))
+
+
+fit_test_weibull_noint <- mod$sample(
+  data = standata, 
+  chains = 4,
+  refresh = 50,
+  init = 0,
+  iter_warmup = 1000,
+  iter_sampling = 1000,
+  parallel_chains = 4,
+  adapt_delta = 0.80,
+  max_treedepth = 12
+)
+
+mcmc_trace(fit_test_weibull_noint$draws(c("expo_alpha","expo_beta","intercept_beta","intercept_alpha")))
+
+
+d_wei_noint = as_draws_df(fit_test_weibull_noint$draws(c("expo_alpha","expo_beta","intercept_alpha","intercept_beta")))[sample(1:4000,500),]
+
+names(d_wei_noint)[1:6] = c("expo_alpha1","expo_alpha2",
+             "expo_beta1","expo_beta2",
+             "intercept_alpha","intercept_beta")
+
+bigdf_weib_power_noint = data.frame()
+unique_combinations <- unique(alpha_df[c("trials", "subjects")])
+
+unique_combinations$trials = as.numeric(as.character(unique_combinations$trials))
+unique_combinations$subjects = as.numeric(as.character(unique_combinations$subjects))
+
+for(i in 1:nrow(unique_combinations)){
+    subs = unique_combinations[i,2]
+    
+    trial = unique_combinations[i,1]
+    
+    data = d_wei_noint %>% rowwise() %>% 
+      mutate(alpha = exp(intercept_alpha) * subs ^ expo_alpha1 * trial^expo_alpha2,
+             beta = exp(intercept_beta) * subs ^ expo_beta1 * trial^expo_beta2)%>% 
+      mutate(power = list(psychometric(seq(0,2,by = 0.01), alpha, beta)),
+           obs_effectsize = list(seq(0,2,by = 0.01))) %>% 
+    unnest() %>% mutate(subjects = subs, trials = trial)
+    
+    bigdf_weib_power_noint = rbind(data,bigdf_weib_power_noint)
+}
+
+
+
+
+library(scales)
+
+bigdf_weib_power_noint %>% mutate(subjects = as.factor(subjects),
+                 trials = as.factor(trials)) %>% group_by(obs_effectsize, subjects, trials) %>% 
+  summarize(mean = mean(power), q5 = quantile2(power,0.05),q95 = quantile2(power,0.95),
+            var_predict = mean((power * (1 - power)))) %>% 
+  ggplot(aes(x = obs_effectsize, y = mean, ymin = q5, ymax = q95, fill = trials, col = trials))+
+  geom_ribbon(alpha = 0.8)+
+  # geom_ribbon(aes(x = obs_effectsize, y = mean, ymin = q5 - var_predict, ymax = q95 + var_predict),alpha = 0.5)+
+  geom_pointrange(data = betas, aes(x = effectsize, y = median, ymin = q5, ymax = q95))+
+  geom_line(aes(x = obs_effectsize, y = mean), col = "black", alpha = 0.5)+
+  facet_wrap(~subjects)
+
+
+bigdf_weib_power_noint %>% mutate(subjects = as.factor(subjects),
+                 trials = as.factor(trials)) %>% group_by(obs_effectsize, subjects, trials) %>% 
+  summarize(mean = mean(power), q5 = quantile2(power,0.05),q95 = quantile2(power,0.95),
+            var_predict = mean((power * (1 - power)))) %>% filter(subjects == 10) %>% 
+  ggplot(aes(x = obs_effectsize, y = mean, ymin = q5, ymax = q95, fill = trials, col = trials))+
+  geom_ribbon(aes(x = obs_effectsize, y = mean, ymin = q5 - var_predict, ymax = q95 + var_predict),alpha = 0.5)+
+  geom_ribbon(alpha = 0.8)+
+  geom_line(aes(x = obs_effectsize, y = mean), col = "black", alpha = 0.5)+
+  geom_pointrange(data = betas%>% filter(subjects == 10), aes(x = effectsize, y = median, ymin = q5, ymax = q95))+
+  facet_wrap(~subjects)
+
+```
+
+
+# Logistic without interaction
+
+```{r}
+psychometric_logistic = function(x, alpha,beta){
+  return(1/(1+exp(-(1/beta) * (x - alpha))))
+}
+
+df_alpha1 = df_alpha %>% filter(divergences == 0)
+
+ff = get_modeling_data(df = df_alpha1,parameter = "alpha", signi_level = 0.05)
+
+ff = ff %>% filter(group_change > 0)
+
+
+subs = (as.numeric(as.character(ff$subjects)))
+trials = (as.numeric(as.character(ff$trials)))
+
+
+
+design_matrix = data.frame(subs = subs,
+                           trials = trials)
+
+
+  
+standata = list(x = ff$group_change,
+                N = nrow(ff),
+                design_matrix = design_matrix,
+                param = ncol(design_matrix),
+                y = ff$significant)
+
+
+mod = cmdstanr::cmdstan_model(here::here("Analyses", "Power analysis", "power analysis results","stanmodels","power laws","logistic_power_noint.stan"),stanc_options = list("O1"))
+
+
+fit_test_logistic_noint <- mod$sample(
+  data = standata, 
+  chains = 4,
+  refresh = 50,
+  init = 0,
+  iter_warmup = 1000,
+  iter_sampling = 1000,
+  parallel_chains = 4,
+  adapt_delta = 0.80,
+  max_treedepth = 12
+)
+
+mcmc_trace(fit_test_logistic_noint$draws(c("expo_alpha","expo_beta","intercept_beta","intercept_alpha")))
+
+
+d_logistic_noint = as_draws_df(fit_test_logistic_noint$draws(c("expo_alpha","expo_beta","intercept_alpha","intercept_beta")))[sample(1:4000,500),]
+
+names(d_logistic_noint)[1:6] = c("expo_alpha1","expo_alpha2",
+             "expo_beta1","expo_beta2",
+             "intercept_alpha","intercept_beta")
+
+bigdf_logs_power_noint = data.frame()
+unique_combinations <- unique(alpha_df[c("trials", "subjects")])
+
+unique_combinations$trials = as.numeric(as.character(unique_combinations$trials))
+unique_combinations$subjects = as.numeric(as.character(unique_combinations$subjects))
+
+for(i in 1:nrow(unique_combinations)){
+    subs = unique_combinations[i,2]
+    
+    trial = unique_combinations[i,1]
+    
+    data = d_logistic_noint %>% rowwise() %>% 
+      mutate(alpha = exp(intercept_alpha) * subs ^ expo_alpha1 * trial^expo_alpha2,
+             beta = exp(intercept_beta) * subs ^ expo_beta1 * trial^expo_beta2)%>% 
+      mutate(power = list(psychometric_logistic(seq(0,2,by = 0.01), alpha, beta)),
+           obs_effectsize = list(seq(0,2,by = 0.01))) %>% 
+    unnest() %>% mutate(subjects = subs, trials = trial)
+    
+    bigdf_logs_power_noint = rbind(data,bigdf_logs_power_noint)
+}
+
+
+
+
+library(scales)
+
+bigdf_logs_power_noint %>% mutate(subjects = as.factor(subjects),
+                 trials = as.factor(trials)) %>% group_by(obs_effectsize, subjects, trials) %>% 
+  summarize(mean = mean(power), q5 = quantile2(power,0.05),q95 = quantile2(power,0.95),
+            var_predict = mean((power * (1 - power)))) %>% 
+  ggplot(aes(x = obs_effectsize, y = mean, ymin = q5, ymax = q95, fill = trials, col = trials))+
+  geom_ribbon(alpha = 0.8)+
+  # geom_ribbon(aes(x = obs_effectsize, y = mean, ymin = q5 - var_predict, ymax = q95 + var_predict),alpha = 0.5)+
+  geom_pointrange(data = betas, aes(x = effectsize, y = median, ymin = q5, ymax = q95))+
+  geom_line(aes(x = obs_effectsize, y = mean), col = "black", alpha = 0.5)+
+  facet_wrap(~subjects, scales = "free")
+
+
+bigdf_logs_power_noint %>% mutate(subjects = as.factor(subjects),
+                 trials = as.factor(trials)) %>% group_by(obs_effectsize, subjects, trials) %>% 
+  summarize(mean = mean(power), q5 = quantile2(power,0.05),q95 = quantile2(power,0.95),
+            var_predict = mean((power * (1 - power)))) %>% filter(subjects == 10) %>% 
+  ggplot(aes(x = obs_effectsize, y = mean, ymin = q5, ymax = q95, fill = trials, col = trials))+
+  geom_ribbon(aes(x = obs_effectsize, y = mean, ymin = q5 - var_predict, ymax = q95 + var_predict),alpha = 0.5)+
+  geom_ribbon(alpha = 0.8)+
+  geom_line(aes(x = obs_effectsize, y = mean), col = "black", alpha = 0.5)+
+  geom_pointrange(data = betas%>% filter(subjects == 10), aes(x = effectsize, y = median, ymin = q5, ymax = q95))+
+  facet_wrap(~subjects)
+
+```
+
+# Logistic with interaction (additive)
+
+```{r}
+
+
+psychometric_logistic = function(x, alpha,beta){
+  return(1/(1+exp(-(1/beta) * (x - alpha))))
+}
+
+df_alpha1 = df_alpha %>% filter(divergences == 0)
+
+ff = get_modeling_data(df = df_alpha1,parameter = "alpha", signi_level = 0.05)
+
+ff = ff %>% filter(group_change > 0)
+
+subs = (as.numeric(as.character(ff$subjects)))
+trials = (as.numeric(as.character(ff$trials)))
+int = (as.numeric(as.character(ff$subjects))) * (as.numeric(as.character(ff$trials)))
+  
+
+
+design_matrix = data.frame(subs = subs,
+                           trials = trials,
+                           int = int)
+
+  
+standata = list(x = ff$group_change,
+                N = nrow(ff),
+                design_matrix = design_matrix,
+                param = ncol(design_matrix),
+                y = ff$significant)
+
+
+mod = cmdstanr::cmdstan_model(here::here("Analyses", "Power analysis", "power analysis results","stanmodels","power laws","logsitic_additive_power.stan"),stanc_options = list("O1"))
+
+
+fit_test_logistic_additive <- mod$sample(
+  data = standata, 
+  chains = 4,
+  refresh = 50,
+  init = 0,
+  iter_warmup = 1000,
+  iter_sampling = 1000,
+  parallel_chains = 4,
+  adapt_delta = 0.80,
+  max_treedepth = 12
+)
+
+mcmc_trace(fit_test_logistic_additive$draws(c("expo_alpha","expo_beta","intercept_beta","intercept_alpha")))
+
+
+d_logistic_additive = as_draws_df(fit_test_logistic_additive$draws(c("expo_alpha","expo_beta","intercept_alpha","intercept_beta")))[sample(1:4000,500),]
+
+names(d_logistic_additive)[1:8] = c("expo_alpha1","expo_alpha2","expo_alpha3",
+             "expo_beta1","expo_beta2","expo_beta3",
+             "intercept_alpha","intercept_beta")
+
+bigdf_logs_power_additive = data.frame()
+unique_combinations <- unique(alpha_df[c("trials", "subjects")])
+
+unique_combinations$trials = as.numeric(as.character(unique_combinations$trials))
+unique_combinations$subjects = as.numeric(as.character(unique_combinations$subjects))
+
+for(i in 1:nrow(unique_combinations)){
+    subs = unique_combinations[i,2]
+    
+    trial = unique_combinations[i,1]
+    
+    data = d_logistic_additive %>% rowwise() %>% 
+      mutate(alpha = exp(intercept_alpha) + subs ^ expo_alpha1 + trial^expo_alpha2 + (trial*subs) ^expo_alpha3,
+             beta = exp(intercept_beta) + subs ^ expo_beta1 + trial^expo_beta2 + (trial*subs) ^expo_beta3)%>% 
+      mutate(power = list(psychometric_logistic(seq(0,2,by = 0.01), alpha, beta)),
+           obs_effectsize = list(seq(0,2,by = 0.01))) %>% 
+    unnest() %>% mutate(subjects = subs, trials = trial)
+    
+    bigdf_logs_power_additive = rbind(data,bigdf_logs_power_additive)
+}
+
+
+
+
+library(scales)
+
+bigdf_logs_power_additive %>% mutate(subjects = as.factor(subjects),
+                 trials = as.factor(trials)) %>% group_by(obs_effectsize, subjects, trials) %>% 
+  summarize(mean = mean(power), q5 = quantile2(power,0.05),q95 = quantile2(power,0.95),
+            var_predict = mean((power * (1 - power)))) %>% 
+  ggplot(aes(x = obs_effectsize, y = mean, ymin = q5, ymax = q95, fill = trials, col = trials))+
+  geom_ribbon(alpha = 0.8)+
+  # geom_ribbon(aes(x = obs_effectsize, y = mean, ymin = q5 - var_predict, ymax = q95 + var_predict),alpha = 0.5)+
+  geom_pointrange(data = betas, aes(x = effectsize, y = median, ymin = q5, ymax = q95))+
+  geom_line(aes(x = obs_effectsize, y = mean), col = "black", alpha = 0.5)+
+  facet_wrap(~subjects, scales = "free")
+
+
+bigdf_logs_power_additive %>% mutate(subjects = as.factor(subjects),
+                 trials = as.factor(trials)) %>% group_by(obs_effectsize, subjects, trials) %>% 
+  summarize(mean = mean(power), q5 = quantile2(power,0.05),q95 = quantile2(power,0.95),
+            var_predict = mean((power * (1 - power)))) %>% filter(subjects == 10) %>% 
+  ggplot(aes(x = obs_effectsize, y = mean, ymin = q5, ymax = q95, fill = trials, col = trials))+
+  geom_ribbon(aes(x = obs_effectsize, y = mean, ymin = q5 - var_predict, ymax = q95 + var_predict),alpha = 0.5)+
+  geom_ribbon(alpha = 0.8)+
+  geom_line(aes(x = obs_effectsize, y = mean), col = "black", alpha = 0.5)+
+  geom_pointrange(data = betas%>% filter(subjects == 10), aes(x = effectsize, y = median, ymin = q5, ymax = q95))+
+  facet_wrap(~subjects)
+
+```
+
+
+
+# Logistic with interaction (additive / multiplicative)
+
+```{r}
+psychometric_logistic = function(x, alpha,beta){
+  return(1/(1+exp(-(1/beta) * (x - alpha))))
+}
+
+df_alpha1 = df_alpha %>% filter(divergences == 0)
+
+ff = get_modeling_data(df = df_alpha1,parameter = "alpha", signi_level = 0.05)
+
+ff = ff %>% filter(group_change > 0)
+
+subs = (as.numeric(as.character(ff$subjects)))
+trials = (as.numeric(as.character(ff$trials)))
+int = (as.numeric(as.character(ff$subjects))) * (as.numeric(as.character(ff$trials)))
+  
+
+
+design_matrix = data.frame(subs = subs,
+                           trials = trials,
+                           int = int)
+
+  
+standata = list(x = ff$group_change,
+                N = nrow(ff),
+                design_matrix = design_matrix,
+                param = ncol(design_matrix),
+                y = ff$significant)
+
+
+mod = cmdstanr::cmdstan_model(here::here("Analyses", "Power analysis", "power analysis results","stanmodels","power laws","logistic_add_mult_int.stan"),stanc_options = list("O1"))
+
+
+fit_test_logistic_add_mult <- mod$sample(
+  data = standata, 
+  chains = 4,
+  refresh = 50,
+  init = 0,
+  iter_warmup = 1000,
+  iter_sampling = 1000,
+  parallel_chains = 4,
+  adapt_delta = 0.80,
+  max_treedepth = 12
+)
+
+mcmc_trace(fit_test_logistic_add_mult$draws(c("expo_alpha","expo_beta","intercept_beta","intercept_alpha")))
+
+
+d_logistic_add_mult = as_draws_df(fit_test_logistic_add_mult$draws(c("expo_alpha","expo_beta","intercept_alpha","intercept_beta")))[sample(1:4000,500),]
+
+names(d_logistic_add_mult)[1:8] = c("expo_alpha1","expo_alpha2","expo_alpha3",
+             "expo_beta1","expo_beta2","expo_beta3",
+             "intercept_alpha","intercept_beta")
+
+bigdf_logs_power_add_mult = data.frame()
+unique_combinations <- unique(alpha_df[c("trials", "subjects")])
+
+unique_combinations$trials = as.numeric(as.character(unique_combinations$trials))
+unique_combinations$subjects = as.numeric(as.character(unique_combinations$subjects))
+
+for(i in 1:nrow(unique_combinations)){
+    subs = unique_combinations[i,2]
+    
+    trial = unique_combinations[i,1]
+    
+    data = d_logistic_add_mult %>% rowwise() %>% 
+      mutate(alpha = exp(intercept_alpha) * (subs ^ expo_alpha1 + trial^expo_alpha2 + (trial*subs) ^expo_alpha3),
+             beta = exp(intercept_beta) * (subs ^ expo_beta1 + trial^expo_beta2 + (trial*subs) ^expo_beta3))%>% 
+      mutate(power = list(psychometric_logistic(seq(0,2,by = 0.01), alpha, beta)),
+           obs_effectsize = list(seq(0,2,by = 0.01))) %>% 
+    unnest() %>% mutate(subjects = subs, trials = trial)
+    
+    bigdf_logs_power_add_mult = rbind(data,bigdf_logs_power_add_mult)
+}
+
+
+
+
+library(scales)
+
+bigdf_logs_power_add_mult %>% mutate(subjects = as.factor(subjects),
+                 trials = as.factor(trials)) %>% group_by(obs_effectsize, subjects, trials) %>% 
+  summarize(mean = mean(power), q5 = quantile2(power,0.05),q95 = quantile2(power,0.95),
+            var_predict = mean((power * (1 - power)))) %>% 
+  ggplot(aes(x = obs_effectsize, y = mean, ymin = q5, ymax = q95, fill = trials, col = trials))+
+  geom_ribbon(alpha = 0.8)+
+  # geom_ribbon(aes(x = obs_effectsize, y = mean, ymin = q5 - var_predict, ymax = q95 + var_predict),alpha = 0.5)+
+  geom_pointrange(data = betas, aes(x = effectsize, y = median, ymin = q5, ymax = q95))+
+  geom_line(aes(x = obs_effectsize, y = mean), col = "black", alpha = 0.5)+
+  facet_wrap(~subjects, scales = "free")
+
+
+bigdf_logs_power_add_mult %>% mutate(subjects = as.factor(subjects),
+                 trials = as.factor(trials)) %>% group_by(obs_effectsize, subjects, trials) %>% 
+  summarize(mean = mean(power), q5 = quantile2(power,0.05),q95 = quantile2(power,0.95),
+            var_predict = mean((power * (1 - power)))) %>% filter(subjects == 10) %>% 
+  ggplot(aes(x = obs_effectsize, y = mean, ymin = q5, ymax = q95, fill = trials, col = trials))+
+  geom_ribbon(aes(x = obs_effectsize, y = mean, ymin = q5 - var_predict, ymax = q95 + var_predict),alpha = 0.5)+
+  geom_ribbon(alpha = 0.8)+
+  geom_line(aes(x = obs_effectsize, y = mean), col = "black", alpha = 0.5)+
+  geom_pointrange(data = betas%>% filter(subjects == 10), aes(x = effectsize, y = median, ymin = q5, ymax = q95))+
+  facet_wrap(~subjects)
+
+```
+
+
+
+
+# Logistic with interaction (additive / multiplicative) BIG (doesn't work)
+
+```{r}
+psychometric_logistic = function(x, alpha,beta){
+  return(1/(1+exp(-(1/beta) * (x - alpha))))
+}
+
+df_alpha1 = df_alpha %>% filter(divergences == 0)
+
+ff = get_modeling_data(df = df_alpha1,parameter = "alpha", signi_level = 0.05)
+
+ff = ff %>% filter(group_change > 0)
+
+subs = (as.numeric(as.character(ff$subjects)))
+trials = (as.numeric(as.character(ff$trials)))
+int = (as.numeric(as.character(ff$subjects))) * (as.numeric(as.character(ff$trials)))
+  
+
+
+design_matrix = data.frame(subs = subs,
+                           trials = trials,
+                           int = int)
+
+  
+standata = list(x = ff$group_change,
+                N = nrow(ff),
+                design_matrix = design_matrix,
+                param = ncol(design_matrix),
+                y = ff$significant)
+
+
+mod = cmdstanr::cmdstan_model(here::here("Analyses", "Power analysis", "power analysis results","stanmodels","power laws","logistic_add_mult_big.stan"),stanc_options = list("O1"))
+
+
+fit_test_logistic_add_mult_big <- mod$sample(
+  data = standata, 
+  chains = 4,
+  refresh = 50,
+  init = 0,
+  iter_warmup = 1000,
+  iter_sampling = 1000,
+  parallel_chains = 4,
+  adapt_delta = 0.80,
+  max_treedepth = 12
+)
+
+mcmc_trace(fit_test_logistic_add_mult_big$draws(c("expo_alpha","expo_beta","intercept_beta","intercept_alpha")))
+
+
+d_logistic_add_mult_big = as_draws_df(fit_test_logistic_add_mult_big$draws(c("expo_alpha","expo_beta","intercept_alpha","intercept_beta")))[sample(1:4000,500),]
+
+names(d_logistic_add_mult_big)[1:8] = c("expo_alpha1","expo_alpha2","expo_alpha3",
+             "expo_beta1","expo_beta2","expo_beta3",
+             "intercept_alpha","intercept_beta")
+
+bigdf_logs_power_add_mult_big = data.frame()
+unique_combinations <- unique(alpha_df[c("trials", "subjects")])
+
+unique_combinations$trials = as.numeric(as.character(unique_combinations$trials))
+unique_combinations$subjects = as.numeric(as.character(unique_combinations$subjects))
+
+for(i in 1:nrow(unique_combinations)){
+    subs = unique_combinations[i,2]
+    
+    trial = unique_combinations[i,1]
+    
+    data = d_logistic_add_mult_big %>% rowwise() %>% 
+      mutate(alpha = exp(intercept_alpha1) * subs ^ expo_alpha1 + exp(intercept_alpha2) * trial^expo_alpha2 + exp(intercept_alpha3) * (trial*subs) ^expo_alpha3,
+             beta = exp(intercept_beta1) * subs ^ expo_beta1 + exp(intercept_beta2) * trial^expo_beta2 + exp(intercept_beta3) * (trial*subs) ^expo_beta3)%>% 
+      mutate(power = list(psychometric_logistic(seq(0,2,by = 0.01), alpha, beta)),
+           obs_effectsize = list(seq(0,2,by = 0.01))) %>% 
+    unnest() %>% mutate(subjects = subs, trials = trial)
+    
+    bigdf_logs_power_add_mult_big = rbind(data,bigdf_logs_power_add_mult_big)
+}
+
+
+
+
+library(scales)
+
+bigdf_logs_power_add_mult_big %>% mutate(subjects = as.factor(subjects),
+                 trials = as.factor(trials)) %>% group_by(obs_effectsize, subjects, trials) %>% 
+  summarize(mean = mean(power), q5 = quantile2(power,0.05),q95 = quantile2(power,0.95),
+            var_predict = mean((power * (1 - power)))) %>% 
+  ggplot(aes(x = obs_effectsize, y = mean, ymin = q5, ymax = q95, fill = trials, col = trials))+
+  geom_ribbon(alpha = 0.8)+
+  # geom_ribbon(aes(x = obs_effectsize, y = mean, ymin = q5 - var_predict, ymax = q95 + var_predict),alpha = 0.5)+
+  geom_pointrange(data = betas, aes(x = effectsize, y = median, ymin = q5, ymax = q95))+
+  geom_line(aes(x = obs_effectsize, y = mean), col = "black", alpha = 0.5)+
+  facet_wrap(~subjects, scales = "free")
+
+
+bigdf_logs_power_add_mult_big %>% mutate(subjects = as.factor(subjects),
+                 trials = as.factor(trials)) %>% group_by(obs_effectsize, subjects, trials) %>% 
+  summarize(mean = mean(power), q5 = quantile2(power,0.05),q95 = quantile2(power,0.95),
+            var_predict = mean((power * (1 - power)))) %>% filter(subjects == 10) %>% 
+  ggplot(aes(x = obs_effectsize, y = mean, ymin = q5, ymax = q95, fill = trials, col = trials))+
+  geom_ribbon(aes(x = obs_effectsize, y = mean, ymin = q5 - var_predict, ymax = q95 + var_predict),alpha = 0.5)+
+  geom_ribbon(alpha = 0.8)+
+  geom_line(aes(x = obs_effectsize, y = mean), col = "black", alpha = 0.5)+
+  geom_pointrange(data = betas%>% filter(subjects == 10), aes(x = effectsize, y = median, ymin = q5, ymax = q95))+
+  facet_wrap(~subjects)
+
+```
+
+
+
+```{r}
+additiveloo = fit_test_logistic_additive$loo()
+
+add_multloo = fit_test_logistic_add_mult$loo()
+```
+
+
+# compare:
+
+```{r}
+# model comparison
+
+weibull_power_noint = fit_test_weibull_noint$loo()
+norm_power_noint = fit_norm_power_noint$loo()
+logistic_power_noint = fit_test_logistic_noint$loo()
+
+
+loo::loo_compare(list(weibull_power_noint = weibull_power_noint,
+                      norm_power_noint = norm_power_noint,
+                      logs_power_noint = logistic_power_noint))
+
+```
+
+#all models
+```{r}
+
+loo::loo_compare(list(weibull_expo = weibull,
+                      norm_expo = norm,
+                      logs_expo = logs,
+                      weibull_power = weibull_power,
+                      norm_power = norm_power,
+                      logs_power = logs_power,
+                      weibull_power_noint = weibull_power_noint,
+                      norm_power_noint = norm_power_noint,
+                      logs_power_noint = logistic_power_noint,
+                      additive = additiveloo,
+                      addititve_multiplicative = add_multloo))
+```
+#logistic models
+
+```{r}
+loo::loo_compare(list(logs_expo = logs,
+                      logs_power = logs_power,
+                      logs_power_noint = logistic_power_noint,
+                      additive = additiveloo,
+                      addititve_multiplicative = add_multloo))
+```
+
+
+
+# Getting raster plots for the logistic:
+
+
+
+```{r}
+d = as_draws_df(fit_test_logistic_int$summary(c("expo_alpha","expo_beta","intercept_alpha","intercept_beta")))
+d = d %>% select(variable, mean) %>% pivot_wider(values_from = "mean",names_from = "variable")
+
+names(d)[1:8] = c("expo_alpha1","expo_alpha2","expo_alpha3",
+             "expo_beta1","expo_beta2","expo_beta3",
+             "intercept_alpha","intercept_beta")
+
+
+
+get_matrix = function(d, subbers, trials){
+
+bigdf = data.frame()
+
+for(subs in subbers){
+
+  for(trial in trials){
+
+    data = d %>% rowwise() %>% 
+      mutate(alpha = exp(intercept_alpha) * subs ^ expo_alpha1 * trial^expo_alpha2 * (trial+subs) ^expo_alpha3,
+             beta = exp(intercept_beta) * subs ^ expo_beta1 * trial^expo_beta2 * (trial+subs) ^expo_beta3)%>% 
+      mutate(power = list(psychometric_logistic(seq(-1,2,by = 0.01), alpha, beta)),
+           obs_effectsize = list(seq(-1,2,by = 0.01))) %>% 
+    unnest() %>% mutate(subjects = subs, trials = trial)
+    
+    bigdf = rbind(data,bigdf)
+
+  }
+}
+return(bigdf)
+}
+
+subbers = seq(5,110, by = 5)
+trials = c(20,50,100,150)
+ddf = get_matrix(d, subbers,trials)
+
+ddf = ddf %>% group_by(obs_effectsize, subjects,trials) %>% summarize(mean_power = round(mean(power),2)) 
+
+ddf
+
+subtract = 0.03
+
+filtered_data <- ddf %>% filter(mean_power < 0.80+subtract & mean_power > 0.80-subtract)
+
+
+library(ggforce)
+ddf %>% ggplot()+geom_raster(aes(x = subjects, y = obs_effectsize, fill = mean_power))+
+  scale_fill_continuous(type = "viridis")+facet_wrap(~trials)+
+    geom_ellipse(aes(x0 = 30, y0 = 0.4, a = 1, b = 0.2, angle = 0))+
+  geom_line(data = filtered_data, aes(x = subjects, y = obs_effectsize), color = "black")
+
+
+
+```
+
+
+
+
+
+# plotting effectsizes:
+
+```{r, fig.height=6, fig.width=8}
+
+ef = function(dd){
+  return((mean(dd$X2-dd$X1) * sqrt(2*(1-cor.test(dd$X1, dd$X2)$estimate[[1]]))) / sqrt(sd(dd$X1)^2 + sd(dd$X2)^2 - 2 * sd(dd$X1) * sd(dd$X2) * cor.test(dd$X1, dd$X2)$estimate[[1]]))    
+}
+
+
+get_eff = function(parameters){
+
+subss =  parameters$subss
+
+n = subss
+mu1 = -8
+mu2 = -3
+sd1 = 8
+sd2 = 10
+cor =  parameters$cor
+
+
+effectsize = c()
+correlation = c()
+for(i in 1:2000){
+  
+  dd = faux::rnorm_multi(n, mu = c(mu1,mu2), sd = c(sd1,sd2), r = cor)
+  f = ef(dd)
+  
+  correlation[i] = cor.test(dd$X1, dd$X2)$estimate[[1]]
+  effectsize[i] = f
+}
+
+effectsize = data.frame(effectsize = effectsize) %>% mutate(cor = parameters$cor, subs = parameters$subss)
+
+return(effectsize)
+}
+
+parameters = expand.grid(subss = seq(10,100,length.out = 4),
+                        cor = seq(0,0.9, by = 0.3)) %>% mutate(id = 1:n())
+
+data_list <- split(parameters, parameters$id)
+  
+
+cores = 8
+plan(multisession, workers = cores)
+
+possfit_model = possibly(.f = get_eff, otherwise = "Error")
+
+results <- future_map(data_list, ~possfit_model(.x), .options = furrr_options(seed = TRUE), .progress = T)
+
+df = map_dfr(results,bind_rows)
+
+p1 = df %>% mutate(correlation = as.factor(cor),subjects = as.factor(subs)) %>% ggplot(aes(x = effectsize, fill = correlation))+
+  facet_wrap(~subjects, ncol = 4, labeller = label_both)+geom_histogram(col = "black", alpha = 0.8, position = "identity")+theme_classic()+
+  xlab("")+
+  geom_vline(xintercept = 0, linetype = 2)
+
+
+
+p2 = df %>% mutate(correlation = as.factor(cor),subjects = as.factor(subs))%>% ggplot(aes(x = effectsize, fill = subjects))+
+  facet_wrap(~correlation, ncol = 4, labeller = label_both)+geom_histogram(col = "black", alpha = 0.8, position = "identity")+theme_classic()+
+  geom_vline(xintercept = 0, linetype = 2)
+
+
+library(patchwork)
+
+p1/p2
+
+df %>% group_by(cor,subs) %>% summarize(mean = mean(effectsize), sd = sd(effectsize)) %>% ggplot(aes(x = cor, y = sd, col = subs))+geom_point()
+
+```
+# combine it :
+
+```{r}
+mu1 = -8
+mu2 = -3
+sd1 = 8
+sd2 = 10
+latent_effectsize = (5*sqrt(2*(1-0.5)))/sqrt(sd1^2+sd2^2-2*0.5*sd1*sd2)
+
+dq = df %>% mutate(trials = list(c(20,50,100,150))) %>% unnest() %>% group_by(subs,trials,cor) %>% summarize(mean = mean(effectsize), sd = sd(effectsize)) %>% mutate(cor = as.factor(cor))
+
+
+ddf %>% ggplot()+geom_raster(aes(x = subjects, y = obs_effectsize, fill = mean_power))+
+  scale_fill_continuous(type = "viridis")+facet_wrap(~trials, labeller = label_both, ncol = 2)+
+#    geom_ellipse(aes(x0 = 30, y0 = 0.4, a = 1, b = 0.5, angle = 0))+
+  geom_ellipse(data = dq, aes(x0 = subs, y0 = mean, a = 1.5, b = 2*sd, angle = 0, col = cor))+
+  scale_color_manual(values = c("black","orange","darkblue","red"))+theme_classic()+geom_hline(yintercept = latent_effectsize, linetype = 2)
+
+
+```
+
+#stress test:
+
+```{r}
+subbers = seq(5,500,by = 5)
+trials = c(20,100,500)
+ddf = get_matrix(d, subbers,trials)
+
+ddf = ddf %>% group_by(obs_effectsize, subjects,trials) %>% summarize(mean_power = round(mean(power),2)) 
+
+ddf
+
+subtract = 0.03
+
+filtered_data <- ddf %>% filter(mean_power < 0.80+subtract & mean_power > 0.80-subtract)
+
+
+library(ggforce)
+ddf %>% ggplot()+geom_raster(aes(x = subjects, y = obs_effectsize, fill = mean_power))+
+  scale_fill_continuous(type = "viridis")+facet_wrap(~trials)+
+    geom_ellipse(aes(x0 = 30, y0 = 0.4, a = 1, b = 0.2, angle = 0))+
+  geom_line(data = filtered_data, aes(x = subjects, y = obs_effectsize), color = "black")
+
+
+```
+
+
+
+#stress test:
+
+```{r}
+subbers = c(5,20,50,100,400)
+trials = seq(5,500,by = 10)
+ddf = get_matrix(d, subbers,trials)
+
+ddf = ddf %>% group_by(obs_effectsize, subjects,trials) %>% summarize(mean_power = round(mean(power),2)) 
+
+ddf %>% ggplot()+geom_raster(aes(x = trials, y = obs_effectsize, fill = mean_power))+
+  scale_fill_continuous(type = "viridis")+facet_wrap(~subjects)
+
+
+subtract = 0.02
+
+filtered_data <- ddf%>% filter(subjects == 50 & obs_effectsize > 0 & obs_effectsize < 0.8 & trials < 250) %>% 
+  filter(mean_power < 0.80+subtract & mean_power > 0.80-subtract)
+
+
+
+ddf %>% filter(subjects == 50 & obs_effectsize > 0 & obs_effectsize < 0.8 & trials < 250) %>% ggplot()+geom_raster(aes(x = trials, y = obs_effectsize, fill = mean_power))+
+  scale_fill_continuous(type = "viridis")+facet_wrap(~subjects)+
+  geom_line(data = filtered_data, aes(x = trials, y = obs_effectsize), col = "black")
+
+```
+
+
+```{r}
+d_logistic_int = as_draws_df(fit_test_logistic_int$draws(c("expo_alpha","expo_beta","intercept_alpha","intercept_beta")))
+
+names(d_logistic_int)[1:8] = c("expo_alpha1","expo_alpha2","expo_alpha3",
+             "expo_beta1","expo_beta2","expo_beta3",
+             "intercept_alpha","intercept_beta")
+
+
+
+get_matrix = function(d, subbers, trials, resolution){
+
+bigdf = data.frame()
+
+for(subs in subbers){
+
+  for(trial in trials){
+
+    data = d %>% rowwise() %>% 
+      mutate(alpha = exp(intercept_alpha) * subs ^ expo_alpha1 * trial^expo_alpha2 * (trial+subs) ^expo_alpha3,
+             beta = exp(intercept_beta) * subs ^ expo_beta1 * trial^expo_beta2 * (trial+subs) ^expo_beta3)%>% 
+      mutate(power = list(psychometric_logistic(seq(0,1,by = resolution), alpha, beta)),
+           obs_effectsize = list(seq(0,1,by = resolution))) %>% 
+    unnest() %>% mutate(subjects = subs, trials = trial)
+    
+    bigdf = rbind(data,bigdf)
+
+  }
+}
+return(bigdf)
+}
+
+```
+
+
+# the real case 
+```{r}
+subbers = c(40)
+trials = seq(5,300,by = 10)
+ddf = get_matrix(d_logistic_int, subbers,trials , resolution = 0.05)
+
+
+parameters = expand.grid(subss = 40,
+                        cor = 0.55) %>% mutate(id = 1:n())
+
+data_list <- split(parameters, parameters$id)
+  
+
+cores = 8
+plan(multisession, workers = cores)
+
+possfit_model = possibly(.f = get_eff, otherwise = "Error")
+
+results <- future_map(data_list, ~possfit_model(.x), .options = furrr_options(seed = TRUE), .progress = T)
+
+df = map_dfr(results,bind_rows)
+
+dq = df %>% mutate(trials = list(50)) %>% unnest() %>% group_by(subs,trials,cor) %>% 
+  summarize(mean = mean(effectsize), sd = sd(effectsize)) %>% mutate(cor = as.factor(cor)) %>% filter(trials == 50)
+
+
+ddf = ddf %>% group_by(obs_effectsize, subjects,trials) %>% summarize(mean_power = round(mean(power),2)) 
+
+library(ggforce)
+
+ddf %>% filter(trials < 200 & obs_effectsize > 0 & obs_effectsize < 1) %>% ggplot()+geom_raster(aes(x = trials, y = obs_effectsize, fill = mean_power))+
+  scale_fill_continuous(type = "viridis")+facet_wrap(~subjects, labeller = label_both, ncol = 2)+
+#    geom_ellipse(aes(x0 = 30, y0 = 0.4, a = 1, b = 0.5, angle = 0))+
+  geom_ellipse(data = dq, aes(x0 = trials, y0 = mean, a = 1.5, b = 2*sd, angle = 0))+theme_classic()
+```
+
+
+```{r}
+psychometric_logistic = function(x, alpha,beta){
+  return(1/(1+exp(-(1/beta) * (x - alpha))))
+}
+
+
+psi_function = function(df1){
+  
+  
+  data = df1 %>% 
+      mutate(alpha = exp(intercept_alpha) * subs ^ expo_alpha1 * trial^expo_alpha2 * (trial+subs) ^expo_alpha3,
+             beta = exp(intercept_beta) * subs ^ expo_beta1 * trial^expo_beta2 * (trial+subs) ^expo_beta3)%>% 
+      mutate(power = psychometric_logistic(observed_effectsize, alpha, beta)) %>%  
+    mutate(subjects = subs, trials = trial)
+    
+}
+
+
+
+n = 40
+sd1 = 8
+sd2 = 8
+
+#meandif = effect_size * (blablalab) / blablalba
+meandif = (seq(0,0.5,by = 0.1) * sqrt(sd1^2+sd2^2-2*0.5*sd1*sd2)) / sqrt(2*(1-0.5))
+
+# we use mean effect size = 0.5 so mean dif = 4
+mu1 = -8
+mu2 = (-8 + meandif[6])
+
+effectsize = c()
+correlation = c()
+for(i in 1:4000){
+
+  cor =  rnorm(1,0.54, 0.02)
+  
+  dd = faux::rnorm_multi(n, mu = c(mu1,mu2), sd = c(sd1,sd2), r = cor)
+  f = ef(dd)
+  
+  correlation[i] = cor.test(dd$X1, dd$X2)$estimate[[1]]
+  effectsize[i] = f
+}
+```
+
+
+```{r}
+
+get_power_per_trials = function(d_logistic_int, params){
+
+  
+  n = params$subs
+  sd1 = 8
+  sd2 = 8
+  
+  #meandif = effect_size * (blablalab) / blablalba
+  meandif = (seq(0,0.5,by = 0.1) * sqrt(sd1^2+sd2^2-2*0.5*sd1*sd2)) / sqrt(2*(1-0.5))
+  
+  # we use mean effect size = 0.5 so mean dif = 4
+  mu1 = -8
+  mu2 = (-8 + meandif[6])
+  
+  effectsize = c()
+  correlation = c()
+  for(i in 1:4000){
+  
+    cor =  rnorm(1,0.54, 0.02)
+    
+    dd = faux::rnorm_multi(n, mu = c(mu1,mu2), sd = c(sd1,sd2), r = cor)
+    f = ef(dd)
+    
+    effectsize[i] = f
+  }
+  
+  d_logistic_int$observed_effectsize = effectsize
+  d_logistic_int$trial = params$trials
+  d_logistic_int$subs = params$subs
+  
+  
+  
+  qr = d_logistic_int %>% 
+        mutate(alpha = exp(intercept_alpha) * subs ^ expo_alpha1 * trial^expo_alpha2 * (trial+subs) ^expo_alpha3,
+               beta = exp(intercept_beta) * subs ^ expo_beta1 * trial^expo_beta2 * (trial+subs) ^expo_beta3) %>% 
+    rowwise() %>% 
+        mutate(power = psychometric_logistic(observed_effectsize, alpha, beta)) %>%  
+      mutate(subjects = subs, trials = trial)
+    
+  data.frame(power = sum(qr$power > 0.8)/4000, trials = params$trials,subs = params$subs, replication = params$replicate)
+}
+
+
+
+trials = seq(10,300,by = 1)
+subs = seq(10,50,by = 1)
+
+replicate = 1:3
+
+
+parameters = expand.grid(trials = trials,
+                        replicate = replicate,
+                        subs = subs) %>% mutate(id = 1:n())
+
+data_list <- split(parameters, parameters$id)
+  
+
+cores = 12
+plan(multisession, workers = cores)
+
+possfit_model = possibly(.f = get_power_per_trials, otherwise = "Error")
+
+results <- future_map(data_list, ~possfit_model(d_logistic_int,.x), .options = furrr_options(seed = TRUE), .progress = T)
+
+df = map_dfr(results,bind_rows)
+
+
+df %>% group_by(trials, subs) %>% summarize(mean = mean(power), sd = sd(power)) %>% 
+  ggplot()+
+  geom_pointrange(aes(x = trials, y = mean, ymin = mean-2*sd, ymax = mean+2*sd, col = subs))+facet_wrap(~subs)
+
+
+subtract = 0.015
+linedata = df %>% group_by(trials, subs) %>% summarize(mean_power = round(mean(power),4),sd_power = round(sd(power),4)) %>% filter(mean_power < 0.8+subtract & mean_power > 0.8-subtract)
+
+pun = df %>% 
+  group_by(trials, subs) %>% summarize(mean_power = round(mean(power),3))%>% 
+  ungroup() %>% 
+  add_row(mean_power = c(1,0), trials = c(NA,NA), subs = c(NA,NA)) %>% 
+  ggplot()+
+  geom_raster(aes(x = trials, y = subs, fill = mean_power))+
+  geom_line(data = linedata, aes(x = trials, y = subs), col = "black")+
+  scale_fill_continuous(type = "viridis", breaks = c(0,0.2,0.4,0.6,0.8,1))+theme_classic()
+
+
+pun
+```
+
+
+#without uncertainty
+```{r}
+
+get_power_per_trials_no_unc = function(d_logistic_int, params){
+
+  
+  n = params$subs
+  sd1 = 8
+  sd2 = 8
+  
+  #meandif = effect_size * (blablalab) / blablalba
+  meandif = (seq(0,0.5,by = 0.1) * sqrt(sd1^2+sd2^2-2*0.5*sd1*sd2)) / sqrt(2*(1-0.5))
+  
+  # we use mean effect size = 0.5 so mean dif = 4
+  mu1 = -8
+  mu2 = (-8 + meandif[6])
+  
+  effectsize = 0.5
+
+  d_logistic_int$observed_effectsize = effectsize
+  d_logistic_int$trial = params$trials
+  d_logistic_int$subs = params$subs
+  
+  
+  
+  qr = d_logistic_int %>% 
+        mutate(alpha = exp(intercept_alpha) * subs ^ expo_alpha1 * trial^expo_alpha2 * (trial+subs) ^expo_alpha3,
+               beta = exp(intercept_beta) * subs ^ expo_beta1 * trial^expo_beta2 * (trial+subs) ^expo_beta3) %>% 
+    rowwise() %>% 
+        mutate(power = psychometric_logistic(observed_effectsize, alpha, beta)) %>%  
+      mutate(subjects = subs, trials = trial)
+    
+  data.frame(power = sum(qr$power > 0.8)/4000, trials = params$trials,subs = params$subs, replication = params$replicate)
+}
+
+
+trials = seq(10,200,by = 1)
+subs = seq(10,50,by = 1)
+
+replicate = 1
+
+
+parameters = expand.grid(trials = trials,
+                        replicate = replicate,
+                        subs = subs) %>% mutate(id = 1:n())
+
+data_list <- split(parameters, parameters$id)
+  
+
+cores = 8
+plan(multisession, workers = cores)
+
+possfit_model = possibly(.f = get_power_per_trials_no_unc, otherwise = "Error")
+
+results <- future_map(data_list, ~possfit_model(d_logistic_int,.x), .options = furrr_options(seed = TRUE), .progress = T)
+
+df_noun = map_dfr(results,bind_rows)
+
+
+
+df_noun %>% group_by(trials, subs) %>% summarize(mean = mean(power), sd = sd(power)) %>% 
+  ggplot(aes(x = trials, y = mean, ymin = mean-2*sd, ymax = mean+2*sd, col = subs))+
+  geom_pointrange(position=position_dodge(width = 0.2))+facet_wrap(~subs)
+
+
+
+
+subtract = 0.1
+linedata2 = df_noun %>% group_by(trials, subs) %>% summarize(mean_power = round(mean(power),3)) %>% filter(mean_power < 0.8+subtract & mean_power > 0.8-subtract)
+
+p_noun = df_noun %>% group_by(trials, subs) %>% summarize(mean_power = round(mean(power),3)) %>% 
+  ggplot()+geom_raster(aes(x = trials, y = subs, fill = mean_power))+
+  geom_line(data = linedata2, aes(x = trials, y = subs), col = "black")+
+#  geom_line(data = linedata, aes(x = trials, y = subs), col = "red")+
+  scale_fill_continuous(type = "viridis", breaks = c(0,0.2,0.4,0.6,0.8,1))+theme_classic()
+
+p_noun
+```
+
+
+
+```{r, fig.width=8,fig.height=5}
+library(patchwork)
+
+p_noun+geom_segment(aes(y = 20, yend = 20, x = 10, xend = 200),linetype = 2, col = "red")+
+  pun+geom_segment(aes(y = 20, yend = 20, x = 10, xend = 200),linetype = 2, col = "red")+ 
+  plot_layout(guides = "collect")
+```
+
+
+```{r}
+
+ICC_raw2%>% filter(grepl("resid_alpha_var", variable)) %>% filter(subs != 10) %>% group_by(trials) %>% 
+  summarize(mean_resid = mean(mean),sd =  sd(mean)/sqrt(n())) %>% 
+  ggplot(aes(x = trials,y = mean_resid, ymax = mean_resid+sd,ymin = mean_resid-sd))+geom_pointrange()
+
+
+
+ICC_raw2%>% filter(grepl("ICC_alpha", variable)) %>% filter(subs != 10 & residual_variance == T)%>% 
+  mutate(id = list(1:500)) %>% unnest() %>% rowwise() %>% mutate(mean2 = rnorm(1,mean,sd)) %>% 
+  group_by(trials) %>% 
+  summarize(mean_resid = mean(mean2),sd =  sd(mean2)) %>% 
+  ggplot(aes(x = trials,y = mean_resid, ymax = mean_resid+sd,ymin = mean_resid-sd))+geom_pointrange()
+
+
+
+linedata2 = ICC_raw2%>% filter(grepl("ICC_alpha", variable)) %>% filter(subs != 10 & residual_variance == T)%>% 
+  mutate(id = list(1:500)) %>% unnest() %>% rowwise() %>% mutate(mean2 = rnorm(1,mean,sd)) %>% 
+  group_by(trials) %>% 
+  summarize(mean_resid = mean(mean2),sd =  sd(mean2))
+
+
+standata = list(trials = linedata2$trials,
+                N = nrow(linedata2),
+                y = linedata2$mean_resid,
+                y_se = linedata2$sd)
+
+
+mod = cmdstanr::cmdstan_model(here::here("Analyses", "Power analysis", "power analysis results","stanmodels","test_werid_iccidea2.stan"),stanc_options = list("O1"))
+
+
+test_with_subs <- mod$sample(
+  data = standata, 
+  chains = 4,
+  refresh = 50,
+  init = 0,
+  iter_warmup = 1000,
+  iter_sampling = 1000,
+  parallel_chains = 4,
+  adapt_delta = 0.80,
+  max_treedepth = 12
+)
+
+test_with_subs
+```
+
+
+
+

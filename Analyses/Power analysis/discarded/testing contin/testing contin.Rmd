@@ -1,0 +1,21 @@
+---
+title: "testing contin"
+output: html_document
+date: "`r Sys.Date()`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+```{r}
+sigma = 1
+effect = 0.5
+x = c(0,1,2)
+
+
+y = rnorm(10, x*effect, sigma)
+
+```
+

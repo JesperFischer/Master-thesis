@@ -1,0 +1,279 @@
+---
+title: "plots"
+output: html_document
+date: "2024-03-14"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+pacman::p_load(tidyverse,RWiener, tidybayes, posterior, furrr,gganimate, cmdstanr,patchwork, gamlss,truncnorm,extraDistr,flextable,lmerTest,lme4,Matrix,pracma)
+```
+
+## R Markdown
+
+# VIsualization of psychometrics:
+```{r}
+
+
+psycho = function(x, alpha,beta,lambda){
+  
+  return(brms::inv_logit_scaled(lambda) / 2 + (1 - 2 * brms::inv_logit_scaled(lambda) / 2) * (0.5 + 0.5 * pracma::erf(((x - alpha) / (exp(beta) * sqrt(2))))))
+  
+}
+
+x = seq(-50,50,by = 0.1)
+samples = 100
+
+
+alpha_uncon = rnorm(samples,0,10)
+beta_uncon = rnorm(samples,1,0.6)
+lambda_uncon = rnorm(samples,-4,2)  
+
+
+data.frame(id = 1:samples, alpha_uncon = alpha_uncon, beta_uncon = beta_uncon, lambda_uncon = lambda_uncon) %>% rowwise() %>% 
+  mutate(x = list(x), y = list(psycho(x, alpha_uncon,beta_uncon,lambda_uncon))) %>% 
+  unnest()%>% ggplot(aes(x = x, y = y, group = id))+geom_line()+theme_classic()
+
+
+
+alpha_uncon = rnorm(samples,0,10)
+beta_uncon = rnorm(samples,2,0.6)
+lambda_uncon = rnorm(samples,-4,2)  
+
+
+data.frame(id = 1:samples, alpha_uncon = alpha_uncon, beta_uncon = beta_uncon, lambda_uncon = lambda_uncon) %>% rowwise() %>% 
+  mutate(x = list(x), y = list(psycho(x, alpha_uncon,beta_uncon,lambda_uncon))) %>% 
+  unnest()%>% ggplot(aes(x = x, y = y, group = id))+geom_line()+theme_classic()
+
+
+
+
+alpha_uncon = rnorm(samples,0,10)
+beta_uncon = rnorm(samples,3,0.6)
+lambda_uncon = rnorm(samples,-4,2)  
+
+
+data.frame(id = 1:samples, alpha_uncon = alpha_uncon, beta_uncon = beta_uncon, lambda_uncon = lambda_uncon) %>% rowwise() %>% 
+  mutate(x = list(x), y = list(psycho(x, alpha_uncon,beta_uncon,lambda_uncon))) %>% 
+  unnest()%>% ggplot(aes(x = x, y = y, group = id))+geom_line()+theme_classic()
+
+
+
+alpha_uncon = rnorm(samples,0,10)
+beta_uncon = rnorm(samples,4,0.6)
+lambda_uncon = rnorm(samples,-4,2)  
+
+
+data.frame(id = 1:samples, alpha_uncon = alpha_uncon, beta_uncon = beta_uncon, lambda_uncon = lambda_uncon) %>% rowwise() %>% 
+  mutate(x = list(x), y = list(psycho(x, alpha_uncon,beta_uncon,lambda_uncon))) %>% 
+  unnest()%>% ggplot(aes(x = x, y = y, group = id))+geom_line()+theme_classic()
+
+```
+
+
+```{r}
+
+psycho = function(x, psyalpha,psybeta,psylambda,delta,beta,alpha,tau){
+  
+  p = brms::inv_logit_scaled(psylambda) / 2 + (1 - 2 * brms::inv_logit_scaled(psylambda) / 2) * (0.5 + 0.5 * pracma::erf(((x - psyalpha) / (exp(psybeta) * sqrt(2)))))
+  
+  d = delta * (p-(1-p))
+
+  df = data.frame()
+  for(i in 1:length(x)){
+   rts = data.frame(rt = RWiener::rwiener(1, exp(alpha), brms::inv_logit_scaled(tau),brms::inv_logit_scaled(beta),d[i])$q) %>% mutate(i = i) 
+    
+   df = rbind(df,rts)
+  }
+    
+  p1 = data.frame(p = p, x = x, rts = rts) %>% ggplot(aes(x = x, y = p))+geom_point()
+  
+  p2 = data.frame(p = p, x = x, rts = df$rt, d = d) %>% ggplot(aes(x = x, y = rts))+geom_point()
+  
+  p1/p2
+  
+  return(p1/p2)
+  
+}
+
+x = seq(-50,50,by = 1)
+samples = 1
+
+
+psyalpha_uncon = rnorm(samples,0,10)
+psybeta_uncon = rnorm(samples,2,0.6)
+psylambda_uncon = rnorm(samples,-4,2)  
+
+delta_uncon = rnorm(samples,10,3)
+delta_uncon = 10
+beta_uncon = rnorm(samples,0,1)
+alpha_uncon = rnorm(samples,0,2)
+tau_uncon = rnorm(samples,0,2)
+
+
+psycho(x,psyalpha_uncon,psybeta_uncon,psylambda_uncon, delta_uncon, beta_uncon,alpha_uncon,tau_uncon)
+
+
+
+
+```
+
+
+
+```{r}
+psycho_lognormal = function(x, psyalpha,psybeta,psylambda,int,beta,sigma, shift, prob){
+  
+
+  p = brms::inv_logit_scaled(psylambda) / 2 + (1 - 2 * brms::inv_logit_scaled(psylambda) / 2) * (0.5 + 0.5 * pracma::erf(((x - psyalpha) / (exp(psybeta) * sqrt(2)))))
+  
+
+  rts = rlnorm(length(x),int+ exp(beta) * (p*(1-p)), exp(sigma))+exp(shift)
+  
+    
+  # p1 = data.frame(p = p, x = x, rts = rts) %>% ggplot(aes(x = x, y = p))+geom_point()
+  # 
+  # p2 = data.frame(p = p, x = x, rts = rts) %>% ggplot(aes(x = x, y = rts))+geom_point()
+  # 
+  # p1/p2
+    if(prob){
+      return(p)
+    }else{
+      return(rts)
+    }
+}
+
+x = seq(-30,30,by = 0.1)
+samples = 10
+
+
+psyalpha_uncon = rnorm(samples,0,10)
+psybeta_uncon = rnorm(samples,2,0.6)
+psylambda_uncon = rnorm(samples,-4,2)  
+
+int_uncon = rnorm(samples,-2,0.5)
+
+beta_uncon = rnorm(samples,1,0.3)
+#beta_uncon = 0
+sigma_uncon = rnorm(samples,-1,0.3)
+
+shift_uncon = rnorm(samples,-1,0.5)
+
+
+hist(rlnorm(samples,int_uncon+exp(beta_uncon)*0.25,exp(sigma_uncon))+exp(shift_uncon))
+
+# psycho_lognormal(x,
+#                  psyalpha = psyalpha_uncon,psybeta = psybeta_uncon,psylambda = psylambda_uncon,
+#                  int = int_uncon, beta = beta_uncon,sigma = sigma_uncon,shift = shift_uncon)
+
+
+
+probplot = data.frame(id = 1:samples, psyalpha_uncon = psyalpha_uncon, psybeta_uncon = psybeta_uncon, psylambda_uncon = psylambda_uncon,
+           int_uncon = int_uncon, beta_uncon = beta_uncon, sigma = sigma_uncon, shift = shift_uncon) %>% rowwise() %>% 
+  mutate(x = list(x),
+         probabilities = list(psycho_lognormal(x, psyalpha = psyalpha_uncon,psybeta = psybeta_uncon,psylambda = psylambda_uncon,
+                 int = int_uncon, beta = beta_uncon,sigma = sigma_uncon,shift = shift_uncon, prob = T))) %>% 
+  unnest() %>% mutate(id = as.factor(id)) %>% 
+  ggplot(aes(x = x, y = probabilities, group = id, col = id))+geom_line()+theme_classic()
+
+
+
+rts_plot = data.frame(id = 1:samples, psyalpha_uncon = psyalpha_uncon, psybeta_uncon = psybeta_uncon, psylambda_uncon = psylambda_uncon,
+           int_uncon = int_uncon, beta_uncon = beta_uncon, sigma = sigma_uncon, shift = shift_uncon) %>% rowwise() %>% 
+  mutate(x = list(x),
+         rts = list(psycho_lognormal(x, psyalpha = psyalpha_uncon,psybeta = psybeta_uncon,psylambda = psylambda_uncon,
+                 int = int_uncon, beta = beta_uncon,sigma = sigma_uncon,shift = shift_uncon, prob = F))) %>% 
+  unnest()%>% mutate(id = as.factor(id)) %>% 
+  ggplot(aes(x = x, y = rts, group = id, col = id))+theme_classic()+geom_smooth(se = F)
+
+
+rts_plot1 = data.frame(id = 1:samples, psyalpha_uncon = psyalpha_uncon, psybeta_uncon = psybeta_uncon, psylambda_uncon = psylambda_uncon,
+           int_uncon = int_uncon, beta_uncon = beta_uncon, sigma = sigma_uncon, shift = shift_uncon) %>% rowwise() %>% 
+  mutate(x = list(x),
+         rts = list(psycho_lognormal(x, psyalpha = psyalpha_uncon,psybeta = psybeta_uncon,psylambda = psylambda_uncon,
+                 int = int_uncon, beta = beta_uncon,sigma = sigma_uncon,shift = shift_uncon, prob = F))) %>% 
+  unnest()%>% mutate(id = as.factor(id)) %>% 
+  ggplot(aes(x = x, y = rts, group = id, col = id))+theme_classic()+geom_point()
+
+probplot / rts_plot
+
+```
+
+
+
+```{r}
+psycho_lognormal = function(x, psyalpha,psybeta,psylambda,int,beta,sigma, shift, prob){
+  
+
+  p = brms::inv_logit_scaled(psylambda) / 2 + (1 - 2 * brms::inv_logit_scaled(psylambda) / 2) * (0.5 + 0.5 * pracma::erf(((x - psyalpha) / (exp(psybeta) * sqrt(2)))))
+  
+
+  rts = rlnorm(length(x),int+ exp(beta) * (p*(1-p)), exp(sigma))+exp(shift)
+    
+  # p1 = data.frame(p = p, x = x, rts = rts) %>% ggplot(aes(x = x, y = p))+geom_point()
+  # 
+  # p2 = data.frame(p = p, x = x, rts = rts) %>% ggplot(aes(x = x, y = rts))+geom_point()
+  # 
+  # p1/p2
+    if(prob){
+      return(p)
+    }else{
+      return(rts)
+    }
+}
+
+x = seq(-50,50,by = 1)
+samples = 20
+
+
+psyalpha_uncon = rnorm(samples,0,10)
+psybeta_uncon = rnorm(samples,2,0.6)
+psylambda_uncon = rnorm(samples,-4,2)  
+
+int_uncon = rnorm(samples,-2,0.5)
+int_uncon = -2
+beta_uncon = rnorm(samples,2,0.5)
+beta_uncon = 1.5
+sigma_uncon = rnorm(samples,-1,0.5)
+sigma_uncon = -1
+shift_uncon = rnorm(samples,-1,0.5)
+shift_uncon = -1
+hist(rlnorm(samples,int_uncon+exp(beta_uncon * 0.25),exp(sigma_uncon)))
+
+# int_uncon = rnorm(samples,-2,0.5)
+# 
+# beta_uncon = rnorm(samples,1.5,0.3)
+# 
+# sigma_uncon = rnorm(samples,-1,0.3)
+# 
+# shift_uncon = rnorm(samples,-1,0.5)
+
+
+# psycho_lognormal(x,
+#                  psyalpha = psyalpha_uncon,psybeta = psybeta_uncon,psylambda = psylambda_uncon,
+#                  int = int_uncon, beta = beta_uncon,sigma = sigma_uncon,shift = shift_uncon)
+
+
+
+probplot = data.frame(id = 1:samples, psyalpha_uncon = psyalpha_uncon, psybeta_uncon = psybeta_uncon, psylambda_uncon = psylambda_uncon,
+           int_uncon = int_uncon, beta_uncon = beta_uncon, sigma = sigma_uncon, shift = shift_uncon) %>% rowwise() %>% 
+  mutate(x = list(x),
+         probabilities = list(psycho_lognormal(x, psyalpha = psyalpha_uncon,psybeta = psybeta_uncon,psylambda = psylambda_uncon,
+                 int = int_uncon, beta = beta_uncon,sigma = sigma_uncon,shift = shift_uncon, prob = T))) %>% 
+  unnest() %>% mutate(id = as.factor(id)) %>% 
+  ggplot(aes(x = x, y = probabilities, group = id, col = id))+geom_line()+theme_classic()
+
+
+
+rts_plot = data.frame(id = 1:samples, psyalpha_uncon = psyalpha_uncon, psybeta_uncon = psybeta_uncon, psylambda_uncon = psylambda_uncon,
+           int_uncon = int_uncon, beta_uncon = beta_uncon, sigma = sigma_uncon, shift = shift_uncon) %>% rowwise() %>% 
+  mutate(x = list(x),
+         rts = list(psycho_lognormal(x, psyalpha = psyalpha_uncon,psybeta = psybeta_uncon,psylambda = psylambda_uncon,
+                 int = int_uncon, beta = beta_uncon,sigma = sigma_uncon,shift = shift_uncon, prob = F))) %>% 
+  unnest()%>% mutate(id = as.factor(id)) %>% 
+  ggplot(aes(x = x, y = rts, group = id, col = id))+theme_classic()+geom_smooth(se = F)
+
+
+probplot / rts_plot
+
+```
+

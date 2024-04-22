@@ -1,0 +1,107 @@
+## *We can do better!*
+
+A couple of import bits of information have been left out in the parameter recovery analysis described above, including the priors of the Bayesian model, estimation, and handling of convergence for the model, but most importantly, what is the design of the experiment that the simulated agent goes through? Looking back at figure XXA providing stimulus values in the far ends of the psychometric functions i.e. in the ranges of [-50 ; -25] and [25 ; 50] will in most cases for most agents give next to no information on the shape of the psychometric and therefore the parameters we mostly care about i.e. alpha and beta, as on average the agents’ psychometric functions are monotonically increasing in the interval of [-25 ; 25]. Therefore, selecting stimuli (inputs) in this interval must be better for decreasing the estimation uncertainty in the two parameters we care about, compared to randomly or uniformly exploring the input space. We might even go a step further and instead of selecting inputs that are more appropriate for the mean of the population we could individualize each experiment to the agent or subject. This practice of individualizing the experiment of interest is called adaptive design optimization (ADO) and has quite a big literature behind it and revolves around selecting inputs that are optimal given a specific criterion [@watson_quest_2017; @prins_psi-marginal_2013]. Many of these criterions exists such as minimizing entropy, minimizing the posterior variance or mutual information, but what they all have in common is that they do decrease estimation uncertainty of either all or certain parameters to a meaningful degree. In order to keep in the same theme as the rest of the thesis I will instead of utilizing the few available packages that exist for doing ADO for psychometric functions I will show how utilizing the single fit model which was built for conducting the simple single subject parameter recovery can be utilized together with the knowledge that the most informative stimuli for determining the shape of a single agents’ psychometric function is somewhere in the middle region of that psychometric. One of the main challenges of utilizing ADO is that because the experiment is updated and individualized an algorithm determining the next stimulus must run in tandem with the experiment. This puts quite a high constraint on computation time of the algorithm, this issue has partly been solved in the existing packages by before conducting the experiment mapping out a grid at a particular resolution of parameter values at a current trial and then what the optimal stimulus value to present is. This clever solution puts the heavy computation time before the experiment and ensures that when the experiment is run only a single look up is needed to provide the next stimulus value. This approach works great for psychophysical experiments or other experiments where each trial is independent of the next. This is because then only a single optimization step is required for each trial, whereas if trials were mutually dependent as in a learning experiment, then the algorithm would need to calculate all possible lines of stimuli and responses to a certain point which given the combinatorics can become a daunting task.
+
+
+To provide something that is more generalizable and can be continuously updated on a trial-by-trial basis while the experiment is run, other approaches might be more appropriate. Illustrating such an approach can easily be done with the same model used to fit individual subjects when using the R and Stan, the quick estimation of the posterior distribution is then done using a variational inference algorithm, particularly pathfinder [@zhang_pathfinder_2022]. Figure 5 shows how the posterior distribution of the 3 parameters of the PF varies as a function of trials in both the uniform and pathfinder approach to selecting stimulus values. As can be seen both approaches makes the parameters converge towards the real simulated values (black line), however the speed at which this happens is clearly very different, especially for the two parameters we are the most interested in i.e. alpha and beta. For these two parameters after just 20 trials of pathfinder the optimization has found the simulated parameter value and decreased the estimation uncertainty (posterior variance) to close to 0 whereas even after 50 trials the uniform approach still has a bit of a bias in the estimation, the individual points are not on the black line, but also a substantial estimation uncertainty associated with it. For completeness a PSI-algorithm was also used to compare to ensure that the pathfinder algorithm was not too slow or bad [@kontsevich_bayesian_1999].
+
+<!-- pathfinder vs psi vs uniform plot -->
+```{r figure9, fig.width = 7.2, fig.height = 7.2, warning = F, message = F, echo = F, fig.cap = "**Figure 9 comparison of algorithms to obtain stimulus values of the psychometric function** "}
+
+cowplot::ggdraw() +
+    cowplot::draw_image(magick::image_read(here::here("Figures","Pathfinder.PNG")), scale = 1)
+```
+
+To show the improvement more rigorously in reduced estimation uncertainty especially across a range of trial numbers, the Pathfinder, Uniform and PSI algorithms were run 100 times for trials ranging from 20 to 100 in a sequence of 10 trials, in order to make the comparison as fair as possible each of the algorithms were only used to generate the stimulus sequence, meaning that all three types were refitted using the same single fit Bayesian model. For complete details on the fitting and optimization strategy see supplementary material XX. 
+
+
+<!-- pathfinder vs psi vs uniform plot over many iterations-->
+```{r figure 10, fig.width = 7.2, fig.height = 7.2, warning = F, message = F, echo = F, fig.cap = "**Figure 10.** shows how the estimation uncertainty and bias changes according to the number of trials and parameter value estimated with the different methods. "}
+
+cowplot::ggdraw() +
+    cowplot::draw_image(magick::image_read(here::here("Figures","Pathfinder_bias_estimation.PNG")), scale = 1)
+
+
+```
+
+
+Using the newfound ADO we can now investigate the three remaining elephants in the room, subjects, trials and the influence on the mean simulated slope value. The last point is less obvious than the two others but stems from the fact that increasing the slope (decreasing the steepness) of the PF will make it harder to estimate, but also influence the recovery on the threshold, which will become clear below. For this purpose, I’ll simulate trials ranging from 20 to 200 in increments of 20, subjects being between 10, 30 and 50 and lastly mean slope values of 1,2 and 3 in the unconstrained space, all other parameter values being identical to table 1. To guard against simulations that are not representative due to either bad convergences in the ADO or in the fitting procedure, each combination was run 5 times.
+Figure XXX) shows how the correlation approach with added uncertainty to parameter recovery fairs (for the standard approach of no uncertainty see supplementary XXX). Figure YYY shows how the $ICC_2$ fairs on the same simulated datasets, (for the $ICC_1$ analysis with only the within subject variance see supplementary QQQ).
+
+
+<!-- make or break plots of ICC vs correlation coefficient for pathfinder  -->
+```{r figure 11, fig.width = 7.2, fig.height = 7.2, warning = F, message = F, echo = F, fig.cap = "**Figure 11 comparison of parameter recovery metrics.** First row depicts how the estimate of the correlation coefficent between simulated and estimated means change as a function of trials (x-axis) and the simulated mean slope (color) for each parameter of the psychometric function (columns). The bottom row shows how the estimate of $ICC_2$ changes based on the same metrics as the correlation coefficient. Note that the correlation coeffecient has been uncertainty propergated using bootstrapping."}
+cowplot::ggdraw() +
+    cowplot::draw_image(magick::image_read(here::here("Figures","ICC_vs_correlation.PNG")), scale = 1)
+```
+
+
+<!-- Some thought about the plots and modeling opportunities: -->
+What seems to be the main difference between the two approaches is the in the lower number of trials and especially in the comparison between the high simulated slopes (lowest panel) for the threshold as both approaches seem to suggest that in high number of trials (> 100) and in steep slopes (beta >= 2) that the threshold is fully recovered. The difference is clearly in the lowest panel where the ICC approach suggest that there is still variance left unexplained, to investigate this we can plot the pairwise scatter plot of the high simulated slopes (beta = 3) and low simulated slopes (beta = 1) on different trials and subjects. Figure XYX clearly shows why there is such a difference between the two approaches, the ICC metric is much more stringent on the higher-level estimation uncertainty when the simulated slope is less steep. 
+Turning the attention to the slope itself, there also seems to be a difference. What is present is again that the ICC metric has lower values in general and is not asymptotic at one with the configurations used here (to see the pairwise scatter plots see supplementary material XXX). Lastly both approaches suggest that the lapse rate is well below acceptable ranges, but still with the ICC being more conservative. 
+
+```{r figure 12, fig.width = 7.2, fig.height = 5, warning = F, message = F, echo = F, fig.cap = "**Figure 12.** Showing the pairwise scatter plots of simulated vs recovered threshold ($\\alpha$) parameter when the simulated beta value is low (beta = 1) and high (beta = 3) for subjects (rows) and trials (columns)."}
+cowplot::ggdraw() +
+    cowplot::draw_image(magick::image_read(here::here("Figures","scatter_plot.PNG")), scale = 1)
+```
+
+
+As conveyed by the pairwise scatter plots the conservative ICC metric capture the fact that estimation uncertainty is a source of variability that can still be reduced even when the correlation coefficient (also with the estimation uncertainty propagated) might indicate perfect fit. This is exactly the behavior one would like to have when trying to understand their model as this information is much more sensitive, furthermore the values also have a natural interpretation. An ICC value of 0.8 means that 80% of the variance in the model is governed by the between subject level and only 20 % is in the estimation or test -retest uncertainty, the ICC could of cause be further decomposed into what proportion of variance of the 20% is from estimation and what is from test retest uncertainty, however for this particular model it seems like most if not all is from estimation uncertainty (see supplementary XYXX). This straightforward interpretation is not present for the correlation coefficient, especially because of the arguments laid forth in the “current problems with internal recovery” section. 
+
+
+<!-- Speculation  -->
+Many if not all papers describing the test retest reliability of cognitive models in the literature finds that hierarchical models are better but also argue some something around the correlation coefficient, here the ICC metric is again really helpful as the estimation uncertainty is going to be soaked up somewhere in the model and that is going to go towards the within subject variance or at least increase it such that in reality the ICC might have been higher than observed but because you did not have enough trials the uncertainty around the estimate i.e. the estimation uncertainty is what is causing the low test retest reliability.
+
+<!-- plots of subjects times trials times high vs low beta on the threshold scatter plots of simulated vs recovered  -->
+
+
+<!-- title again idjk -->
+## **Can we do better?**
+
+Now I’ve hopefully convinced that the ICC approach to parameter recovery is superior to both the standard and the uncertainty propagated correlational approach in that it better reflects our expectations given the pairwise scatter plots of simulated vs estimated parameter values. The question now becomes given our more nuanced view of parameter recovery what we can do to improve it. The obvious answer given the plots above seems to be increasing the number of trials, as the number of subjects does not seem to influence the estimates to a meaningful degree. However mindlessly increasing trials to gain a certain recovery and or statistical power can be troublesome in non-obvious ways. The obvious problems with increasing the trials number are resources costs, both in terms of money to the participants completing the experiment, the experimenter, but also the time investment. However, the most problematic aspect becomes more obvious if we take a step back and think carefully about what we are studying. We are studying a complex system that has its own goals, desires and motivations and it is not trivial to how this participant will behave if the task is double the length. Firstly, will the participant employ a different strategy knowing that the experiment is going to take X time longer, or will they halfway through employ a different strategy. Even if the participant keeps the same underlying cognitive strategy that we are trying to model, then one reasonable assumption would be that attentional lapses and engagement in the task will decreasing, making each additional trial after a certain point less “valuable”.
+I will here argue that in many of the cognitive science paradigms there might be no need for increasing trial counts to increase the recovery of parameters, but to utilize the data the participant has already provided in better and more sophisticated ways. For the sake of this thesis, I will look at incorporating the reaction times of the agents’ responses as sources of information about the underlying psychometric function of their binary choices. I’ll be focusing on the reaction times as these have a long and rigorous history in cognitive science literature, but more importantly are present in most experiments conducted today [@sternberg_memory-scanning_1969; @pirolli_role_1985; @macleod_training_1988].
+
+<!-- (some explanation to how we incorporate the RTs into the current task (both the theoretical argument, but also how to do it in practice and displaying perhaps a platenotation of the model or something similar in order to display that this is just a shifted lognormal on the RTs and the binary responses are modeled the same). -->
+
+<!-- (say something about this approach of modeling not being limited to RTs but could be extending to Confidence ratings, perceptual ratings etc… and ofcause also to other domains i.e. learning tasks)  -->
+
+<!-- Perhaps mention something about how it relates to the DDM i.e. having a likelihood that incorporates two “dependent variables”. -->
+
+To show how these reaction times help the recovery of the parameters of interest i.e. the threshold and slope of the psychometric, I’ve chosen to simulate agents with the parameter values displayed in table 2. To understand the influence of the size of coupling between the binary responses and the reaction times I’ve chosen to simulate this coupling parameter being 1.5 with the other parameters being as in table 2 with the slope of the psychometric ($\beta$) being 3. Again, showing and understanding what these parameter values mean we simulate the parameters and display the behavior. This can be seen in figure 13 where 10 simulated subjects are visualized, for the visualization of what happens with a steeper slope i.e. beta = 1 or other combiniations of parameters see supplementary XXX:.
+
+
+```{r Table 2, warning = F, message = F, echo = F, fig.cap = "**Table 2: Parameter distributions for reaction time simulations** Parameter distributions for the simulated agents and the transformations for each of the parameters when including the Reaction times in the psychometric function."}
+table2 = read.csv(here::here("tables","table2.csv")) %>% mutate(X = NULL)
+
+table2 = flextable::flextable(table2) %>% flextable::width(c(1), width = 1.3) %>% flextable::width(c(4), width = 1.8)
+table2
+```
+
+```{r figure 13, fig.width = 7.2, fig.height = 5, warning = F, message = F, echo = F, fig.cap = "**Figure 13 Visualization of the psychometric function with Reaction times.** Upper panel depicts 10 psychometric functions where parameters were drawn from table2. Lower Panel depicts the assumed relationship between the stimulus value (x) and the reaction times (y), which as can be seen is dependent on the shape of the psychometric function in the upper panel. The reaction time functions peak around the psychometric threshold and tapers off when the psychometric function asympotes at 1 or 0."}
+cowplot::ggdraw() +
+    cowplot::draw_image(magick::image_read(here::here("Figures","plot13_psychometric_RT.png")), scale = 1)
+```
+
+With these simulations we can now visualize what including the reaction times into the modeling means for the parameter recovery for the influence on the other metrics like the correlation coefficient see supplementary material XXX.  Figure XXX and YYY displays the results of this analysis the first plot showing the means and 95% confidence intervals of the $ICC_1$ for the stimulations for the three parameters of the PF together.
+
+
+
+
+```{r Figure14, fig.width = 7.2, fig.height = 7.2, warning = F, message = F, echo = F, fig.cap = "Figure 14 histogram of the mean difference between the ICC value obtained from using the reaction times or not, colors display the simulated level of coupling between the underlying psychometric function and the reaction times. Stronger coupling is associated with bigger parameter recovery effects for both threshold and slope, but not lapse rate."}
+cowplot::ggdraw() +
+    cowplot::draw_image(magick::image_read(here::here("Figures","ICC_rtplot.PNG")), scale = 1)
+```
+
+
+```{r Figure141, fig.width = 7.2, fig.height = 7.2, warning = F, message = F, echo = F, fig.cap = "Figure 141 histogram of the mean difference between the ICC value obtained from using the reaction times or not, colors display the simulated level of coupling between the underlying psychometric function and the reaction times. Stronger coupling is associated with bigger parameter recovery effects for both threshold and slope, but not lapse rate."}
+
+
+
+cowplot::ggdraw() +
+    cowplot::draw_image(magick::image_read(here::here("Figures","ICC_rt_difplot.PNG")), scale = 1)
+
+
+```
+
+
+

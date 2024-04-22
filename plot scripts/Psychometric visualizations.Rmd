@@ -1,0 +1,204 @@
+---
+title: "Psychometric visualizations"
+output: html_document
+date: "2024-04-17"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+pacman::p_load(tidyverse,RWiener, tidybayes, posterior, furrr,patchwork,truncnorm,extraDistr,lmerTest,Matrix,pracma)
+
+```
+
+# Figure 4: Psychometric parameters
+
+```{r, fig.height=5, fig.width=7}
+
+
+psycho = function(x, alpha,beta,lambda){
+  return(brms::inv_logit_scaled(lambda) / 2 + (1 - 2 * brms::inv_logit_scaled(lambda) / 2) * (0.5 + 0.5 * pracma::erf(((x - alpha) / (exp(beta) * sqrt(2))))))
+  
+}
+#X range
+x = seq(-50,50,by = 0.1)
+#number of lines
+
+#first with beta = 1
+alpha_uncon = c(20,0,-20)
+beta_uncon = c(0.5,2,3)
+lambda_uncon = c(-4,-2,-1)
+
+samples = length(alpha_uncon)
+
+
+
+p4 = expand.grid(alpha_uncon = alpha_uncon, beta_uncon = beta_uncon, lambda_uncon = lambda_uncon) %>% mutate(id = 1:samples^3) %>% rowwise() %>% 
+  mutate(x = list(x), y = list(psycho(x, alpha_uncon,beta_uncon,lambda_uncon))) %>% 
+  unnest()%>% 
+  mutate(lambda_uncon = as.factor(lambda_uncon)) %>% 
+  rename(Beta = beta_uncon, Alpha = alpha_uncon) %>% 
+  ggplot(aes(x = x, y = y, col = lambda_uncon))+
+  geom_line(linewidth = 1)+
+  theme_classic()+
+  facet_grid(Alpha~Beta, labeller = label_both)+
+  guides(col = guide_legend(title="Lambda"))+
+  ylab("Probability of responding 1")+
+  xlab("Stimulus")
+
+p4
+ggsave(here::here("Figures","figure_4_psychometric_parameters.png"), plot = p4, dpi = 600, width = 7, height = 5)
+
+
+```
+
+
+
+
+# VIsualization of psychometrics:
+```{r, fig.height=5, fig.width=7}
+#function to get the psychometric
+psycho = function(x, alpha,beta,lambda){
+  
+  return(brms::inv_logit_scaled(lambda) / 2 + (1 - 2 * brms::inv_logit_scaled(lambda) / 2) * (0.5 + 0.5 * pracma::erf(((x - alpha) / (exp(beta) * sqrt(2))))))
+  
+}
+#X range
+x = seq(-50,50,by = 0.1)
+#number of lines
+samples = 100
+
+#first with beta = 1
+alpha_uncon = rnorm(samples,0,10)
+beta_uncon = rnorm(samples,1,0.6)
+lambda_uncon = rnorm(samples,-4,2)  
+
+
+data.frame(id = 1:samples, alpha_uncon = alpha_uncon, beta_uncon = beta_uncon, lambda_uncon = lambda_uncon) %>% rowwise() %>% 
+  mutate(x = list(x), y = list(psycho(x, alpha_uncon,beta_uncon,lambda_uncon))) %>% 
+  unnest()%>% ggplot(aes(x = x, y = y, group = id))+geom_line()+theme_classic()
+
+
+#first with beta = 2
+alpha_uncon = rnorm(samples,0,10)
+beta_uncon = rnorm(samples,2,0.6)
+lambda_uncon = rnorm(samples,-4,2)  
+
+
+p6 = data.frame(id = 1:samples, alpha_uncon = alpha_uncon, beta_uncon = beta_uncon, lambda_uncon = lambda_uncon) %>% rowwise() %>% 
+  mutate(x = list(x), y = list(psycho(x, alpha_uncon,beta_uncon,lambda_uncon))) %>% 
+  unnest()%>% ggplot(aes(x = x, y = y, group = id))+geom_line()+theme_classic()+
+  geom_line(aes(x = x, y = psycho(x, mean(alpha_uncon),mean(beta_uncon),mean(lambda_uncon))), col = "red", linewidth = 2, alpha = 0.5)+xlab("Stimulus")+ylab("Probability of responding 1")
+
+p6
+
+#first with beta = 3
+alpha_uncon = rnorm(samples,0,10)
+beta_uncon = rnorm(samples,3,0.6)
+lambda_uncon = rnorm(samples,-4,2)  
+
+
+data.frame(id = 1:samples, alpha_uncon = alpha_uncon, beta_uncon = beta_uncon, lambda_uncon = lambda_uncon) %>% rowwise() %>% 
+  mutate(x = list(x), y = list(psycho(x, alpha_uncon,beta_uncon,lambda_uncon))) %>% 
+  unnest()%>% ggplot(aes(x = x, y = y, group = id))+geom_line()+theme_classic()
+
+
+#first with beta = 4
+alpha_uncon = rnorm(samples,0,10)
+beta_uncon = rnorm(samples,4,0.6)
+lambda_uncon = rnorm(samples,-4,2)  
+
+
+data.frame(id = 1:samples, alpha_uncon = alpha_uncon, beta_uncon = beta_uncon, lambda_uncon = lambda_uncon) %>% rowwise() %>% 
+  mutate(x = list(x), y = list(psycho(x, alpha_uncon,beta_uncon,lambda_uncon))) %>% 
+  unnest()%>% ggplot(aes(x = x, y = y, group = id))+geom_line()+theme_classic()
+
+
+p6
+ggsave(here::here("Figures","figure_6_psychometric_simulations.png"), plot = p6, dpi = 600, width = 7, height = 5)
+
+```
+
+
+
+#plot 13
+```{r, fig.height=5, fig.width=7.2}
+
+psycho_lognormal = function(x, psyalpha,psybeta,psylambda,int,beta,sigma, shift, prob){
+  
+
+p = brms::inv_logit_scaled(psylambda) / 2 + (1 - 2 * brms::inv_logit_scaled(psylambda) / 2) * (0.5 + 0.5 * pracma::erf(((x - psyalpha) / (exp(psybeta) * sqrt(2)))))
+  
+
+  rts = rlnorm(length(x),int+ exp(beta) * (p*(1-p)), exp(sigma))+exp(shift)
+  
+    
+  # p1 = data.frame(p = p, x = x, rts = rts) %>% ggplot(aes(x = x, y = p))+geom_point()
+  # 
+  # p2 = data.frame(p = p, x = x, rts = rts) %>% ggplot(aes(x = x, y = rts))+geom_point()
+  # 
+  # p1/p2
+    if(prob){
+      return(p)
+    }else{
+      return(rts)
+    }
+}
+
+set.seed(333)
+x = seq(-50,50,by = 0.1)
+samples = 10
+
+
+psyalpha_uncon = rnorm(samples,0,10)
+
+psybeta_uncon = rnorm(samples,3,0.6)
+
+psylambda_uncon = rnorm(samples,-4,2)  
+
+int_uncon = rnorm(samples,-2,0.5)
+
+beta_uncon = rnorm(samples,1.5,0.3)
+#beta_uncon = 0
+sigma_uncon = rnorm(samples,-1,0.3)
+
+shift_uncon = rnorm(samples,-1,0.5)
+
+
+probplot = data.frame(id = 1:samples, psyalpha_uncon = psyalpha_uncon, psybeta_uncon = psybeta_uncon, psylambda_uncon = psylambda_uncon,
+           int_uncon = int_uncon, beta_uncon = beta_uncon, sigma = sigma_uncon, shift = shift_uncon) %>% rowwise() %>% 
+  mutate(x = list(x),
+         probabilities = list(psycho_lognormal(x, psyalpha = psyalpha_uncon,psybeta = psybeta_uncon,psylambda = psylambda_uncon,
+                 int = int_uncon, beta = beta_uncon,sigma = sigma_uncon,shift = shift_uncon, prob = T))) %>% 
+  unnest() %>% mutate(id = as.factor(id)) %>% 
+  ggplot(aes(x = x, y = probabilities, group = id, col = id))+
+  geom_line(linewidth = 0.5)+
+  theme_classic()+
+  theme(legend.position = "none")+
+  ylab("Probability of responding 1")+xlab("Stimulus")
+
+
+
+rts_plot = data.frame(id = 1:samples, psyalpha_uncon = psyalpha_uncon, psybeta_uncon = psybeta_uncon, psylambda_uncon = psylambda_uncon,
+           int_uncon = int_uncon, beta_uncon = beta_uncon, sigma = sigma_uncon, shift = shift_uncon) %>% rowwise() %>% 
+  mutate(x = list(x),
+         rts = list(psycho_lognormal(x, psyalpha = psyalpha_uncon,psybeta = psybeta_uncon,psylambda = psylambda_uncon,
+                 int = int_uncon, beta = beta_uncon,sigma = sigma_uncon,shift = shift_uncon, prob = F))) %>% 
+  unnest()%>% mutate(id = as.factor(id)) %>% 
+  ggplot(aes(x = x, y = rts, group = id, col = id))+
+  theme_classic()+
+  geom_smooth(se = F, linewidth = 0.5)+
+  theme(legend.position = "none")+
+  ylab("Reaction times")+xlab("Stimulus")
+
+
+
+plot13_psychometric_RT = probplot / rts_plot + plot_layout(guides = "collect")
+
+plot13_psychometric_RT
+ggsave(here::here("Figures","plot13_psychometric_RT.png"), plot = plot13_psychometric_RT, dpi = 600, width = 7, height = 5)
+
+
+```
+
+
+

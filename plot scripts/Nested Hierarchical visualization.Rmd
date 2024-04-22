@@ -1,0 +1,165 @@
+---
+title: "Nested Hierarchical visualization"
+output: html_document
+date: "2024-04-17"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(gtable)
+library(ggplot2)
+library(patchwork)
+library(gridExtra)
+library(grid)
+library(lattice)
+library(ggridges)
+library(tidyverse)
+
+```
+
+## R Markdown
+
+```{r, fig.height=7, fig.width=7}
+
+void_with_title <- function(base_size = 10, base_family = "") {
+  theme_void(base_size = base_size, base_family = base_family) +
+    theme(
+      plot.title = element_text(hjust = 0.5, size = rel(1.5)),
+      plot.subtitle = element_blank(),
+      plot.caption = element_blank()
+    )
+}
+
+
+data <- data.frame(value = rnorm(1000,0,2), value2 = rnorm(100))
+
+pop <- ggplot(data, aes(x = value, y = 0.1)) +
+  geom_density_ridges(fill = "skyblue", color = "black", alpha = 0.7) +
+  ggtitle("Population")+
+  void_with_title()
+
+sub1 <- ggplot(data, aes(x = value, y = 0.1)) +
+  geom_density_ridges(binwidth = 0.5, fill = "skyblue", color = "black", alpha = 0.7) +  
+  ggtitle("Participant 1")+
+  void_with_title()+
+  theme(text = element_text(size = 8))
+
+sub2 <- ggplot(data, aes(x = value, y = 0.1)) +
+  geom_density_ridges(binwidth = 0.5, fill = "skyblue", color = "black", alpha = 0.7) +  
+  ggtitle("Participant 2")+
+  void_with_title()+
+  theme(text = element_text(size = 8))
+
+datap1_a = data.frame(value = rnorm(1000,0,1), parameter = "alpha")
+datap1_b = data.frame(value = rnorm(1000,1,1), parameter = "beta")
+datap1_l = data.frame(value = rnorm(1000,-1,1), parameter = "lambda")
+
+datap1 = rbind(datap1_a,datap1_b,datap1_l)
+
+sub1_p1 <- ggplot(datap1, aes(x = value, y = 0.1)) +
+  geom_density_ridges(binwidth = 0.5, aes(fill = parameter), color = "black", alpha = 0.5) +
+  ggtitle("Parameters session 1")+
+  void_with_title()+
+  theme(text = element_text(size = 6),
+        legend.position = "none")
+
+sub1_p2 <- ggplot(datap1, aes(x = value, y = 0.1)) +
+  geom_density_ridges(binwidth = 0.5, aes(fill = parameter), color = "black", alpha = 0.7) +
+  ggtitle("Parameters session 2")+
+  void_with_title()+
+  theme(text = element_text(size = 6),
+        legend.position = "none")
+
+sub2_p1 <- ggplot(datap1, aes(x = value, y = 0.1)) +
+  geom_density_ridges(binwidth = 0.5, aes(fill = parameter), color = "black", alpha = 0.7) +
+  ggtitle("Parameters session 1")+
+  void_with_title()+
+  theme(text = element_text(size = 6),
+        legend.position = "none")
+
+
+sub2_p2 <- ggplot(datap1, aes(x = value, y = 0.1)) +
+  geom_density_ridges(binwidth = 0.5, aes(fill = parameter), color = "black", alpha = 0.7) +
+  ggtitle("Parameters session 2")+
+  void_with_title()+
+  theme(text = element_text(size = 6),
+        legend.position = "none")
+
+
+x = seq(-20,20,by = 1)
+  
+psycho = function(x, alpha,beta,lambda){
+  
+  return(brms::inv_logit_scaled(lambda) / 2 + (1 - 2 * brms::inv_logit_scaled(lambda) / 2) * (0.5 + 0.5 * pracma::erf(((x - alpha) / (exp(beta) * sqrt(2))))))
+  
+}
+
+ses1 = data.frame(x = x, y = rbinom(length(x),1,psycho(x,4,2,-10)), session = 1) 
+ses2 = data.frame(x = x, y = rbinom(length(x),1,psycho(x,3,2,-10)), session = 2) 
+
+scatter1 <- rbind(ses1) %>% mutate(session = as.factor(session)) %>% 
+  ggplot(aes(x=x, y=y)) +
+  geom_point() +
+  geom_smooth(method = "glm", 
+    method.args = list(family = "binomial")) +theme_classic()+
+  theme(text = element_text(size = 6),
+        legend.position = "none")
+
+scatter2 <- rbind(ses2) %>% mutate(session = as.factor(session)) %>% 
+  ggplot(aes(x=x, y=y)) +
+  geom_point() +
+  geom_smooth(method = "glm", 
+    method.args = list(family = "binomial")) +theme_classic()+
+  theme(text = element_text(size = 6),
+        legend.position = "none")
+
+
+
+ses3 = data.frame(x = x, y = rbinom(length(x),1,psycho(x,-5,2,-10)), session = 1) 
+ses4 = data.frame(x = x, y = rbinom(length(x),1,psycho(x,5,2,-10)), session = 2) 
+
+scatter2 <- rbind(ses3,ses4) %>% mutate(session = as.factor(session)) %>% ggplot(aes(x=x, y=y, col = session, fill = session)) +
+  geom_point() +
+  geom_smooth(method = "glm", 
+    method.args = list(family = "binomial")) +theme_classic()+
+  theme(text = element_text(size = 6))
+
+
+
+
+w = 2 #width
+c = 12
+f_o = 6 #first offset
+s_o = 3 #first offset
+t_o = 2 #first offset
+
+
+layout = c(area(1, c-w, 1, c+w),
+         
+  area(2, c-f_o-w, 2, c-f_o+w),
+  area(2, c+f_o-w, 2, c+f_o+w),
+  
+  area(3, c-f_o-w/2-s_o, 3, c-f_o+w/2-s_o),
+  area(3, c-f_o-w/2+s_o, 3, c-f_o+w/2+s_o),
+  
+  area(3, c+f_o-w/2-s_o, 3, c+f_o+w/2-s_o),
+  area(3, c+f_o-w/2+s_o, 3, c+f_o+w/2+s_o),
+  
+  area(4, c-f_o-w, 5, c-f_o+w),
+  area(4, c+f_o-w, 5, c+f_o+w)
+  
+  
+  
+  
+  )
+
+
+#plot(layout)
+p5_nested_hier = pop+sub1+sub2+sub1_p1+sub1_p2+sub2_p1+sub2_p2+scatter2+scatter2+plot_layout(design = layout)
+
+p5_nested_hier
+ggsave(here::here("Figures","figure_5_nested_hierarchical.png"), plot = p5_nested_hier, dpi = 600, width = 7, height = 7)
+
+
+```
+

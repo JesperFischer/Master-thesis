@@ -1,0 +1,267 @@
+## *Power analysis*
+
+As a last step in this model building, formulating, and testing framework we can easily and accurately inform future work. When researchers are interested in the parameter values of their models, they are many times, especially in computational psychiatry, also interested in how they differ using pharmacological interventions or between healthy controls and patient populations. The question in such a scenario is how many participants and or trials do you need to reliably detect a particular size of effect, between the two conditions? In the next section I outline the idea of power analyses and how it can be conducted within the framework of cognitive modeling. To do so I will utilize the results from the above analysis of the test retest dataset of [@legrand_heart_2022]. Given the due diligence of the model validation steps it will be easy for the person using the model to get an accurate estimate of what effect size can be detected with differing amounts of trials and subjects. For the current analysis I’ll be using the group level estimates from above here focusing on the simplest model for computational efficiency. Before conducting this power analysis a few details about power and power analyses should be explicitly highlighted.
+
+## *What is Power analysis*
+
+The idea about power analysis is simple; we want to calculate a priori to conducting our experiment, the probability that our results are going to be “significant” given that there is some “real” underlying effect. Usually this is depicted in a 2 by 2 matrix with the real latent effect being in one dimension and the model results in the other dimension. The probabilities of landing in either of these 4 categories is usually described as functions of our statistical significance threshold (alpha / p-value) and the power (1-power).
+
+\newpage
+
+```{r table 4, fig.width = 7, fig.height = 7, warning = F, message = F, echo = F, fig.cap = "**Table 4.** 2 by 2 confusion matrix of whether the is an underlying effect (Reality) and whether a model is able to correctly identify this effect or not whether its present or not."}
+
+table4 = read.csv(here::here("tables","table4.csv")) %>% mutate(X = NULL)
+
+names(table4) = c(" ", "Reality (effect)","Reality (no effect)")
+# Create a flextable
+table4 <- flextable(table4) %>% width(j = 1, width = 2) %>% width(j = 2:3, width = 1.3)
+table4
+```
+
+The latent or underlying effect might be our intervention or a difference between a healthy population and a patient population. The framing of power analyses is then to say that results are significant if the p-value is less than a particular value most often 5% and the probability that we detect the effect given that it is there is another arbitrary value with 80% being the standard. Moving to the more practical side of the power analysis our cognitive or statistical models will reject and fail to reject different rates of effects given magnitude of this effect. The table above is therefore quite misleading as in reality the dimension of reality is a continuous variable of size of the effect and our models have a particular probability of rejecting a hypothesis (given subjects and trials) at a particular effect size its tested on. An example of this might be that we want to detect whether there is an effect of gender on height in the human population. We assume that there is an underlying effect and observe X females and Y males and run a statistical analysis to determine whether we can reject the null hypothesis (there are no differences in height in the two genders). Compare this to the hypothesis that there is an effect of age (late adolescents and adults) on height. The former difference might in general be much larger than the former and therefore with all else being equal (trials, subjects, statistical model etc.) this difference will be easier to detect compared to the other difference. What is therefore done when conducting power analyses is that different observed effect sizes are simulated in differing number of trials and subjects and the ability of the statistical model to reject these simulated experiments are then accessed. Usually, this amounts to then counting the number of times, the model achieves “significant” results compared to non-significant results, which is the power of the model at that number of trials subjects and observed effect size. This approach accurately captures how we expect the model to behave when we fit the data to the model after obtaining it. It tells us if we observe a particular effect size, we will with x percent be able call the results significant. The utility of this analysis is therefore to be able to examine how many subjects are needed to obtain a statistical power of usually 80% given that an effect size in the population is present, this effect size in the population might then be informed by previous studies and or meta-analyses. Extra assumptions are then needed to approximate the distribution of effect sizes as these statistical metrics also have uncertainty associated with them. This extra aspect many times disregarded or forgotten will be expanded upon later while showing how to incorporate it. 
+
+
+
+The power simulations here will be for a repeated measures design interested in a difference in threshold due to some intervention. I therefore simulate subjects, trials, and effect sizes in a variety of combinations (see full set of combinations in supplementary XXX or figure XYX). Here the effect size chosen was cohens' $d_rm$ which formula can be seen in equation XX. This meant that the variance of the second condition (i.e. after the treatment) had to be specified, such that as simulated effect sizes increased the mean difference only increased. The choice here was that second session variances was 1.5 the variances of the first condition. See supplementary XYX for explanation for the choice and why this choice is arbitrary and does not meaningfully influence the interpretations further on. The simulation process followed the following procedure: first two set of agents were simulated from a multivariate normal distribution with group level parameters of the binary nested hierarchical model presented above (see supplementary material XXX for full table of these). The second set of agents had their threshold increased by a random variable that was drawn from the difference distribution defined by 1.5 times the first session variance and the effect size i.e. equation X and Y. To ensure a particular observed effect, size this process was repeated until an observed effect size of the desired value was obtained, this step of resampling for a particular effect size was mainly for visualization purposes later on. Next each agent was put through the pathfinder algorithm to get their trial-by-trial responses and stimulus values. The full trial-by-trial dataset was then fitted using a simple hierarchical model where the threshold was parameterized as a linear combination of intercept and session with dummy coding of session. 
+
+$$
+\mu_{\delta} = d_{rm} * \frac{\sqrt{Var_1 + Var_2 - 2 * \sigma_1* \sigma_2 * \rho}}{\sqrt{2 * (1-\rho)}}
+$$
+
+$$
+\sigma_{dif} = \sqrt{Var_1 + Var_2 - 2 * \sigma_1* \sigma_2 * \rho}
+$$
+
+Mean and standard deviation of the difference distribution between the two sessions, where $Var_1$ is the variance of session 1 $Var_2$ is the variance of session 2. $\rho$ is the correlation between the two sessions. 
+
+
+## *Power analysis results* 
+Given that the space of trial and subject combination is in the extreme, infinite, and at even a practical level quite huge. What I will show here is that the variation in how well the model rejects the null hypothesis, given subject and trial combinations are quite stable over observed effect sizes of the given model, making it possible to give good predictions i.e. extrapolating from the simulations. I will use the decision threshold of saying that a result is significant if less than 5% of the posterior distribution of the difference in the threshold crosses 0 like setting an alpha value of 5% in a frequentist power analysis. This 5% is a reflection of what is currently used in the field as the standard decision threshold but can easily be modified (see github). To properly display the raw results of the power analysis where it’s possible to compare the effects of trials and subjects I will use the beta distribution to properly display a summary of the 100 simulations for each effect size. The beta distribution is a two-parameter distribution that can be parameterized in different ways [@alshkaki_six_2021]. The utility of the beta distribution to display the results of the power analysis is that one parameterization of this distribution involves how many times an event happened that we cared about and the other parameter being how many times this event did not happen. This therefore makes it possible to start with a uniform prior on the probability of rejecting the null hypothesis i.e. Beta(1,1) and then updating this probability density function with the amount of hits and misses here significant or non-significant results. This results in a PDF that contains all the information in each of the 100 binary points (i.e. significant or not). Figure XYX shows the resulting power curves for each trial subject combination. Three main things are of particular importance. The shape of the points very closely resembles a psychometric function where subjects and trials influence both the steepness and the location of the function. Secondly, Increasing the number of subjects has two important features, it shifts the points towards higher power with lower effect sizes, but it also seems to increase the sensitivity to the effect size, i.e. the slope of the curve is getting steeper with higher number of subjects. The amount that trials for each subject also matters for the shape of the curves, in figure XYX its quite clear that increasing trials if low i.e. 10, makes a big difference in the shape of the function, but the difference in going from high to very high i.e. 100 to 150, does not matter much. The tendency of the function to be less affected by ever increasing trials is also present for the number of subjects. This observation makes sense if one takes the function to its extremes in trials and subjects. Increasing subject and trials to infinitely many, we would expect, assuming the model has been shown to become increasingly better with increasing trials (like with the ICC metric presented above) that the model would be able to pick up on even the tiniest difference in groups. This would essentially mean that the function would consistently be at y = 1 with x approaching 0 from the positive direction and then jump to (0,0) in the (observed effect size, power) curve as no difference would entail no power. In the other extreme were no subjects or trials are present the curve should approach a flat line at y = 0 entailing no power for any amount of effect size. Essentially reaching a step function in the limit when x goes to 0 and subjects and trials goes to infinity I.e.
+
+$$
+\lim_{{(s,t)\to\infty}} \left(\Psi\left(\lim_{{x\to 0}} (x), \alpha, \beta, s, t\right) = 1\right)
+$$
+
+These observations are what is going to be used in the next section in order to extrapolate the results from figure X. Making it possible to construct a model that will map trials, subjects and effect sizes to power. 
+
+```{r Figure15, fig.width = 7.2, fig.height = 7.2, warning = F, message = F, echo = F, fig.cap = "Figure 15 "}
+
+cowplot::ggdraw() +
+    cowplot::draw_image(magick::image_read(here::here("Figures","poweranalysis_scatter.PNG")), scale = 1)
+```
+
+## *Modeling of power analysis*
+
+To use the information from above the latent psychometric function describing the relationship between subjects, trials and effect sizes needs to be investigated. Ideally a psychometric function that enforces the curve going through the origin, as no observed effect size should always entail no power. Next the parameters of these psychometric functions i.e. the threshold and slope need to be parameterized by the number of trials and subjects. Before fitting the general case and ensuring that a psychometric function is well fitting to the problem at hand, I start by fitting each set of trials and subject combinations independently to the parameters of the psychometric function. This amounts to fitting trials and subjects as factors in a linear regression framework (see supplementary for further explanation). This will help ensure that the fitted functions do pass through the points depicted in figure XYXX and increase the faith in the next type of modeling. For this it’s also possible to fit several kinds of psychometric functions and then compare them on their performance of predictability, because that is what we in the end care about here. One way to compare these models is using the Pareto smoothed importance sampling leave one out cross validation (PSIS-LOO-CV) [@yao_using_2018; @vehtari_practical_2017; @vehtari_pareto_2024]. Therefore the three types of psychometric functions were fit, the cumulative normal, the cumulative logistic and the cumulative Weibull function. The main differences between the normal and logistic function are that the logistic function has heavier tails than the normal allowing for more disperse observations. The difference between the Weibull and the two other distributions is that the Weibull function is forced through the origin and its shape therefore quite different from the two other functions (see supplementary XXX for visualization of these differences). 
+The choice of the cumulative normal or logistic function does not necessarily violate the assumptions laid out above because of the way that the parameters are going to be dependent on the trials and subjects. This is clear if one considers a non-zero asymptote for the threshold with an asymptote at y = 0 for the slope. This exactly matches the observation from above that the psychometric function moves closer and closer to a step-function and that the location of this step function approaches x = 0 but never reaches it if the asymptote for the threshold is not zero but close to. The results of this preliminary analysis can be seen in figure XYX where the independently fit logistic psychometric functions are overlaid on the observed datapoints from figure XXX. The figure clearly shows well fit for most of the trials and subject combinations.
+
+```{r Figure 16, fig.width = 6, fig.height = 6, warning = F, message = F, echo = F, fig.cap = "Figure 16 "}
+
+cowplot::ggdraw() +
+    cowplot::draw_image(magick::image_read(here::here("Figures","power_individualfits.PNG")), scale = 1)
+
+```
+
+## *Continuous mapping of the power analysis*
+Moving to the continuous mapping of subjects and trials to the psychometric function that maps observed effect sizes to power, one needs to define the function that relates subjects and trials to these parameters. Given the observations above that the steepness of the function increases with increasing trials and subjects and that the threshold moves towards 0 a first choice of this mapping would be to model the two parameters as exponentially decreasing by trials, subjects, together with their interaction. An exponentially decreasing function in the complete general case would mean the following relationship.
+
+$$
+\Theta = \beta_0 * exp(-\beta * X) + \alpha_{asym}
+$$
+
+Where $\alpha_{asym}$ is the value of the parameter when the number of trials and subjects approach infinity. $\beta$ is vector of parameters determining the steepness of the exponential decrease from the covariates in the matrix X, here trials subjects and their interaction. The parameter $\beta_0$ serve, together with $\alpha_{asym}$, as the value of the parameter when trials and subjects are 0. See supplementary material for further explanation of this relationship and some of the interchange abilities between them.   
+Another formulation of the dependency might be a power law equation XX.
+
+$$
+\Theta = \beta_0 * X^{\beta}
+$$
+
+Both approaches can produce the observed behavior and their difference depends on the underlying relationship between the parameters and X i.e. the trials and subjects. the exponential equation assumes that as trials and subjects increase by a fixed amount the parameters will decrease by a percentage, whereas the power law assumes that as trials and subjects increase by a percentage the parameters will decrease by a percentage. There are several ways of investigating which of these two approaches results in the better fit, firstly plotting the parameters of the independent fits vs trials and or subjects, which was conducted in the “modeling of power analysis” section, on two different coordinate systems either in (log(y),x) or (log(y),log(x)). Which of these produces the best-looking linear fit / line would be the best candidate (see supplementary XXYX for explanation for this). Figure XYX displays the three functions fitted independently on each of the two coordinate scales.
+
+
+```{r Figure17, fig.width = 7.2, fig.height = 7.2, warning = F, message = F, echo = F, fig.cap = "Figure 17. "}
+
+
+cowplot::ggdraw() +
+    cowplot::draw_image(magick::image_read(here::here("Figures","power_individal_log_loglog.PNG")), scale = 1)
+
+```
+
+
+Another approach would be to fit both types of models and then compare them on LOO-CV. Doing this, displayed problems with 15, 25 and 3 % of observations for the normal, Weibull and logistic function respectively as the pareto k diagnostic value was above 1 for these percentages of datapoints. This essentially makes it meaningless to compare the functions. Moving forward only the logistic cumulative function was used as this was the only model that produced no problems with pareto k values when fitting trials and subjects as continuous variables, for a complete set of models including the normal and Weibull see supplementary XXX. The first logistic model was the exponentially decreasing function equation X. Four other models were fit with different ways of parameterizing equation Y. These four models displayed different ways of how the trials and subjects interact as there is no straightforward way of combining X and β in equation Y. The first was an additive model formulated by equation Z
+
+$$
+\beta_0 \cdot X^\beta = \beta_{01} + s^{\beta_1} + t^{\beta_2} + (t \cdot s)^{\beta_3}
+$$
+
+The second was with a combination of additive and multiplicative operations:
+$$
+\beta_0 \cdot X^\beta = \beta_{01} * (s^{\beta_1} + t^{\beta_2} + (t \cdot s)^{\beta_3})
+$$
+The third was a multiplicative model without an interaction.
+
+$$
+\beta_0 \cdot X^\beta = \beta_{01} \cdot s^{\beta_1} \cdot t^{\beta_2}
+$$
+
+The last was the multiplicative model with an interaction but defined as the sum of subjects and trials as the normal interaction of multiplying trials and subjects would lead to a similar model of the model without an interaction (see supplementary ZZYA)
+
+$$
+\beta_0 \cdot X^\beta = \beta_{01} \cdot s^{\beta_1} \cdot t^{\beta_2}\cdot (t+s)^{\beta_3}
+$$
+
+Comparing these four models using loo indicated that the best model was the last model but closely followed by the second model, which can be seen in table 5.
+
+
+```{r table 5, fig.width = 7.2, fig.height = 7.2, warning = F, message = F, echo = F, fig.cap = "Table 5"}
+
+table5 = read.csv(here::here("tables","table5.csv")) %>% mutate(X = NULL)
+
+table5 <- flextable(table5) %>% width(j = 1:3, width = 1.5)
+table5
+```
+
+This indicates that as the trials and subjects increase by a percentage the parameters of the psychometric decrease by a percentage as the top two models are both variations of the power law. To ensure that the tested models still capture the underlying data, figure XYX displays the winning model imposed on the data with 95 credibility intervals of the mean. As can be seen this closely resembles the individual independent fits, with the most drastic deviation in the 5 subjects 10 trials condition
+
+```{r Figure18, fig.width = 6, fig.height = 6, warning = F, message = F, echo = F, fig.cap = "Figure 18. "}
+
+
+cowplot::ggdraw() +
+    cowplot::draw_image(magick::image_read(here::here("Figures","poweranalysis_powerfit.PNG")), scale = 1)
+
+```
+
+The marginal posterior distributions of the parameters of the winning model are displayed below in figure XXX.
+
+```{r Figure19, fig.width = 7.2, fig.height = 6, warning = F, message = F, echo = F, fig.cap = "Figure 19."}
+cowplot::ggdraw() +
+    cowplot::draw_image(magick::image_read(here::here("Figures","marginals_histogram.PNG")), scale = 1)
+```
+
+
+Meaning that the resulting best guess of the underlying function transforming trials, subjects and observed effect sizes into a probability of rejecting a null hypothesis is as follows:
+
+$$
+\Psi(d_{\text{obs}}, \alpha, \beta \mid t, s) = \frac{1}{1 + \exp\left(-\frac{1}{\beta(t, s)} \cdot (d_{\text{obs}} - \alpha(t, s))\right)}
+$$
+Where
+
+$$
+\beta(t, s) = \beta_{0\beta} \cdot s^{\beta_{1\beta}} \cdot t^{\beta_{2\beta}}\cdot (t+s)^{\beta_{3\beta}}
+$$
+
+$$
+\alpha(t, s) = \beta_{0\alpha} \cdot s^{\beta_{1\alpha}} \cdot t^{\beta_{2\alpha}}\cdot (t+s)^{\beta_{3\alpha}}
+$$
+
+Where each of these parameters are given by the distributions depicted above.
+
+
+## *Utility of the power analysis*
+
+
+As alluded to in the beginning section of the power analysis, the work presented here would be able to help independent researchers determine the probability of rejecting a particular observed effect size using this model, given trials and subjects. However, if this researcher wants to know the probability of rejecting a null hypothesis given that they assume a particular effect size in the population further assumptions needs to be made, as the effect size when conducting an experiment is not a fixed quantity. In practice this means that when we conduct an experiment, we assume that there is an underlying effect, but we cannot directly observe the size of this effect, but we do take a sample of it when conducting our experiment. Mathematically this means that the effect size that is observed in an experiment is given by a probability. The mean and standard deviation of this probability density function is given analytically by Cohen which could also be derived from bootstrapping as was done with the measurement uncertainty (see supplementary XXX for equivalence) [@goulet-pelletier_review_2018; @lakens_calculating_2013; @hedges_statistical_2014].
+
+$$
+d_{rm} = \mu_{\delta}  * \frac{\sqrt{2 * (1-\rho)}}{\sqrt{Var_1 + Var_2 - 2 * \sigma_1* \sigma_2 * \rho}}
+$$
+
+$$
+\sigma_{d_{\text{rm}}} = \sqrt{\frac{1}{n} + \frac{d_{\text{rm}}^2}{2 \cdot n}}
+$$
+
+Assuming that the effect size is normally distributed we get
+$$
+d_{obs} \sim N(μ_{d_{rm}} ,\sigma_{d_{rm}})
+$$
+
+The probability of rejecting this sampled effect size is given by the function that was obtained above.
+
+$$
+P(R \mid d_{obs}) = \Psi(d_{\text{obs}}, \alpha, \beta, t, s)
+$$
+What we ideally want to know here is the probability of observing a particular effect size and that we can reject the null hypothesis given this observed effect size. Probability theory and particularly conditional probabilities gives us the relationship between these quantities.
+
+$$
+P(R \mid d_{obs}) = \frac{P(R \cap d_{\text{obs}})}{P(d_{\text{obs}})}
+$$
+Here $P(R \cap d_{\text{obs}})$ represents the probability that we are interested in, i.e. rejecting, and observing a particular effect size.
+
+$$
+P(R \cap d_{\text{obs}}) = P(R \mid d_{obs}) \cdot {P(d_{\text{obs}})}
+$$
+
+Integrating over all possible values of the effect size is now necessary to essentially integrating out the effect size, also known as marginalizing.
+
+$$
+P(R) = \int_{-\infty}^{\infty} P(R \mid d_{\text{obs}}) \cdot P(d_{\text{obs}}) \, d({d_{\text{obs}}})
+$$
+
+Which becomes
+$$
+P(R) = \int_{-\infty}^{\infty} \Psi(d_{\text{obs}}, \alpha, \beta, t, s) \cdot N(μ_{d_{rm}} ,\sigma_{d_{rm}}) \, d({d_{\text{obs}}})
+$$
+
+Instead of trying to analytically solve this integral analytically, we again use the power of the computational resources to approximate the integral by taking draws of the normal distribution of the observed effect size and then putting them through $\Psi(d_{\text{obs}}, \alpha, \beta, t, s)$ which will give a draws from a probability distribution of rejecting the null hypothesis. 
+As a last step it is then possible to calculate the proportion of rejected null hypotheses to the total number of draws giving us the power of the study assuming the mean difference and variance in the two sessions.
+
+## *Practical implementation of the power analysis.*
+
+The above high-level explanation of calculating power for an experiment might be quite difficult to understand and therefore implement for independent researchers. To make this more accessible I will here demonstrate how this can be done using what has been provided up until this point. This section will therefore hopefully provide a practical understanding of what different parts should go into a power analysis and how different factors will influence power. 
+I will here assume that the group mean difference of the threshold in the psychometric function is 5 and the variance in the second session is 1.5 times the variance of the first session, i.e. assuming that the intervention increases variation in the threshold, but that there is a clear effect (for reproducibility and ease of use the GitHub repository provides a function that does what is described below by inputting these assumptions). 
+
+Firstly, investigating the assumptions for the choice of mean difference and difference in variance can be visualized by repeated sampling from a multivariate normal distribution with the following parameterization:
+
+
+$$
+\begin{equation} 
+  \tag{Eq. 1}
+  \begin{pmatrix}
+  x_i \\
+  y_i 
+  \end{pmatrix} \sim \mathcal{N}\left(
+  \begin{pmatrix}
+  \mu_1 \\
+  \mu_2 
+  \end{pmatrix}, \begin{bmatrix}
+  \sigma_1^2 & \sigma_1 \cdot \sigma_2 \cdot \rho_{12} \\
+  \sigma_1 \cdot \sigma_2 \cdot \rho_{21} & \sigma_2^2 
+  \end{bmatrix} 
+  \right)
+\end{equation} 
+$$
+
+Here $\mu_1$ and  $\sigma_1$ are given by large test-retest reliability analysis (here rounded) and are 
+-8, 8 respectively. Given our assumptions $\mu_2$ and $\sigma_2$ are therefore -3, 10. We can then vary the number of subjects i.e. draws from this multivariate normal and the correlation coefficient ρ to see the effect on the distribution of effect sizes i.e. p(d_obs). Highlighting the sampling distribution of the effect size, and the factors influencing it. The results can be seen in figure XYX highlight the fact that both the sample size i.e. subjects, but also the correlation between sessions is vitally important for the variances of the observed effect size. 
+
+
+
+```{r Figure20, fig.width = 7, fig.height = 5, warning = F, message = F, echo = F, fig.cap = "Figure 20."}
+
+cowplot::ggdraw() +
+    cowplot::draw_image(magick::image_read(here::here("Figures","histogram_observedeffectsize.PNG")), scale = 1)
+```
+
+Now we can visualize how these observed effect size distributions fit into the probability of rejecting the null hypothesis i.e.  $\Psi(d_{\text{obs}}, \alpha, \beta, t, s)$ Note that the observed effect sizes above are not dependent on the number of trials in the experiment i.e. assuming that they are observed with perfect precision, what the function derived from the continuous power analysis function does is that it incorporates this information together with other factors that might change the precision of the parameters. As shown above the implications of the function $\Psi(d_{\text{obs}}, \alpha, \beta, t, s)$ can be visualized as psychometric functions in a ($d_{\text{obs}}$ , $\Psi(d_{\text{obs}}, \alpha, \beta, t, s)$) coordinate system with trials and subjects being fixed at values. Another more informative way to visualize these implications for the current purpose is to make a 3-dimensional grid of (Subjects OR trials , $d_{\text{obs}}$ , $\Psi(d_{\text{obs}}, \alpha, \beta, t, s)$) with facets of the last variable of either subjects or trials. This visualization can also serve the purpose of projecting the above distributions of observing a particular effect-size unto the space of $\Psi(d_{\text{obs}}, \alpha, \beta, t, s)$ Figure XXX displays the projection of the histograms as ellipse where the vertical width of the ellipse (the major axis) is given by the 95% Highest density interval of the histograms above and the horizontal width (the minor axis) is for visualization purposes, to see the underlying probability of rejection. The correlation is of cause informed by the test-retest reliability study which was found to be 0.54 [0.49; 0.58] for the current model.
+
+```{r Figure21, fig.width = 7.2, fig.height = 7.2, warning = F, message = F, echo = F, fig.cap = "Figure 21."}
+
+cowplot::ggdraw() +
+    cowplot::draw_image(magick::image_read(here::here("Figures","power_area_with_ellipses.PNG")), scale = 1)
+
+```
+
+To further clarify the difference in approach, and results, between taking the prior probability of the observed effect size into account or not, as well as showing how an independent researcher might want to use the results provided. Two assumptions must be made, either a mean effect size or a mean difference of the intervention is assumed, and the variance introduced by the intervention. Here if the researcher expects a medium effect size of the intervention of $d_{rm} = 0.5$ and that the intervention does not increase variability meaning that the variance in both groups should be equal. To fully appreciate the power of this approach one could even imagine sampling these values i.e. 0.5 and the variances of the second session as random variables and not as point estimates, the most obvious case where this could be implemented is when effect sizes from meta-analyses are used for the best guess of an underlying effect size estimate for the study. These effect size estimates from meta-analyses namely come with uncertainties and neglecting this should not be advised!  
+
+Using equation XX, it is possible to derive the mean difference and therefore simulate observed effect sizes which are then put into equation XXX and the probability of rejecting that draw is calculated. Repeating this process over the 4000 draws of the posterior distribution of $\Psi(d_{\text{obs}}, \alpha, \beta, t, s)$ and calculating the ratio of rejected to failed rejected null hypotheses gives an estimate of power including all uncertainty. In the case of not including the prior probability of the effect size the effect size estimate is just repeatedly entered as 0.5. As can now be seen in figure XYX the observed effect size has been “integrated” out and a grid of subjects by trial span the space of power to reject the null hypothesis. Panel A and B of figure XYZ quite clearly display the difference between accounting for the sampling process of effect sizes. As a reference frame in figure XYX the red dashed line with subjects = 20 depicts the results from plugging the same assumptions i.e. Here $\mu_1 = -8$ $\sigma_1 = 8$ $\mu_2 = -3$ and $\sigma_2=10$ and $\rho = 0.54$, into the widely used and cited statistical software tool G*power [@faul_gpower_2007]. Further reiterating how and why uncertainty propagation is vital to designing studies of adequate power.
+
+```{r Figure22, fig.width = 7.2, fig.height = 7.2, warning = F, message = F, echo = F, fig.cap = "Figure 22."}
+
+
+cowplot::ggdraw() +
+    cowplot::draw_image(magick::image_read(here::here("Figures","power_sampling_varability_and_gpower.PNG")), scale = 1)
+
+
+```
+
+\newpage

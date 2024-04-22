@@ -1,0 +1,8 @@
+"","Parameter","Mean","Sd","Transformation"
+"1","Alpha","0",10,"x"
+"2","Beta","[1 ; 3]",0.6,"Log(x)"
+"3","Lapse","-4",2,"Logit^-1(x) / 2"
+"4","Intercept","-2",0.5,"X"
+"5","BetaRT","[1 ; 1.5]",0.3,"Log(x)"
+"6","Sigma","-1",0.5,"Log(x)"
+"7","Non-decision-time","-1",0.5,"Logit^-1(x) * minRT"

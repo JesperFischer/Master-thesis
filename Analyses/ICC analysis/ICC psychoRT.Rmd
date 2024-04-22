@@ -1,0 +1,165 @@
+---
+title: "ICC psychoRT"
+output: html_document
+date: "2024-03-16"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+pacman::p_load(tidyverse,RWiener, tidybayes, posterior, furrr,gganimate, cmdstanr,patchwork, gamlss,truncnorm,extraDistr,flextable,lmerTest,lme4,Matrix,pracma,brms,HDInterval)
+```
+
+## R Markdown
+
+```{r}
+source(here::here("realshit","run_ICC_psychoRT.R"))
+
+parameters = expand.grid(subs = c(30),
+                         trials = seq(20,100,20),
+                         replicate = 1:15)
+
+parameters <- parameters[sample(nrow(parameters)), ]
+
+parameters = parameters %>% mutate(id = 1:nrow(.))
+
+data_list <- split(parameters, parameters$id)
+
+cores = 15
+  
+plan(multisession, workers = cores)
+  
+possfit_model = possibly(.f = together, otherwise = "Error")
+
+#test = together(data_list[[1]])
+
+results <- future_map(data_list, ~possfit_model(.x), .progress = TRUE, .options = furrr_options(seed = TRUE))
+save.image(here::here("ICC_psycho_lowtrials_finished_beta=1 comparison RT (beta=1).RData"))
+
+
+rstudioapi::restartSession()
+```
+
+
+
+```{r}
+
+source(here::here("realshit","run_ICC_psychoRT.R"))
+
+parameters = expand.grid(subs = c(30),
+                         trials = c(20),
+                         replicate = 1:50) %>% 
+  mutate(id = rev(1:nrow(.)))
+
+
+data_list <- split(parameters, parameters$id)
+
+cores = 7
+  
+plan(multisession, workers = cores)
+  
+possfit_model = possibly(.f = fit_without_data_gen, otherwise = "Error")
+
+test = possfit_model(data_list[[50]])
+
+results <- future_map(data_list, ~possfit_model(.x), .progress = TRUE, .options = furrr_options(seed = TRUE,scheduling = 2L))
+save.image(here::here("ICC_psycho_lowtrials_finished_beta=3 comparison RT.RData"))
+
+
+rstudioapi::restartSession()
+
+```
+
+
+```{r}
+load(here::here("workspace psychometric","ICC_psycho_lowtrials_finished_beta=3 rts.RData"))
+
+results <- unlist(results, recursive = FALSE)
+
+results2 = results[-34]
+
+
+# Step 2: Use map_dfr to row-bind all dataframes
+params_icc <- map_dfr(results2, 1)
+
+
+params_icc %>% ggplot()+
+  geom_point(aes(x = trials, y = mean, ymax = q95, ymin = q5, col = interaction(residual_variance, subs)), position = position_jitter(width = 5, height = 0))+
+  facet_wrap(~variable)
+
+params_icc %>% filter(grepl("ICC",variable) & residual_variance == T) %>% mutate(subs = as.factor(subs)) %>% 
+  ggplot(aes(y = mean, ymin = q5, ymax = q95, x = trials))+facet_wrap(~variable, nrow = 2, scales = "free")+
+  geom_point()
+
+
+params_icc %>% filter(grepl("ICC",variable) & residual_variance == T) %>% group_by(trials,variable) %>% 
+  summarize(mean = mean(mean)) %>% 
+    ggplot(aes(y = mean, x = trials))+facet_grid(~variable)+
+  geom_point()
+
+
+params_icc %>% filter(grepl("ICC",variable) & residual_variance == T) %>% group_by(subs,trials,variable) %>% 
+  summarize(mean = mean(mean), q5 = mean(q5), q95 = mean(q95)) %>% 
+    ggplot(aes(y = mean, ymin = q5, ymax = q95, x = trials))+facet_grid(subs~variable)+
+  geom_pointrange()
+
+
+params_icc %>% filter(grepl("ICC",variable) & residual_variance == T) %>% group_by(trials,variable) %>% 
+  summarize(mean = mean(mean), q5 = mean(q5), q95 = mean(q95)) %>% 
+    ggplot(aes(y = mean, ymin = q5, ymax = q95, x = trials))+facet_grid(~variable)+
+  geom_pointrange()
+
+
+
+params_icc %>% filter(grepl("resid",variable)) %>% mutate(subs = as.factor(subs)) %>% 
+  ggplot(aes(y = mean, ymin = q5, ymax = q95, x = trials))+facet_wrap(~variable, nrow = 2, scales = "free")+
+  geom_pointrange()
+
+params_icc %>% filter(grepl("within",variable)) %>% mutate(subs = as.factor(subs)) %>% 
+  ggplot(aes(y = mean, ymin = q5, ymax = q95, x = trials))+facet_wrap(~variable, nrow = 2, scales = "free")+
+  geom_pointrange()
+
+params_icc %>% filter(grepl("ICC",variable), residual_variance == F) %>% mutate(subs = as.factor(subs)) %>% 
+  ggplot(aes(y = mean, ymin = q5, ymax = q95, x = trials))+facet_wrap(~variable, nrow = 2, scales = "free")+
+  geom_pointrange()
+
+```
+
+
+```{r, fig.height=6, fig.width=8}
+trial <- map_dfr(results2, 2)
+  
+para = "betarts"
+  
+q = trial %>% filter(parameter == para) %>% dplyr::select(-c("resp","prob","X","trials.1","rts")) %>% distinct() %>% 
+  pivot_longer(cols = c("real_beta_uncon","real_lambda_uncon","real_alpha_uncon","real_betarts_uncon","real_shift_uncon","real_sigma_uncon","real_inter_uncon")) %>% 
+  filter(paste0("real_",para, "_uncon") == name) %>% filter(trials %in% c(40,120,200))
+
+qq = q %>% ggplot(aes(x = value, y = mean, ymin = q5, ymax = q95, group = sim_id))+
+  geom_pointrange()+facet_grid(n_subs~trials)+geom_abline(slope = 1, intercept = 0)
+
+qq
+
+
+para = "beta"
+  
+q = trial %>% filter(parameter == para) %>% dplyr::select(-c("resp","prob","X","trials.1","rts")) %>% distinct() %>% 
+  pivot_longer(cols = c("real_beta_uncon","real_lambda_uncon","real_alpha_uncon","real_betarts_uncon","real_shift_uncon","real_sigma_uncon","real_inter_uncon")) %>% 
+  filter(paste0("real_",para, "_uncon") == name) %>% filter(trials %in% c(40,120,200))
+
+qq = q %>% ggplot(aes(x = value, y = mean, ymin = q5, ymax = q95, group = sim_id))+
+  geom_pointrange()+facet_grid(n_subs~trials)+geom_abline(slope = 1, intercept = 0)
+
+qq
+
+
+
+
+
+qa = trial %>% filter(n_subs == 30, trials == 200)
+
+trial%>% filter(n_subs == 30, trials == 200) %>% ggplot(aes(x = X, y = rts, col = as.factor(sessions))) +geom_point()+facet_wrap(~subs)+scale_x_continuous(limits = c(-40,40))
+
+
+```
+

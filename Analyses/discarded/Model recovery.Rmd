@@ -1,0 +1,47 @@
+---
+title: "Model recovery"
+output: html_document
+date: "2024-03-24"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+pacman::p_load(tidyverse,RWiener, tidybayes, posterior, furrr,gganimate, cmdstanr,patchwork, gamlss,truncnorm,extraDistr,flextable,lmerTest,lme4,Matrix,pracma)
+```
+
+## R Markdown
+
+
+
+```{r}
+source(here::here("realshit","model_recovery.R"))
+
+parameters = expand.grid(subs = c(50),
+                         trials = c(100),
+                         beta = seq(1,3,by = 0.5),
+                         lamda = seq(-6,-2,by = 0.5),
+                         alpha = seq(-10,10,by = 5),
+                         replicate = 1:4)
+
+parameters <- parameters[sample(nrow(parameters)), ]
+
+parameters = parameters %>% mutate(id = 1:nrow(.))
+
+data_list <- split(parameters, parameters$id)
+
+cores = 4
+  
+plan(multisession, workers = cores)
+  
+possfit_model = possibly(.f = together, otherwise = "Error")
+
+test = together(data_list[[1]])
+
+results <- future_map(data_list, ~possfit_model(.x), .progress = TRUE, .options = furrr_options(seed = TRUE))
+save.image(here::here("Model_recovery.RData"))
+
+
+rstudioapi::restartSession()
+```
+

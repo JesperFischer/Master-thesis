@@ -1,0 +1,293 @@
+---
+title: "ICC PR"
+output: html_document
+date: "2024-03-14"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+pacman::p_load(tidyverse,RWiener, tidybayes, posterior, furrr,gganimate, cmdstanr,patchwork, gamlss,truncnorm,extraDistr,flextable,lmerTest,lme4,Matrix,pracma)
+
+pacman::p_load(pracma, tidyverse, ggh4x, patchwork, furrr, dplyr)
+
+```
+
+## R Markdown
+
+```{r}
+source(here::here("realshit","run_ICC_psychometric.R"))
+
+parameters = expand.grid(subs = c(10,30,50),
+                         trials = seq(20,200,20),
+                         replicate = 1:5) %>% 
+  mutate(id = rev(1:nrow(.)))
+
+
+data_list <- split(parameters, parameters$id)
+
+# cores = 12
+  
+# plan(multisession, workers = cores)
+  
+possfit_model = possibly(.f = together, otherwise = "Error")
+
+# results <- future_map(data_list, ~possfit_model(.x), .progress = TRUE, .options = furrr_options(seed = TRUE))
+# save.image(here::here("workspace psychometric","ICC_psycho_lowtrials_finished_beta=3.RData"))
+# 
+
+# rstudioapi::restartSession()
+```
+
+
+```{r, fig.height=6, fig.width=8}
+source(here::here("realshit","Visualize_ICC_psychometric.R"))
+
+load(here::here("workspace psychometric","ICC_psycho_lowtrials_finished_beta=1.RData"))
+ICC1 = ICC(results,"beta = 1")
+correlation1 = Correlations(results,"beta = 1")
+ICC_raw1 = ICC_raw(results,"beta = 1")
+trialwise_alpha1 = plot_trialwise(results,"alpha")
+trialwise_beta1 = plot_trialwise(results,"beta")
+trialwise_lambda1 = plot_trialwise(results,"lambda")
+
+
+load(here::here("workspace psychometric","ICC_psycho_lowtrials_finished_beta=2.RData"))
+ICC2 = ICC(results,"beta = 2")
+correlation2 = Correlations(results,"beta = 2")
+ICC_raw2 = ICC_raw(results,"beta = 2")
+
+
+load(here::here("workspace psychometric","ICC_psycho_lowtrials_finished_beta=3.RData"))
+ICC3 = ICC(results,"beta = 3")
+correlation3 = Correlations(results,"beta = 3")
+ICC_raw3 = ICC_raw(results,"beta = 3")
+trialwise_alpha3 = plot_trialwise(results,"alpha")
+trialwise_beta3 = plot_trialwise(results,"beta")
+trialwise_lambda3 = plot_trialwise(results,"lambda")
+
+
+# correlations with subjects
+
+cor = rbind(correlation1,correlation2,correlation3) %>%  filter(ucnertainty_added == T) %>% 
+  group_by(trials,subs,parameter, ucnertainty_added, string) %>% 
+  summarize(mean = mean(correlation_mean), q2 = mean(correlation_q2), q97 = mean(correlation_q97)) %>% 
+  mutate(string = paste0("Simulated ",string)) %>% 
+  ggplot(aes(x = trials, y = mean, ymin = q2, ymax = q97, col = as.factor(subs)))+geom_pointrange()+
+  facet_grid(parameter~string, scales = "free")+
+  theme_classic()+
+  geom_hline(yintercept = 1, linetype = 2)+
+  ylab("Estimated Correlation Coefficient")+
+  theme(legend.position = "top")
+  # geom_hline(yintercept = 0.9, linetype = 2)+
+  # geom_hline(yintercept = 0.75, linetype = 2)+
+  # geom_hline(yintercept = 0.5, linetype = 2)
+
+
+cor
+  
+cor = cor+
+  facetted_pos_scales(
+    y = list(
+      parameter == "alpha" & string == "beta = 1" ~ scale_y_continuous(limits = c(0.5, 1), breaks = seq(0.5,1,0.1))
+    )
+  )
+  
+cor
+```
+
+
+#aggreated over subjects
+```{r, fig.height=6, fig.width=8}
+cor = rbind(correlation1,correlation2,correlation3) %>%  filter(ucnertainty_added == T) %>% 
+  group_by(trials,parameter, ucnertainty_added, string) %>% 
+  summarize(mean = mean(correlation_mean), q2 = mean(correlation_q2), q97 = mean(correlation_q97)) %>% 
+  mutate(string = paste0("Simulated ",string)) %>% rename(Simulation = string) %>% 
+  ggplot(aes(x = trials, y = mean, ymin = q2, ymax = q97, col = Simulation))+
+  geom_pointrange(position=position_dodge(width=10))+
+  facet_wrap(~parameter, scales = "free")+
+  theme_classic()+
+  geom_hline(yintercept = 1, linetype = 2)+
+  ylab("Estimated Correlation Coefficient")+
+  theme(legend.position = "top")+
+  labs(color=NULL)
+  
+
+cor = cor+
+  facetted_pos_scales(
+    y = list(
+      parameter == "alpha" ~ scale_y_continuous(limits = c(0.5, 1), breaks = seq(0.5,1,0.1)),
+      parameter == "beta" ~ scale_y_continuous(limits = c(0.3, 1), breaks = seq(0.3,1,0.1)),
+      parameter == "lambda" ~ scale_y_continuous(limits = c(0, 1), breaks = seq(0,1,0.2))
+    
+    )
+  )
+
+cor
+```
+
+#these idk not raw data
+```{r, fig.height=6, fig.width=8}
+rbind(ICC1,ICC2,ICC3) %>% ggplot(aes(x = trials, y = mean, ymin = q5, ymax = q95, col = subs))+
+  geom_pointrange() + facet_grid(string~parameter)+
+  scale_y_continuous(limits = c(0,1), breaks = seq(0,1,by = 0.2))+
+  theme_classic()+
+  geom_hline(yintercept = 0.9, linetype = 2)+
+  geom_hline(yintercept = 0.75, linetype = 2)+
+  geom_hline(yintercept = 0.5, linetype = 2)
+```
+
+
+#with subjects
+```{r, fig.height=6, fig.width=8}
+
+
+rbind(ICC_raw1,ICC_raw2,ICC_raw3) %>% filter(grepl("ICC", variable), residual_variance == T) %>% 
+  mutate(subs = as.factor(subs)) %>% 
+  group_by(trials,subs,variable, string) %>% 
+  summarize(mean = mean(mean), q5 = mean(q5), q95 = mean(q95)) %>%
+  ggplot(aes(x = trials, y = mean, ymin = q5, ymax = q95, col = subs))+
+  geom_pointrange() + facet_grid(string~variable)+
+  scale_y_continuous(limits = c(0,1), breaks = seq(0,1,by = 0.2))+theme_classic()+
+  geom_hline(yintercept = 0.9, linetype = 2)+
+  geom_hline(yintercept = 0.75, linetype = 2)+
+  geom_hline(yintercept = 0.5, linetype = 2)
+
+
+
+
+
+```
+
+#aggregated over subjects
+```{r,fig.height=6, fig.width=8}
+ICC = rbind(ICC_raw1,ICC_raw2,ICC_raw3) %>% filter(grepl("ICC", variable), residual_variance == T) %>% 
+  mutate(subs = as.factor(subs)) %>% 
+  group_by(trials,variable, string) %>% 
+  summarize(mean = mean(mean), q5 = mean(q5), q95 = mean(q95)) %>% 
+  mutate(string = paste0("Simulated ",string)) %>% rename(Simulation = string, parameter = variable) %>% 
+  mutate(parameter = ifelse(parameter == "ICC_alpha","alpha",ifelse(parameter == "ICC_beta","beta",ifelse(parameter == "ICC_lambda","lambda",NA)))) %>% 
+  ggplot(aes(x = trials, y = mean, ymin = q5, ymax = q95, col = Simulation))+
+  geom_pointrange(position=position_dodge(width=10))+
+  facet_wrap(~parameter, scales = "free")+
+  theme_classic()+
+  geom_hline(yintercept = 1, linetype = 2)+
+  ylab("Estimated ICC")+
+  theme(legend.position = "top")+
+  labs(color=NULL)
+  
+
+ICC = ICC+
+  facetted_pos_scales(
+    y = list(
+      parameter == "alpha" ~ scale_y_continuous(limits = c(0.5, 1), breaks = seq(0.5,1,0.1)),
+      parameter == "beta" ~ scale_y_continuous(limits = c(0.3, 1), breaks = seq(0.3,1,0.1)),
+      parameter == "lambda" ~ scale_y_continuous(limits = c(0, 1), breaks = seq(0,1,0.2))
+    
+    )
+  )
+
+ICC
+```
+
+```{r,fig.height=7.2, fig.width=7.2}
+library(patchwork)
+p_ICC =cor/ICC + plot_layout(guides = "collect") & theme(legend.position = "top")
+ggsave(here::here("Figures","ICC_vs_correlation.PNG"), p_ICC, height = 7.2,width = 7.2)
+```
+
+
+
+
+```{r, fig.height=6, fig.width=8}
+trialwise_alpha1+ ggtitle("Beta = 3")
+trialwise_beta1
+trialwise_lambda1
+```
+
+
+```{r, fig.height=6, fig.width=8}
+trialwise_alpha3+ ggtitle("Beta = 3")
+trialwise_beta3
+trialwise_lambda3
+
+```
+
+
+
+```{r, fig.width=7.2, fig.height=5}
+load(here::here("workspace psychometric","ICC_psycho_lowtrials_finished_beta=1.RData"))
+results2 <- unlist(results, recursive = FALSE)
+
+trial_beta1 <- map_dfr(results2, 2)
+
+load(here::here("workspace psychometric","ICC_psycho_lowtrials_finished_beta=3.RData"))
+results2 <- unlist(results, recursive = FALSE)
+
+trial_beta3 <- map_dfr(results2, 2)
+
+
+
+trial_beta1 = trial_beta1 %>% filter(parameter == "alpha") %>% dplyr::select(-c("resp","prob","X","trials.1")) %>% distinct() %>% 
+  pivot_longer(cols = c("real_beta_uncon","real_lambda_uncon","real_alpha_uncon")) %>% 
+  filter(paste0("real_",parameter, "_uncon") == name) %>% filter(trials %in% c(40,120,200)) %>% 
+  mutate(Simulated = "beta = 1")
+
+
+trial_beta3 = trial_beta3 %>% filter(parameter == "alpha") %>% dplyr::select(-c("resp","prob","X","trials.1")) %>% distinct() %>% 
+  pivot_longer(cols = c("real_beta_uncon","real_lambda_uncon","real_alpha_uncon")) %>% 
+  filter(paste0("real_",parameter, "_uncon") == name) %>% filter(trials %in% c(40,120,200)) %>%
+  mutate(Simulated = "beta = 3")
+
+
+scatter_plot = rbind(trial_beta3) %>% mutate(Simulated = as.factor(Simulated)) %>% rename(subjects = n_subs) %>% 
+  ggplot(aes(x = value, y = mean, ymin = q5, ymax = q95, col = Simulated, order = as.numeric(Simulated)))+
+  geom_pointrange(alpha = 0.25)+
+  geom_pointrange(data = trial_beta1, alpha = 0.25) +
+  facet_grid(subjects~trials, labeller = label_both)+
+  geom_abline(slope = 1, intercept = 0)+theme_classic()+theme(legend.position = "top")+
+  xlab("Simulated value")+
+  ylab("Recovered value")
+
+ggsave(here::here("Figures","scatter_plot.PNG"), scatter_plot, height = 5,width = 7.2)
+```
+
+
+
+```{r}
+
+rbind(ICC_raw1,ICC_raw2,ICC_raw3) %>% filter(grepl("resid", variable) & subs == 50) %>% 
+  mutate(subs = as.factor(subs)) %>% 
+  group_by(trials,subs,variable, string) %>% 
+  summarize(mean = mean(mean), q5 = mean(q5), q95 = mean(q95)) %>%
+  ggplot(aes(x = trials, y = mean, ymin = q5, ymax = q95, col = string))+
+  geom_pointrange() + facet_wrap(~variable, scales = "free_y")+theme_classic()
+
+
+
+rbind(ICC_raw1,ICC_raw2,ICC_raw3) %>% filter(grepl("resid", variable) & subs == 10) %>% 
+  mutate(subs = as.factor(subs)) %>% 
+  group_by(trials,subs,variable, string) %>% 
+  summarize(mean = mean(mean), q5 = mean(q5), q95 = mean(q95)) %>%
+  ggplot(aes(x = trials, y = mean, ymin = q5, ymax = q95, col = string))+
+  geom_pointrange() + facet_wrap(~variable, scales = "free_y")+theme_classic()
+
+
+
+
+rbind(ICC_raw1,ICC_raw2,ICC_raw3) %>% filter(grepl("within", variable) & subs == 50) %>% 
+  mutate(subs = as.factor(subs)) %>% 
+  group_by(trials,subs,variable, string) %>% 
+  summarize(mean = mean(mean^2), q5 = mean(q5^2), q95 = mean(q95^2)) %>%
+  ggplot(aes(x = trials, y = mean, ymin = q5, ymax = q95, col = string))+
+  geom_pointrange() + facet_wrap(~variable, scales = "free_y")+theme_classic()
+
+
+rbind(ICC_raw1,ICC_raw2,ICC_raw3) %>% filter(grepl("within", variable) & subs == 10) %>% 
+  mutate(subs = as.factor(subs)) %>% 
+  group_by(trials,subs,variable, string) %>% 
+  summarize(mean = mean(mean^2), q5 = mean(q5^2), q95 = mean(q95^2)) %>%
+  ggplot(aes(x = trials, y = mean, ymin = q5, ymax = q95, col = string))+
+  geom_pointrange() + facet_wrap(~variable, scales = "free_y")+theme_classic()
+```
+

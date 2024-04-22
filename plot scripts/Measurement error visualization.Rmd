@@ -1,0 +1,487 @@
+---
+title: "Measurement error visualization"
+output: html_document
+date: "2024-04-15"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+pacman::p_load(tidyverse)
+```
+
+## R Markdown
+
+
+```{r, fig.height=6, fig.width=8}
+set.seed(123)
+
+error_bar_colorx = "black"
+error_bar_colory = "black"
+
+
+n = 50
+mu1 = 3
+mu2 = 10
+sd1 = 10
+sd2 = 8
+cor = 0.5
+x_un = 3
+y_un  = 3
+
+x_error = truncnorm::rtruncnorm(n,0,Inf, 0, x_un)
+y_error = truncnorm::rtruncnorm(n,0,Inf, 0, y_un)
+
+
+dd = faux::rnorm_multi(n, mu = c(mu1,mu2), sd = c(sd1,sd2), r = cor)
+
+dd$x_error = x_error
+dd$y_error = y_error
+
+
+dd %>% ggplot()+
+  geom_pointrange(aes(x = X1, y = X2, xmin = X1-x_error,xmax = X1+x_error), col = error_bar_colorx)+
+  geom_pointrange(aes(x = X1, y = X2, ymin = X2-y_error,ymax = X2+y_error), col = error_bar_colory)+
+  geom_point(aes(x = X1, y = X2))+
+  theme_classic()+
+  ylab("Measurement 1")+
+  xlab("Measurement 2")
+
+df = data.frame()
+bootstrapped_sigma= c()
+for(i in 1:1000){
+  
+  bootstrap_indices <- sample(nrow(dd), replace = TRUE)
+  
+  # Subset data using bootstrap indices
+  dd11 <- dd[bootstrap_indices, ]
+  
+  bootstrapped_sigma[i] = sigma(lm(X2~X1, data = dd11))
+  
+  dd1 = dd11 %>% mutate(X22 = rnorm(n(), X2, y_error),
+                      X11 = rnorm(n(), X1, x_error))
+  
+  m1 = lm(X22~X11, data = dd1)
+  
+  d = data.frame(intercept = coef(m1)[1],
+                 slope = coef(m1)[2],
+                 sigma = sigma(m1),
+                 iteration = i)
+  df = rbind(df,d)
+}
+
+
+m1 = lm(X2~X1, data = dd)
+
+beta = c(coef(m1)[1], coef(m1)[2])
+
+xs = seq(min(dd$X1), max(dd$X1), by = 0.1)
+ys = t(cbind(1, xs) %*% beta)[1:length(xs)]
+
+summary = summary(m1)
+
+se_slope = summary$coefficients[2,2]
+se_int = summary$coefficients[1,2]
+
+
+sigma = sigma(m1)
+
+
+data.frame() %>% ggplot()+
+  geom_pointrange(data = dd, aes(x = X1, y = X2, xmin = X1-x_error,xmax = X1+x_error), col = error_bar_colorx)+
+  geom_pointrange(data = dd, aes(x = X1, y = X2, ymin = X2-y_error,ymax = X2+y_error), col = error_bar_colory)+
+  geom_point(data = dd, aes(x = X1, y = X2))+
+  theme_classic()+
+  ylab("Measurement 1")+
+  xlab("Measurement 2")+
+  geom_segment(aes(x = min(dd$X1), xend = max(dd$X1), y = ys[1], yend = last(ys)))+
+  geom_ribbon(aes(x = xs, ymin = ys-se_slope, ymax = ys+se_slope), fill = "blue", alpha =  0.5)+
+  geom_ribbon(aes(x = xs, ymin = ys-se_slope-sigma, ymax = ys+se_slope+sigma), fill = "lightblue", alpha =  0.5)
+  
+
+#
+p1 = data.frame() %>% ggplot()+
+  geom_pointrange(data = dd, aes(x = X1, y = X2, xmin = X1-x_error,xmax = X1+x_error), col = error_bar_colorx)+
+  geom_pointrange(data = dd, aes(x = X1, y = X2, ymin = X2-y_error,ymax = X2+y_error), col = error_bar_colory)+
+  geom_point(data = dd, aes(x = X1, y = X2))+
+  theme_classic()+
+  ylab("Measurement 1")+
+  xlab("Measurement 2")+
+  geom_segment(aes(x = min(dd$X1), xend = max(dd$X1), y = ys[1], yend = last(ys)))+
+  #propergated uncertaintites
+  geom_ribbon(aes(x = xs, ymin = ys-(sd(df$slope)+sd(df$intercept)), ymax = ys+sd(df$slope)+sd(df$intercept)), fill = "black", alpha =  0.5)+
+  #top part
+  geom_ribbon(aes(x = xs, ymin = ys+se_slope+sigma+se_int+sd(bootstrapped_sigma), ymax = ys+sd(df$slope)+mean(df$sigma)+sd(df$intercept)),
+              fill = "black", alpha =  0.25)+
+  #bottom part
+  geom_ribbon(aes(x = xs, ymin = ys-(se_slope+sigma+se_int+sd(bootstrapped_sigma)), ymax = ys-(sd(df$slope)+mean(df$sigma)+sd(df$intercept))),
+          fill = "black", alpha =  0.25)+
+
+  
+  #unpropergated
+  geom_ribbon(aes(x = xs, ymin = ys-(se_slope+se_int), ymax = ys+se_slope+se_int), fill = "green", alpha =  0.5)+
+  geom_ribbon(aes(x = xs, ymin = ys-(se_slope+sigma+se_int+sd(bootstrapped_sigma)),
+                          ymax = ys+se_slope+sigma+se_int+sd(bootstrapped_sigma)), fill = "lightgreen", alpha =  0.5)
+  
+p1
+ggsave(here::here("Figures","figure_1_measurement_uncertainty.png"), plot = p1, dpi = 600, width = 7, height = 4)
+
+
+```
+
+
+```{r, fig.height=6, fig.width=8}
+propgated_un = data.frame()
+unpropgated_un = data.frame()
+
+set.seed(123)
+for(j in 1:15){
+  set.seed(j* 1000)
+  
+  for(s in 1:2){
+    x_error = truncnorm::rtruncnorm(n,0,Inf, 0, x_un)
+    y_error = truncnorm::rtruncnorm(n,0,Inf, 0, y_un)
+    
+    dd = faux::rnorm_multi(n, mu = c(mu1,mu2), sd = c(sd1,sd2), r = cor)
+    
+    dd$x_error = x_error
+    dd$y_error = y_error
+    
+    
+    df = data.frame()
+    
+    bootstrapped_sigma = c()
+    
+    for(i in 1:1000){
+      
+      bootstrap_indices <- sample(nrow(dd), replace = TRUE)
+      
+      # Subset data using bootstrap indices
+      dd11 <- dd[bootstrap_indices, ]
+      
+      bootstrapped_sigma[i] = sigma(lm(X2~X1, data = dd1))
+      
+      dd1 = dd11 %>% mutate(X22 = rnorm(n(), X2, y_error),
+                          X11 = rnorm(n(), X1, x_error))
+      
+      m1 = lm(X22~X11, data = dd1)
+      
+      d = data.frame(intercept = coef(m1)[1],
+                     slope = coef(m1)[2],
+                     sigma = sigma(m1),
+                     iteration = i)
+      df = rbind(df,d)
+    }
+    
+    
+    m1 = lm(X2~X1, data = dd)
+    
+    beta = c(coef(m1)[1], coef(m1)[2])
+    
+    xs = seq(min(dd$X1), max(dd$X1), by = 0.1)
+    ys = t(cbind(1, xs) %*% beta)[1:length(xs)]
+    
+    summary = summary(m1)
+    
+    mean_slope = summary$coefficients[2,1]
+    se_slope = summary$coefficients[2,2]
+    
+    mean_int = summary$coefficients[1,1]
+    se_int = summary$coefficients[1,2]
+    
+    sigma = sigma(m1)
+  
+    df2 = data.frame(sigma = mean(df$sigma), se_slope = sd(df$slope), slope = mean(df$slope), se_int = sd(df$intercept), int = mean(df$intercept), se_sigma = sd(df$sigma), sub = j, session = s)
+  
+    propgated_un = rbind(propgated_un,df2)
+    
+    df1 = data.frame(sigma = sigma,se_sigma = sd(bootstrapped_sigma), se_slope = se_slope, slope = mean_slope, se_int = se_int, int = mean_int, sub = j, session = s)
+    
+    unpropgated_un = rbind(unpropgated_un,df1)
+  } 
+}
+
+
+unpropgated_un_mean = unpropgated_un %>% pivot_longer(cols = c("sigma","slope","int"), names_to = "parameters",values_to = "value") %>% mutate(session = as.factor(session))
+
+unpropgated_un = unpropgated_un_mean %>% pivot_longer(cols = c("se_sigma","se_slope","se_int"), names_to = "parameters_se",values_to = "value_se") %>% mutate(session = as.factor(session))
+
+
+propgated_un_mean = propgated_un %>% pivot_longer(cols = c("sigma","slope","int"), names_to = "parameters",values_to = "value") %>% mutate(session = as.factor(session))
+
+propgated_un = propgated_un_mean %>% pivot_longer(cols = c("se_sigma","se_slope","se_int"), names_to = "parameters_se",values_to = "value_se") %>% mutate(session = as.factor(session))
+
+
+dff = rbind(unpropgated_un %>% mutate(sd_sigma.1 = NULL,prop = F),propgated_un %>% mutate(prop = T))
+
+
+
+
+p2 = dff %>% pivot_wider(names_from = "session", values_from = c("value","value_se")) %>% filter(paste0("se_",parameters) == parameters_se) %>% 
+  rename(parameter = parameters)%>% mutate(parameter = ifelse(parameter == "int","Intercept",parameter)) %>% 
+  ggplot()+
+  geom_pointrange(aes(x = value_1,y = value_2,xmax = value_1+value_se_1,xmin = value_1-value_se_1, col = interaction(prop)))+
+  geom_pointrange(aes(x = value_1,y = value_2,ymax = value_2+value_se_2,ymin = value_2-value_se_2, col = interaction(prop)))+
+  facet_wrap(~parameter, scales = "free", ncol = 3, labeller = label_both)+labs(col='Propergated uncertainty')+theme_classic()+
+  theme(legend.position = "top")+
+  xlab("Session 1 value")+
+  ylab("Session 2 value")
+
+ggsave(here::here("Figures","figure_2_test_retest.png"), plot = p2, dpi = 600, width = 7, height = 4)
+
+```
+
+
+
+```{r, fig.height=6, fig.width=8}
+library(patchwork)
+
+p1
+
+p2
+```
+
+
+# third plot measurement uncertainty on correlation coefficient
+
+
+```{r}
+pacman::p_load(tidyverse,RWiener, tidybayes, posterior, furrr,gganimate, cmdstanr,patchwork, gamlss,truncnorm,extraDistr,flextable,lmerTest,lme4,Matrix,gridExtra)
+
+
+add_unc = function(dx, dy, times = 3) {
+  # Initialize the result
+  result = sqrt(dx^2 + dy^2)
+  
+  # Repeat the addition of uncertainties 'times' number of times
+  for (i in 1:(times - 1)) {
+    result = sqrt(result^2 + dy^2)
+  }
+  
+  return(result)
+}
+
+
+df = faux::rnorm_multi(n = 41, 
+                          mu = c(50, 100),
+                          sd = c(10, 20),
+                          r = c(0.3), 
+                          varnames = c("x_i", "y_i"),
+                          empirical = TRUE)
+
+
+df = df %>% mutate(uncertainty = list(c(seq(0,10,1)))) %>% unnest()
+
+
+df %>% mutate(uncertainty2 = as.factor(uncertainty)) %>% mutate(x_i2 = x_i+uncertainty/4) %>% 
+  ggplot()+
+  geom_pointrange(aes(x = x_i2, y = y_i, ymin = y_i-uncertainty, ymax = y_i+uncertainty,alpha = uncertainty2, col = uncertainty2))+
+  scale_alpha_manual(values = seq(0.1,11*10,1))+theme_classic()
+```
+
+```{r}
+
+add_unc = function(dx, dy, times = 3) {
+  # Initialize the result
+  result = sqrt(dx^2 + dy^2)
+  
+  # Repeat the addition of uncertainties 'times' number of times
+  for (i in 1:(times - 1)) {
+    result = sqrt(result^2 + dy^2)
+  }
+  
+  return(result)
+}
+
+
+df = faux::rnorm_multi(n = 50, 
+                          mu = c(50, 100),
+                          sd = c(10, 10),
+                          r = c(0.8), 
+                          varnames = c("x_i", "y_i"),
+                          empirical = TRUE)
+
+
+df = df %>% mutate(uncertainty = list(c(seq(0,10,1)))) %>% unnest()
+
+
+
+
+df %>% mutate(uncertainty2 = as.factor(uncertainty)) %>% mutate(x_i2 = x_i+uncertainty/5) %>% 
+  ggplot()+
+  geom_pointrange(aes(x = x_i2, y = y_i, ymin = y_i-uncertainty, ymax = y_i+uncertainty,alpha = uncertainty2, col = uncertainty2))+
+  scale_alpha_manual(values = seq(0.1,11*10,1))+theme_classic()
+
+bootstrap_correlation_unc <- function(mx,my,sdx,sdy, truncated) {
+  df1 = data.frame(mx = mx, my = my, sdx = sdx, sdy = sdy)
+  
+  ind <- sample(nrow(df1), nrow(df1), replace=TRUE)
+  
+  if(truncated){
+    df1 = df1 %>% rowwise() %>% mutate(x = truncnorm::rtruncnorm(1,0,Inf, mx, sdx),
+                                       y = truncnorm::rtruncnorm(1,0,Inf, my, sdy)) %>% unnest(cols = c()) %>% as.data.frame(.)
+  }else{
+    df1 = df1 %>% rowwise() %>% mutate(x = rnorm(1, mx, sdx),
+                                       y = rnorm(1, my, sdy)) %>% unnest(cols = c()) %>% as.data.frame(.)
+  }
+  return(cor.test(df1[ind, 1], df1[ind, 2], method = "pearson",exact = FALSE)$estimate[[1]])
+}
+
+cors = df %>% mutate(id = list(1:100)) %>% unnest() %>% group_by(id, uncertainty) %>% 
+  mutate(correlation = bootstrap_correlation_unc(mx = x_i,my = y_i,sdx = uncertainty,sdy = 0.001,F))
+
+cors %>% group_by(uncertainty) %>% summarize(mean = mean(correlation), sd = sd(correlation))
+
+df1 = df %>% filter(uncertainty == 10)
+
+bootstrap_correlation_unc(df1$x_i,df1$y_i,df$uncertainty,df1$uncertainty,F)
+
+bootstrap_function <- function() {
+    bootstrap_correlation_unc(df1$x_i, df1$y_i, 1000, 1000, F)
+}
+
+# Use lapply to run the function 1000 times
+results <- lapply(1:1000, function(i) bootstrap_function())
+
+
+# Convert the list of results into a dataframe
+results_df <- data.frame(correlation = do.call(rbind, results))
+
+mean(results_df$correlation)
+
+```
+
+```{r}
+bootstrap_correlation_unc <- function(df1) {
+  
+  ind <- sample(nrow(df1), nrow(df1), replace=TRUE)
+  
+  df1 = df1 %>% rowwise() %>% mutate(PSS = rnorm(1, PSS, uncertainty)) %>% unnest(cols = c()) %>% as.data.frame(.)
+  
+
+  return(data.frame(cor = cor.test(df1[ind, 1], df1[ind, 2], method = "pearson",exact = FALSE)$estimate))
+}
+
+sample_correlation_unc = function(params){
+
+
+  df = faux::rnorm_multi(n = params$n, 
+                            mu = c(50, 100),
+                            sd = c(params$sd1, params$sd2), #0.05 and 8
+                            r = c(params$cor), 
+                            varnames = c("theta", "PSS"),
+                            empirical = TRUE)
+  
+  df$uncertainty = params$unc
+  
+  
+  results <- lapply(1:2000, function(x) bootstrap_correlation_unc(df))
+  
+  correlation = map_dfr(results, bind_rows)
+  
+  correlation = correlation %>% mutate(sd1 = params$sd1,
+                                       sd2 = params$sd2,
+                                       uncertainty = params$unc,
+                                       realcor = params$cor)
+  
+  
+  cor_int = data.frame(q2 = cor.test(df$theta, df$PSS)$conf.int[[1]],
+                       q97 = cor.test(df$theta, df$PSS)$conf.int[[2]],
+                       sd = ((cor.test(df$theta, df$PSS)$conf.int[[2]]-cor.test(df$theta, df$PSS)$conf.int[[1]])/2)/1.96,
+                       mean = cor.test(df$theta, df$PSS, method = "pearson")$estimate,
+                       n = params$n, bootstrapped = F, realcor = params$cor)
+  
+  
+  boot_int = quantile(correlation$cor, probs=c(0.025, 0.975))
+  
+  boot_int = data.frame(q2 = boot_int[[1]], q97 = boot_int[[2]],
+                        n = params$n, bootstrapped = T,
+                        sd = sd(correlation$cor),
+                        mean = mean(correlation$cor), realcor = params$cor) 
+  
+  df = rbind(boot_int, cor_int) %>% mutate(sd1 = params$sd1, sd2 = params$sd2, uncertainty = params$unc)
+  
+  return(list(df,correlation))
+}
+
+df2 = faux::rnorm_multi(n = 50, 
+                          mu = c(50, 100),
+                          sd = c(10, 10),
+                          r = c(0.8), 
+                          varnames = c("x_i", "y_i"),
+                          empirical = TRUE)
+
+
+df2 = df2 %>% mutate(uncertainty = list(c(seq(0,10,1)))) %>% unnest()
+
+
+
+
+params = expand.grid(cor = 0.8,
+                     n = 50,
+                     sd1 = 10,
+                     sd2 = 10,
+                     unc = seq(0,10,1)) %>% mutate(id = 1:n())
+
+data_list <- split(params, params$id)
+
+plan(multisession, workers = 5)
+
+results <- future_map(data_list, ~sample_correlation_unc(.x), .progress = TRUE, .options = furrr_options(seed = TRUE))
+
+# Combine all first dataframes into a single dataframe
+df4 <- do.call(rbind, lapply(results, function(x) x[[1]]))
+
+qq = df4 %>% mutate(simulated_correlation = round(realcor,2))%>% 
+  ggplot(aes(x = uncertainty, y = mean, ymin = q2, ymax = q97, col = as.factor(uncertainty)))+
+  geom_pointrange()+
+  theme_classic()+
+  facet_wrap(~bootstrapped)+
+  ylab("Estimated correlation")+
+  xlab("standard error on correlation coefficient")+
+  scale_y_continuous(lim = c(-1,1), breaks = seq(-1,1,0.2))+theme(legend.position="none")
+
+qq
+
+df <- do.call(rbind, lapply(results, function(x) x[[2]]))
+```
+
+
+```{r, fig.height=6, fig.width=8}
+
+cv = df4 %>% mutate(simulated_correlation = round(realcor,2), uncertainty2 = as.factor(uncertainty)) %>% filter(bootstrapped == T) %>% mutate(y = rev(seq(100,750,length.out = 11)), x = 0.2)
+
+
+p2 = df %>% mutate(simulated_correlation = round(realcor,2),
+                   uncertainty = as.factor(uncertainty))%>% 
+  ggplot()+
+  geom_histogram(aes(x = cor,fill = uncertainty), col = "black", position = "identity", alpha = 0.5)+
+  theme_classic()+geom_vline(xintercept = 0.8,linetype = 2) +
+  geom_text(data = cv, aes(x = x, y = y, label = paste0("mean = ",round(mean,2), " [",round(q2,2)," ; ",round(q97,2), "]"), col = uncertainty2), size = 4)+ guides(fill = FALSE, color = FALSE)+
+  ylab("count")+
+  xlab("Correlation")
+
+p2
+
+p1 = df2 %>% mutate(uncertainty2 = as.factor(uncertainty)) %>% mutate(x_i2 = x_i+uncertainty/5) %>% 
+  ggplot()+
+  geom_pointrange(aes(x = x_i2, y = y_i, ymin = y_i-uncertainty, ymax = y_i+uncertainty,alpha = uncertainty2, col = uncertainty2))+
+  guides(col = guide_legend(title="Measurement uncertainty",ncol=11),alpha = guide_legend(title="Measurement uncertainty",ncol=11))+
+  scale_alpha_manual(values = seq(0.1,11*10,1))+theme_classic()+
+  theme(legend.position = "top", legend.direction = "vertical")+
+  xlab(expression(X[i]))+
+  ylab(expression(Y[i]))
+  
+
+p1
+
+library(patchwork)
+p3 = p1/p2+plot_annotation(tag_levels = "A")+plot_layout(guides = "collect")& theme(legend.position = 'top', legend.direction = "vertical")
+p3
+
+ggsave(here::here("Figures","figure_3_measurement_uncertainty.png"), plot = p3, dpi = 600, width = 7, height = 7)
+
+
+```
+
+

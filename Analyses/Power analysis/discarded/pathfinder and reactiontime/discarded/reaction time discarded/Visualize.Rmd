@@ -1,0 +1,1724 @@
+---
+title: "Visualize"
+output: html_document
+date: "2024-03-30"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+pacman::p_load(cmdstanr, tidyverse,posterior, bayesplot, tidybayes, furrr,bridgesampling, rstan, brms, faux,LRO.utilities,reticulate)
+
+source(here::here("realshit","Power analysis","pathfinder","reaction time", "pathfinder_rt_datasets_scripts.R"))
+source(here::here("realshit","Power analysis","pathfinder","reaction time", "pathfinder_rt_fit_scripts.R"))
+  
+```
+
+## R Markdown
+
+
+```{r}
+
+files = list.files(here::here("realshit","Power analysis","pathfinder","reaction time", "results"), full.names = TRUE)
+
+
+
+bigdf = data.frame()
+for(i in 1:length(files)){
+    df <- bind_rows(lapply(readRDS(files[i]), function(x) x[[1]]))
+    bigdf = rbind(bigdf,df)
+  }
+
+bigdf %>% ggplot(aes(x = obs_effectsize_alpha, y = p_alpha, col = as.factor(real_effectsize_beta)))+geom_point()
+
+bigdf %>% ggplot(aes(x = obs_effectsize_alpha, y = p_alpha, col = obs_effectsize_beta))+geom_point()
+
+
+bigdf %>% ggplot(aes(x = obs_effectsize_beta, y = p_beta))+geom_point()+facet_wrap(~real_effectsize_beta)
+
+
+bigdf %>% mutate(signifi_alpha = ifelse(p_alpha < 0.05, 1, 0),
+                 signifi_beta = ifelse(p_beta < 0.05, 1, 0),
+                 ) %>% 
+  group_by(real_effectsize_beta,real_effectsize_alpha) %>% 
+  summarize(power_alpha = sum(signifi_alpha) / n(),
+            power_beta = sum(signifi_beta) / n()) %>% 
+  ggplot(aes(x = real_effectsize_alpha, y = real_effectsize_beta, fill = power_alpha))+geom_raster()
+
+
+
+
+bigdf %>% mutate(signifi_alpha = ifelse(p_alpha < 0.05, 1, 0),
+                 signifi_beta = ifelse(p_beta < 0.05, 1, 0),
+                 ) %>% 
+  group_by(real_effectsize_beta,real_effectsize_alpha) %>% 
+  summarize(power_alpha = sum(signifi_alpha) / n(),
+            power_beta = sum(signifi_beta) / n()) %>% 
+  ggplot(aes(x = real_effectsize_alpha, y = real_effectsize_beta, fill = power_alpha))+geom_raster()
+
+bigdf %>% mutate(signifi_alpha = ifelse(p_alpha < 0.05, 1, 0),
+                 signifi_beta = ifelse(p_beta < 0.05, 1, 0),
+                 ) %>% 
+  group_by(real_effectsize_beta,real_effectsize_alpha) %>% 
+  summarize(power_alpha = sum(signifi_alpha) / n(),
+            power_beta = sum(signifi_beta) / n()) %>% 
+  ggplot(aes(x = real_effectsize_alpha, y = real_effectsize_beta, fill = power_beta))+geom_raster()
+
+
+
+aa = bigdf %>% filter(variable == "gm[4]" | variable == "gm[3]") %>% 
+  dplyr::select(variable, mean,real_effectsize_beta) %>% 
+  pivot_wider(names_from = "variable",values_from = "mean") %>% 
+  unnest()
+  
+aa$gm5 = (aa$`gm[3]`+aa$`gm[4]`)
+
+aa %>% group_by(real_effectsize_beta) %>% summarize(mean = mean(gm5))
+
+```
+
+
+
+```{r}
+files = list.files(here::here("realshit","Power analysis","pathfinder","reaction time", "power_analysis_results"), full.names = TRUE)
+
+
+bigdf = data.frame()
+
+for(file in files){
+  df = map_dfr(readRDS(file), bind_rows)
+  bigdf = rbind(bigdf,df)
+}
+
+
+bigdf %>% ggplot(aes(obs_effectsize_alpha, p_alpha, col = as.factor(subjects)))+geom_point()+facet_wrap(~trials)
+
+bigdf %>% filter(trials == 100) %>% ggplot(aes(obs_effectsize_alpha, p_alpha, col = as.factor(subjects)))+geom_point()+facet_wrap(~trials)
+
+bigdf %>% filter(divergences == 0, treedepths == 0)%>% ggplot(aes(obs_effectsize_alpha, p_alpha, col = as.factor(subjects)))+geom_point()+facet_wrap(~trials)
+
+
+bigdf %>% filter(trials == 20,divergences == 0, treedepths == 0) %>% 
+  ggplot(aes(obs_effectsize_alpha, 1-p_alpha, col = as.factor(subjects)))+
+  geom_point()+
+  facet_wrap(~trials)+
+  geom_smooth()
+
+```
+
+
+
+# psi estimates:
+
+
+```{r}
+source(here::here("realshit","Power analysis","pathfinder","reaction time","power_analysis_psi","helpers.R"))
+
+df_alpha = get_full_df("alpha")
+
+
+# Beta  visualization for alpha
+qq = df_alpha %>% filter(variable == "mu_g[4]")%>% mutate(signifi = ifelse(q5>0,1,0)) %>% 
+  group_by(effectsize,subjects, trials) %>% 
+  summarize(hits = sum(signifi), misses = n()-sum(signifi)) %>% 
+  rowwise() %>% 
+  mutate(betas = list(rbeta(10000, 1+hits, 1+misses)))
+
+qq %>% group_by(effectsize,subjects, trials) %>% summarize(betas = unlist(betas)) %>% summarize(median = median(betas), q5 = hdi(betas)[1], q95 = hdi(betas)[2]) %>% 
+  mutate(trials = as.factor(trials), subjects = as.factor(subjects)) %>% 
+  ggplot(aes(x = effectsize, y = median, col = trials)) + 
+  geom_pointrange(aes(ymin = q5, ymax = q95), width = 0.2,  position=position_dodge(width=0.1)) +
+  facet_grid(~subjects, labeller = label_both)+
+  theme_classic()+ geom_smooth(method = "glm", 
+                               method.args = list(family = "binomial"), 
+                               se = FALSE)+
+  ylab("Power")
+
+qq %>% group_by(effectsize,subjects, trials) %>% summarize(betas = unlist(betas)) %>% summarize(median = median(betas), q5 = hdi(betas)[1], q95 = hdi(betas)[2]) %>% 
+  mutate(trials = as.factor(trials), subjects = as.factor(subjects)) %>% 
+  ggplot(aes(x = effectsize, y = median, col = subjects)) + 
+  geom_pointrange(aes(ymin = q5, ymax = q95), width = 0.2,  position=position_dodge(width=0.1)) +
+  facet_grid(~trials, labeller = label_both)+
+  theme_classic()+ geom_smooth(method = "glm", 
+                               method.args = list(family = "binomial"), 
+                               se = FALSE)+
+  ylab("Power")
+
+
+library(scales)
+
+#display ggplot2 default hex color codes from 1 to 8
+
+length(unique(qq$subjects))*length(unique(qq$trials))
+
+intervals = qq %>% group_by(trials,subjects) %>% summarize(n()) %>% group_by(subjects) %>% summarize(n = n()) %>% .$n
+
+
+colors = hue_pal()(50)
+i = 10
+
+
+qq %>% group_by(effectsize,subjects, trials) %>% summarize(betas = unlist(betas)) %>% summarize(median = median(betas), q5 = hdi(betas)[1], q95 = hdi(betas)[2]) %>% 
+  mutate(trials = as.factor(trials), subjects = as.factor(subjects)) %>% 
+  ggplot(aes(x = effectsize, y = median, col = interaction(trials,subjects))) + 
+  geom_pointrange(aes(ymin = q5, ymax = q95), width = 0.2,  position=position_dodge(width=0.1)) +
+  theme_classic()+ geom_smooth(method = "glm", 
+                               method.args = list(family = "binomial"), 
+                               se = FALSE)+
+  ylab("Power")+
+  scale_color_manual(values = colors[c(1:intervals[1],(1:intervals[2])+i,(1:intervals[3])+i*2,(1:intervals[4])+i*3,(1:intervals[5])+i*4,(1:intervals[6])+i*4)])+
+  guides(color = guide_legend(ncol = 2,name = "trials.subjects"))
+
+#ggsave(here::here("Figures",""))
+
+
+df_alpha %>% filter(variable == "mu_g[4]")%>% mutate(signifi = ifelse(q5>0,1,0)) 
+
+df_alpha %>% filter(variable == "mu_g[4]")%>% mutate(signifi = ifelse(q5>0,1,0)) %>% 
+  mutate(trials = as.factor(trials), subjects = as.factor(subjects)) %>% 
+  ggplot(aes(x = effectsize_alpha, y = signifi, col = subjects)) + 
+  theme_classic()+ geom_smooth()+
+  ylab("Power")+facet_wrap(~trials)
+
+
+
+df_alpha %>% filter(variable == "mu_g[4]" & subjects== 10 & trials == 100) %>% 
+  mutate(signifi = ifelse(q5>0,1,0))%>% pivot_longer(cols = c("q5","q95"))%>% 
+  ggplot(aes(x = effectsize_alpha, y = value, col = name))+geom_point()
+
+
+
+qq %>% group_by(effectsize,subjects, trials) %>% summarize(betas = unlist(betas)) %>% summarize(median = median(betas), q5 = hdi(betas)[1], q95 = hdi(betas)[2]) %>% 
+  mutate(trials = as.factor(trials), subjects = as.factor(subjects)) %>% filter(trials == 100 | trials == 50) %>% 
+  ggplot(aes(x = effectsize, y = median, col = interaction(trials,subjects))) + 
+  geom_pointrange(aes(ymin = q5, ymax = q95), width = 0.2,  position=position_dodge(width=0.1)) +
+  theme_classic()+ geom_smooth(method = "glm", 
+                               method.args = list(family = "binomial"), 
+                               se = FALSE)
+
+
+qq %>% group_by(effectsize,subjects, trials) %>% summarize(betas = unlist(betas)) %>% summarize(median = median(betas), q5 = hdi(betas)[1], q95 = hdi(betas)[2]) %>% 
+  mutate(trials = as.factor(trials), subjects = as.factor(subjects)) %>% filter(trials == 100 | trials == 10) %>% 
+  ggplot(aes(x = effectsize, y = median, col = interaction(trials,subjects))) + 
+  geom_pointrange(aes(ymin = q5, ymax = q95), width = 0.2,  position=position_dodge(width=0.1)) +
+  theme_classic()+ geom_smooth(method = "glm", 
+                               method.args = list(family = "binomial"), 
+                               se = FALSE)
+
+
+```
+
+
+```{r}
+source(here::here("realshit","Power analysis","pathfinder","reaction time","power_analysis_psi","helpers.R"))
+
+df_beta = get_full_df("beta")
+
+# betas
+df_beta %>% filter(variable == "mu_g[5]") %>% mutate(signifi = ifelse(q5>0,1,0)) %>% 
+  ggplot(aes(x = effectsize, y = mean, col = as.factor(signifi)))+
+  geom_pointrange(aes(ymin = q5, ymax = q95),position = position_dodge2(width = 0.1), size = 0.5)+
+  theme_classic()+
+  geom_hline(yintercept = 0, linetype = 2)+facet_grid(trials~subjects)
+
+
+
+# Beta  visualization for beta
+qq = df_beta %>% filter(variable == "mu_g[5]")%>% mutate(signifi = ifelse(q5>0,1,0)) %>% 
+  group_by(effectsize,subjects, trials) %>% 
+  summarize(hits = sum(signifi), misses = n()-sum(signifi)) %>% 
+  rowwise() %>% 
+  mutate(betas = list(rbeta(10000, 1+hits, 1+misses)))
+
+
+
+qq %>% group_by(effectsize,subjects, trials) %>% summarize(betas = unlist(betas)) %>% summarize(median = median(betas), q5 = hdi(betas)[1], q95 = hdi(betas)[2]) %>% 
+  mutate(trials = as.factor(trials), subjects = as.factor(subjects)) %>% 
+  ggplot(aes(x = effectsize, y = median, col = trials)) + 
+  geom_pointrange(aes(ymin = q5, ymax = q95), width = 0.2,  position=position_dodge(width=0.1)) +
+  facet_grid(~subjects, labeller = label_both)+
+  theme_classic()+ geom_smooth(method = "glm", 
+                               method.args = list(family = "binomial"), 
+                               se = FALSE)+
+  ylab("Power")
+
+
+intervals = qq %>% group_by(trials,subjects) %>% summarize(n()) %>% group_by(subjects) %>% summarize(n = n()) %>% .$n
+
+library(scales)
+colors = hue_pal()(50)
+i = 10
+
+
+qq %>% group_by(effectsize,subjects, trials) %>% summarize(betas = unlist(betas)) %>% summarize(median = median(betas), q5 = hdi(betas)[1], q95 = hdi(betas)[2]) %>% 
+  mutate(trials = as.factor(trials), subjects = as.factor(subjects)) %>% 
+  ggplot(aes(x = effectsize, y = median, col = interaction(trials, subjects))) + 
+  geom_pointrange(aes(ymin = q5, ymax = q95), width = 0.2,  position=position_dodge(width=0.1)) +
+  theme_classic()+ geom_smooth(method = "glm", 
+                               method.args = list(family = "binomial"), 
+                               se = FALSE) +ylab("Power")+scale_color_manual(values = colors[c(1:intervals[1],(1:intervals[2])+i,(1:intervals[3])+i*2,(1:intervals[4])+i*3,(1:intervals[5])+i*4,(1:intervals[6])+i*5)])+
+  guides(color = guide_legend(ncol = 2,name = "trials.subjects"))
+
+
+```
+
+
+```{r}
+source(here::here("realshit","Power analysis","pathfinder","reaction time","power_analysis_psi","helpers.R"))
+
+
+# Here we fit the trials ans subject independently such that we can look for the underlying pattern how the threshold and slope here are related to number of subjects and trials
+
+alpha_df = fit_results_independent_trials_and_subjects(df_alpha,
+                                                       "alpha",
+                                                       0.05,
+                                                       0.8)
+
+# plotting the independent parameters as functions of trials and subjects:
+
+alpha_df %>% ggplot()+
+  geom_pointrange(aes(x = subjects, y = mean, ymin = q5, ymax = q95, col = trials), width = 0.2, position=position_dodge(width=0.3))+
+  facet_wrap(~parameter)+theme_classic()
+
+
+
+# effect sizes at power = power
+power = 0.8
+
+# Using these parameter estimates we can obtain values for what effect size is required for a given power level:
+
+# Here we just use the mean values of the posterior draws of the parameters for each trial and subject: 
+
+alpha_df %>% select(mean,parameter,trials,subjects) %>% 
+  pivot_wider(names_from = c("parameter"), values_from = c("mean")) %>% rowwise() %>% 
+  mutate(effectsize_at_power = qnorm(power,alpha,beta)) %>% ggplot()+
+  geom_point(aes(x = subjects, y = effectsize_at_power,col = trials), width = 0.2, position=position_dodge(width=0.3))+
+  ylab(paste0("effect size at power = ", power))+theme_classic()+coord_cartesian(ylim = c(0,3.5))
+
+
+
+# psychometric fits We can also plot the psychometrics from the parameter values shown above (fit independently:)
+
+alpha_df %>% select(mean,parameter,trials,subjects) %>% 
+  pivot_wider(names_from = c("parameter"), values_from = c("mean")) %>% rowwise() %>% 
+  mutate(xs = list(seq(0,3,by = 0.1)), ys = list(pnorm(seq(0,3,by = 0.1), mean = alpha, sd = beta))) %>% 
+  unnest() %>% ggplot(aes(x = xs, y = ys, col = interaction(trials,subjects)))+geom_line()
+
+
+
+# Now in order to get an equation of how trials and subjects relate to the parameters of the psychometric we model the slope and threshold as exponential decays as a function of number of subjects at a give ntrial level:
+
+
+ntrials = 10
+exponentialfits = fit_exponential_decays(df = df_alpha,
+                                         parameter = "alpha",
+                                         ntrials = ntrials,
+                                         indi_parameters = alpha_df,
+                                         signi_level = 0.05,
+                                         desired_power = 0.8)
+
+#fitting parameters independently and then seeing how this fit looks compared to:
+alpha_df %>% filter(trials == ntrials) %>% 
+  mutate(subjects = as.numeric(as.character(subjects))) %>% 
+  ggplot()+
+  geom_pointrange(aes(x = subjects, y = mean, ymin = q5, ymax = q95, col = trials), width = 0.2, position=position_dodge(width=0.3))+
+  facet_wrap(~parameter, scales = "free")+
+  geom_line(data = exponentialfits[[2]], aes(x = x, y = y))
+
+
+# Making it a function to see all trial levels:
+
+getfits = function(ntrials,df_alpha,alpha_df){
+  exponentialfit = fit_exponential_decays(df = df_alpha,
+                                          parameter = "alpha",
+                                          ntrials = ntrials,
+                                          indi_parameters = alpha_df,
+                                          signi_level = 0.05,
+                                          desired_power = 0.8)
+  
+  #fitting parameters independently and then seeing how this fit looks compared to:
+  plot = alpha_df %>% filter(trials == ntrials) %>% 
+    mutate(subjects = as.numeric(as.character(subjects))) %>% 
+    ggplot()+
+    geom_pointrange(aes(x = subjects, y = mean, ymin = q5, ymax = q95, col = trials), width = 0.2, position=position_dodge(width=0.3))+
+    facet_wrap(~parameter, scales = "free")+
+    geom_line(data = exponentialfit[[2]], aes(x = x, y = y))+ggtitle(paste0("ntrials = ",ntrials))
+  return(list(exponentialfit,plot))
+  
+}
+
+fits10 = getfits(10,df_alpha,alpha_df)
+fits50 = getfits(50,df_alpha,alpha_df)
+fits100 = getfits(100,df_alpha,alpha_df)
+fits150 = getfits(150,df_alpha,alpha_df)
+```
+
+
+# lets make the grid
+```{r}
+psychometric = function(x, alpha,beta){
+    return(0.5+0.5 * pracma::erf((x-alpha) / (beta * sqrt(2))))
+}
+
+model = fits100[[1]][[3]]
+
+d = as_draws_df(model$draws(c("alpha","beta")))
+
+d = as_draws_df(model$draws(c("expo_alpha","expo_beta","int_alpha","int_beta","asym_alpha","asym_beta")))
+
+
+subs = 20
+
+data = d %>% rowwise() %>% mutate(alpha = int_alpha * exp(-expo_alpha*subs) + asym_alpha,
+                           beta = int_beta * exp(-expo_beta*subs) + asym_beta) %>% 
+  mutate(power = list(psychometric(seq(0,1,by = 0.1), alpha, beta)),
+         obs_effectsize = list(seq(0,1,by = 0.1))) %>% 
+  unnest()
+  
+  
+data %>% ggplot(aes(x = obs_effectsize, y = power))+geom_point()
+
+data
+```
+
+
+
+
+```{r}
+subss = c(seq(5,100,by = 5))
+
+bigdf = data.frame()
+for(sub in subss){
+
+  data = d %>% rowwise() %>% mutate(alpha = int_alpha * exp(-expo_alpha*sub) + asym_alpha,
+                             beta = int_beta * exp(-expo_beta*sub) + asym_beta) %>% 
+    mutate(power = list(psychometric(seq(0,1,by = 0.05), alpha, beta)),
+           obs_effectsize = list(seq(0,1,by = 0.05))) %>% 
+    unnest() %>% mutate(n_subject = sub)
+    
+  bigdf = rbind(data,bigdf)
+  
+}
+
+#bigdf %>% ggplot(aes(x = obs_effectsize, y = power, col = as.factor(n_subject)))+geom_point()
+
+
+
+bigdf %>% group_by(obs_effectsize, n_subject) %>% summarize(mean_power = round(mean(power),2)) %>% 
+  ggplot(aes(x = n_subject, y = obs_effectsize, fill = mean_power))+geom_raster()+ scale_fill_continuous(type = "viridis")
+
+```
+
+
+```{r}
+get_poweranalysis = function(model){
+  
+  psychometric = function(x, alpha,beta){
+    return(0.5+0.5 * pracma::erf((x-alpha) / (beta * sqrt(2))))
+  }
+
+d = as_draws_df(model$draws(c("expo_alpha","expo_beta","asym_alpha","asym_beta")))
+
+names(d)[1:16] = c("expo_alpha1","expo_alpha2","expo_alpha3","expo_alpha4",
+             "expo_beta1","expo_beta2","expo_beta3","expo_beta4",
+             "asym_alpha1","asym_alpha2","asym_alpha3","asym_alpha4",
+             "asym_beta1","asym_beta2","asym_beta3","asym_beta4")
+
+names(d)[1:12] = c("expo_alpha1","expo_alpha2","expo_alpha3",
+             "expo_beta1","expo_beta2","expo_beta3",
+             "asym_alpha1","asym_alpha2","asym_alpha3",
+             "asym_beta1","asym_beta2","asym_beta3")
+
+
+subs = 20
+trial = 100
+
+d[1,1:12]
+
+data = d %>% rowwise() %>% 
+  mutate(alpha = 10 * exp(-(expo_alpha1 + expo_alpha2*subs + expo_alpha3*trial + expo_alpha4*trial*subs)) +
+           asym_alpha1 + asym_alpha2*subs + asym_alpha3*trial + asym_alpha4*trial*subs,
+         beta = 10 * exp(-(expo_beta1 + expo_beta2*subs + expo_beta3*trial + expo_beta4*trial*subs)) +
+           asym_beta1 + asym_beta2*subs + asym_beta3*trial + asym_beta4*trial*subs)%>% 
+  mutate(power = list(psychometric(seq(0,1,by = 0.05), alpha, beta)),
+       obs_effectsize = list(seq(0,1,by = 0.05))) %>% 
+unnest() %>% mutate(n_subject = subs)
+
+
+}
+
+
+data %>% group_by(obs_effectsize) %>% summarize(mean_power = round(mean(power),2)) %>% 
+    ggplot(aes(x = obs_effectsize, y = mean_power))+geom_point()
+
+
+```
+
+
+
+```{r}
+#normal
+source(here::here("realshit","Power analysis","pathfinder","reaction time","power_analysis_psi","helpers.R"))
+
+
+# Here we fit the trials ans subject independently such that we can look for the underlying pattern how the threshold and slope here are related to number of subjects and trials
+
+alpha_df_norm = fit_results_independent_trials_and_subjects(df_alpha,
+                                                       "alpha",
+                                                       0.05,
+                                                       0.8)
+
+
+
+normal = function(effectsize, alpha,beta){
+  
+  return(0.5+0.5*pracma::erf((effectsize-alpha)/(sqrt(2)*beta)))
+  
+}
+
+qq = qq %>% group_by(effectsize,subjects, trials) %>% summarize(betas = unlist(betas)) %>% summarize(median = median(betas), q5 = hdi(betas)[1], q95 = hdi(betas)[2]) %>% 
+  mutate(trials = as.factor(trials), subjects = as.factor(subjects))
+
+
+alpha_df_norm %>% select(mean,parameter,trials,subjects) %>% 
+  pivot_wider(names_from = c("parameter"), values_from = c("mean")) %>% rowwise() %>% 
+  mutate(power = list(normal(seq(0.01,3,by = 0.05),alpha,beta)),
+         effectsize = list(seq(0.01,3,by = 0.05))) %>% unnest() %>% ggplot()+
+  geom_line(aes(x = effectsize, y = power, col = interaction(subjects,trials)))+
+  scale_color_manual(values = colors[c(1:intervals[1],(1:intervals[2])+i,(1:intervals[3])+i*2,(1:intervals[4])+i*3,(1:intervals[5])+i*4,(1:intervals[6])+i*4)])+
+  guides(color = guide_legend(ncol = 2,name = "trials.subjects"))+
+  geom_pointrange(data = qq, aes(x = effectsize, y = median, ymin = q5, ymax = q95, col = interaction(subjects,trials)))+
+  facet_wrap(~subjects)
+
+
+
+
+```
+
+```{r, fig.width=8,fig.height=6}
+#weibull
+
+alpha_df = fit_results_independent_trials_and_subjects_v2(df_alpha,
+                                                       "alpha",
+                                                       0.05,
+                                                       0.8)
+
+# plotting the independent parameters as functions of trials and subjects:
+
+alpha_df %>% ggplot()+
+  geom_pointrange(aes(x = subjects, y = mean, ymin = q5, ymax = q95, col = trials), width = 0.2, position=position_dodge(width=0.3))+
+  facet_wrap(~parameter)+theme_classic()
+
+
+
+# effect sizes at power = power
+power = 0.8
+
+# Using these parameter estimates we can obtain values for what effect size is required for a given power level:
+
+# Here we just use the mean values of the posterior draws of the parameters for each trial and subject: 
+
+weibul = function(effectsize, alpha,beta){
+  
+  return(1-exp(-(effectsize / alpha)^beta))
+  
+}
+
+alpha_df %>% select(mean,parameter,trials,subjects) %>% 
+  pivot_wider(names_from = c("parameter"), values_from = c("mean")) %>% rowwise() %>% 
+  mutate(power = list(weibul(seq(0.01,3,by = 0.05),(alpha),(beta))),
+         effectsize = list(seq(0.01,3,by = 0.05))) %>% unnest() %>% ggplot()+
+  geom_line(aes(x = effectsize, y = power, col = interaction(subjects,trials)))+
+  scale_color_manual(values = colors[c(1:intervals[1],(1:intervals[2])+i,(1:intervals[3])+i*2,(1:intervals[4])+i*3,(1:intervals[5])+i*4,(1:intervals[6])+i*4)])+
+  guides(color = guide_legend(ncol = 2,name = "trials.subjects"))+
+  geom_pointrange(data = qq, aes(x = effectsize, y = median, ymin = q5, ymax = q95, col = interaction(subjects,trials)))+
+  facet_wrap(~subjects)
+
+
+
+
+
+```
+
+
+```{r}
+
+psychometric = function(x, alpha,beta){
+    return(0.5+0.5 * pracma::erf((x-alpha) / (beta * sqrt(2))))
+  
+  
+}
+get_poweranalysis = function(model){
+  
+  psychometric = function(x, alpha,beta){
+    return(0.5+0.5 * pracma::erf((x-alpha) / (beta * sqrt(2))))
+  
+  
+  }
+
+  d = as_draws_df(model$draws(c("expo_alpha","expo_beta","int_alpha","int_beta","asym_alpha","asym_beta")))
+
+  subss = c(seq(5,100,by = 5))
+
+  bigdf = data.frame()
+  for(sub in subss){
+
+    data = d %>% rowwise() %>% mutate(alpha = int_alpha * exp(-expo_alpha*sub) + asym_alpha,
+                             beta = int_beta * exp(-expo_beta*sub) + asym_beta) %>% 
+    mutate(power = list(psychometric(seq(0,1,by = 0.05), alpha, beta)),
+           obs_effectsize = list(seq(0,1,by = 0.05))) %>% 
+    unnest() %>% mutate(n_subject = sub)
+    
+    bigdf = rbind(data,bigdf)
+  
+  }
+
+#bigdf %>% ggplot(aes(x = obs_effectsize, y = power, col = as.factor(n_subject)))+geom_point()
+
+
+
+  plot = bigdf %>% group_by(obs_effectsize, n_subject) %>% summarize(mean_power = round(mean(power),2)) %>% 
+    ggplot(aes(x = n_subject, y = obs_effectsize, fill = mean_power))+geom_raster()+ 
+    scale_fill_continuous(type ="viridis")
+  return(list(plot,bigdf))
+  
+}
+
+
+
+
+
+trials10 = get_poweranalysis(fits10[[1]][[3]])
+trials50 = get_poweranalysis(fits50[[1]][[3]])
+trials100 = get_poweranalysis(fits100[[1]][[3]])
+
+trials10[[1]]
+trials50[[1]]
+trials100[[1]]
+
+```
+
+
+```{r}
+subss = c(seq(5,100,by = 5))
+
+bigdf = data.frame()
+for(sub in subss){
+
+  data = d %>% rowwise() %>% mutate(alpha = int_alpha * exp(-expo_alpha*sub) + asym_alpha,
+                             beta = int_beta * exp(-expo_beta*sub) + asym_beta) %>% 
+    mutate(power = list(psychometric(seq(0,1,by = 0.05), alpha, beta)),
+           obs_effectsize = list(seq(0,1,by = 0.05))) %>% 
+    unnest() %>% mutate(n_subject = sub)
+    
+  bigdf = rbind(data,bigdf)
+  
+}
+
+#bigdf %>% ggplot(aes(x = obs_effectsize, y = power, col = as.factor(n_subject)))+geom_point()
+
+
+
+bigdf %>% group_by(obs_effectsize, n_subject) %>% summarize(mean_power = round(mean(power),2)) %>% 
+  ggplot(aes(x = n_subject, y = obs_effectsize, fill = mean_power))+geom_raster()+ scale_fill_continuous(type = "viridis")
+
+```
+
+
+#real shit interaction normal
+```{r}
+psychometric = function(x, alpha,beta){
+  return(0.5+0.5 * pracma::erf((x-alpha) / (beta * sqrt(2))))
+}
+
+d = as_draws_df(model$draws(c("expo_alpha","expo_beta","intercept_alpha","intercept_beta")))
+
+d = d %>% select(variable,mean) %>% pivot_wider(names_from = variable, values_from = mean)
+
+names(d)[1:8] = c("expo_alpha1","expo_alpha2","expo_alpha3",
+             "expo_beta1","expo_beta2","expo_beta3",
+             "intercept_alpha","intercept_beta")
+
+
+subbers = c(5,10,15,20,50,100)
+trials = c(10,50,100,150)
+bigdf = data.frame()
+
+for(subs in subbers){
+  for(trial in trials){
+    data = d %>% rowwise() %>% 
+      mutate(alpha = exp(intercept_alpha) * exp(-(expo_alpha1*subs + expo_alpha2*trial + expo_alpha3*trial*subs)),
+             beta = exp(intercept_beta) * exp(-(expo_beta1*subs + expo_beta2*trial + expo_beta3*trial*subs)))%>% 
+      mutate(power = list(psychometric(seq(0,2,by = 0.1), alpha, beta)),
+           obs_effectsize = list(seq(0,2,by = 0.1))) %>% 
+    unnest() %>% mutate(n_subject = subs, n_trials = trial)
+    
+    bigdf = rbind(data,bigdf)
+  }
+}
+
+bigdf %>% mutate(n_subject = as.factor(n_subject),
+                 n_trials = as.factor(n_trials)) %>% 
+    ggplot(aes(x = obs_effectsize, y = power, col = n_trials))+geom_smooth()+
+    scale_fill_continuous(type ="viridis")+facet_wrap(~n_subject)
+
+
+
+```
+
+#standardized
+```{r}
+psychometric = function(x, alpha,beta){
+  return(0.5+0.5 * pracma::erf((x-alpha) / (beta * sqrt(2))))
+}
+
+d = as_draws_df(model$draws(c("expo_alpha","expo_beta","intercept_alpha","intercept_beta")))
+
+#d = d %>% select(variable,mean) %>% pivot_wider(names_from = variable, values_from = mean)
+
+names(d)[1:8] = c("expo_alpha1","expo_alpha2","expo_alpha3",
+             "expo_beta1","expo_beta2","expo_beta3",
+             "intercept_alpha","intercept_beta")
+
+
+subbers = c(5,10,20,50)
+trials = c(10,50,100,150)
+bigdf = data.frame()
+
+for(subs in subbers){
+    subs1 = subs
+    subs = (subs-mean(as.numeric(as.character(ff$subjects)))) / sd(as.numeric(as.character(ff$subjects)))
+
+  for(trial in trials){
+    trial1 = trial
+    trial = (trial - mean(as.numeric(as.character(ff$trials)))) / sd(as.numeric(as.character(ff$trials)))
+    
+    data = d %>% rowwise() %>% 
+      mutate(alpha = exp(intercept_alpha) * exp(-(expo_alpha1*subs + expo_alpha2*trial + expo_alpha3*trial*subs)),
+             beta = exp(intercept_beta) * exp(-(expo_beta1*subs + expo_beta2*trial + expo_beta3*trial*subs)))%>% 
+      mutate(power = list(psychometric(seq(0,2,by = 0.1), alpha, beta)),
+           obs_effectsize = list(seq(0,2,by = 0.1))) %>% 
+    unnest() %>% mutate(n_subject = subs1, n_trials = trial1)
+    
+    bigdf = rbind(data,bigdf)
+  }
+}
+
+bigdf %>% mutate(n_subject = as.factor(n_subject),
+                 n_trials = as.factor(n_trials)) %>% 
+    ggplot(aes(x = obs_effectsize, y = power, col = n_trials))+geom_smooth()+
+    scale_fill_continuous(type ="viridis")+facet_wrap(~n_subject)
+
+
+```
+
+
+
+#standardized weibull
+```{r}
+psychometric = function(x, alpha,beta){
+  return(1-exp(-(x / alpha)^beta))
+}
+
+d = as_draws_df(fit$draws(c("expo_alpha","expo_beta","intercept_alpha","intercept_beta")))
+
+d = d %>% select(variable,mean) %>% pivot_wider(names_from = variable, values_from = mean)
+
+names(d)[1:8] = c("expo_alpha1","expo_alpha2","expo_alpha3",
+             "expo_beta1","expo_beta2","expo_beta3",
+             "intercept_alpha","intercept_beta")
+
+
+subbers = c(5,10,20,50)
+trials = c(10,50,100,150)
+bigdf = data.frame()
+
+for(subs in subbers){
+    subs1 = subs
+    subs = (subs-mean(as.numeric(as.character(ff$subjects)))) / sd(as.numeric(as.character(ff$subjects)))
+
+  for(trial in trials){
+    trial1 = trial
+    trial = (trial - mean(as.numeric(as.character(ff$trials)))) / sd(as.numeric(as.character(ff$trials)))
+    
+    data = d %>% rowwise() %>% 
+      mutate(alpha = exp(intercept_alpha) * exp(-(expo_alpha1*subs + expo_alpha2*trial + expo_alpha3*trial*subs)),
+             beta = exp(intercept_beta) * exp(-(expo_beta1*subs + expo_beta2*trial + expo_beta3*trial*subs)))%>% 
+      mutate(power = list(psychometric(seq(0,2,by = 0.1), alpha, beta)),
+           obs_effectsize = list(seq(0,2,by = 0.1))) %>% 
+    unnest() %>% mutate(n_subject = subs1, n_trials = trial1)
+    
+    bigdf = rbind(data,bigdf)
+  }
+}
+
+bigdf %>% mutate(n_subject = as.factor(n_subject),
+                 n_trials = as.factor(n_trials)) %>% 
+    ggplot(aes(x = obs_effectsize, y = power, col = n_trials))+geom_smooth()+
+    scale_fill_continuous(type ="viridis")+facet_wrap(~n_subject)
+
+
+```
+
+
+# real shit with trials subjects and interaction
+```{r}
+df_alpha1 = df_alpha %>% filter(divergences == 0)
+ff = get_modeling_data(df = df_alpha1,parameter = "alpha", signi_level = 0.05, desired_power = 0.8)
+
+ff = ff %>% filter(group_change > 0) 
+
+ff %>% ggplot(aes(x = group_change, y = significant, col = subjects))+geom_smooth()+facet_wrap(~trials)
+
+subs = scale(as.numeric(as.character(ff$subjects)))[,1]
+trials = scale(as.numeric(as.character(ff$trials)))[,1]
+int = scale(as.numeric(as.character(ff$subjects)))[,1] * scale(as.numeric(as.character(ff$trials)))[,1]
+  
+
+design_matrix = data.frame(subs = subs,
+                           trials = trials,
+                           interaction = int)
+
+
+  
+standata = list(x = ff$group_change,
+                N = nrow(ff),
+                design_matrix = design_matrix,
+                param = ncol(design_matrix),
+                y = ff$significant)
+
+
+mod = cmdstanr::cmdstan_model(here::here("realshit","Power analysis","pathfinder","reaction time","power_analysis_psi","stanmodels","exponential decay with asymptote_both.stan"),stanc_options = list("O1"))
+
+fit_norm <- mod$sample(
+  data = standata, 
+  chains = 4,
+  refresh = 50,
+  iter_warmup = 1000,
+  iter_sampling = 1000,
+  parallel_chains = 4,
+  adapt_delta = 0.80,
+  max_treedepth = 12
+)
+
+fit_norm
+mcmc_trace(fit_norm$draws(c("expo_alpha","expo_beta","intercept_alpha","intercept_beta","asym_alpha")))
+
+
+
+psychometric_norm = function(x, alpha,beta){
+  return(0.5+0.5 * pracma::erf((x-alpha) / (beta * sqrt(2))))
+}
+
+d = as_draws_df(fit_norm$draws(c("expo_alpha","expo_beta","intercept_alpha","intercept_beta","asym_alpha")))[1:1000,]
+
+names(d)[1:9] = c("expo_alpha1","expo_alpha2","expo_alpha3",
+             "expo_beta1","expo_beta2","expo_beta3",
+             "intercept_alpha","intercept_beta","asym_alpha")
+
+
+subbers = c(5,10,15,20,40)
+trials = c(10,50,100,150)
+bigdf = data.frame()
+
+for(subs in subbers){
+    subs1 = subs
+    subs = (subs-mean(as.numeric(as.character(ff$subjects)))) / sd(as.numeric(as.character(ff$subjects)))
+    print("subs")
+    print(subs)
+  for(trial in trials){
+    trial1 = trial
+    trial = (trial - mean(as.numeric(as.character(ff$trials)))) / sd(as.numeric(as.character(ff$trials)))
+    print("trial")
+    print(trial)
+    data = d %>% rowwise() %>% 
+      mutate(alpha = exp(intercept_alpha) * exp(-(expo_alpha1*subs + expo_alpha2*trial + expo_alpha3*trial*subs)) + exp(asym_alpha),
+             beta = exp(intercept_beta) * exp(-(expo_beta1*subs + expo_beta2*trial + expo_beta3*trial*subs)))%>% 
+      mutate(power = list(psychometric_norm(seq(0,2,by = 0.1), alpha, beta)),
+           obs_effectsize = list(seq(0,2,by = 0.1))) %>% 
+    unnest() %>% mutate(n_subject = subs1, n_trials = trial1)
+    
+    bigdf = rbind(data,bigdf)
+  }
+}
+
+
+
+bigdf %>% mutate(n_subject = as.factor(n_subject),
+                 n_trials = as.factor(n_trials)) %>% 
+    ggplot(aes(x = obs_effectsize, y = power, col = n_subject))+geom_smooth()+
+    scale_fill_continuous(type ="viridis")+facet_wrap(~n_trials)
+
+ff %>% ggplot(aes(x = group_change, y = significant, col = subjects))+geom_smooth()+facet_wrap(~trials)
+
+```
+
+
+```{r, fig.height=8, fig.width=10}
+
+bigdf = data.frame()
+
+unique_combinations <- unique(alpha_df[c("trials", "subjects")])
+
+unique_combinations$trials = as.numeric(as.character(unique_combinations$trials))
+unique_combinations$subjects = as.numeric(as.character(unique_combinations$subjects))
+
+for(i in 1:nrow(unique_combinations)){
+    subs1 = unique_combinations[i,2]
+    subs = (subs1-mean(as.numeric(as.character(ff$subjects)))) / sd(as.numeric(as.character(ff$subjects)))
+
+    trial1 = unique_combinations[i,1]
+    trial = (trial1 - mean(as.numeric(as.character(ff$trials)))) / sd(as.numeric(as.character(ff$trials)))
+    
+    data = d %>% rowwise() %>% 
+      mutate(alpha = exp(intercept_alpha) * exp(-(expo_alpha1*subs + expo_alpha2*trial + expo_alpha3*trial*subs))+exp(asym_alpha),
+             beta = exp(intercept_beta) * exp(-(expo_beta1*subs + expo_beta2*trial + expo_beta3*trial*subs)))%>% 
+      mutate(power = list(psychometric_norm(seq(0,2,by = 0.1), alpha, beta)),
+           obs_effectsize = list(seq(0,2,by = 0.1))) %>% 
+    unnest() %>% mutate(subjects = subs1, trials = trial1)
+    
+    bigdf = rbind(data,bigdf)
+}
+
+bigdf = bigdf %>% group_by(obs_effectsize,subjects,trials) %>% summarize(meanpower = mean(power), sd = sd(power))
+
+
+library(scales)
+
+#display ggplot2 default hex color codes from 1 to 8
+
+length(unique(qq$subjects))*length(unique(qq$trials))
+
+intervals = qq %>% group_by(trials,subjects) %>% summarize(n()) %>% group_by(subjects) %>% summarize(n = n()) %>% .$n
+
+
+colors = hue_pal()(50)
+i = 10
+
+
+alpha_df %>% select(mean,parameter,trials,subjects) %>% 
+  pivot_wider(names_from = c("parameter"), values_from = c("mean")) %>% rowwise() %>% 
+  mutate(power = list(weibul(seq(0.01,3,by = 0.05),(alpha),(beta))),
+         effectsize = list(seq(0.01,3,by = 0.05))) %>% unnest() %>% ggplot()+
+  scale_color_manual(values = colors[c(1:intervals[1],(1:intervals[2])+i,(1:intervals[3])+i*2,(1:intervals[4])+i*3,(1:intervals[5])+i*4,(1:intervals[6])+i*4)])+
+  scale_fill_manual(values = colors[c(1:intervals[1],(1:intervals[2])+i,(1:intervals[3])+i*2,(1:intervals[4])+i*3,(1:intervals[5])+i*4,(1:intervals[6])+i*4)])+
+  guides(color = guide_legend(ncol = 2,name = "trials.subjects"))+
+  geom_ribbon(data = bigdf, aes(x = obs_effectsize, y = meanpower, ymin = meanpower-2*sd, ymax = meanpower+2*sd, fill = interaction(subjects,trials)), alpha = 0.75)+
+    geom_pointrange(data = qq, aes(x = effectsize, y = median, ymin = q5, ymax = q95, col = interaction(subjects,trials)))+
+  facet_wrap(~trials)
+```
+
+
+```{r}
+psychometric = function(x, alpha,beta){
+  return(1-exp(-(x / alpha)^(1/beta)))
+}
+
+df_alpha1 = df_alpha %>% filter(divergences == 0)
+ff = get_modeling_data(df = df_alpha1,parameter = "alpha", signi_level = 0.05, desired_power = 0.8)
+
+ff = ff %>% filter(group_change > 0)
+
+ff %>% ggplot(aes(x = group_change, y = significant, col = subjects))+geom_smooth()+facet_wrap(~trials)
+
+subs = scale(as.numeric(as.character(ff$subjects)))[,1]
+trials = scale(as.numeric(as.character(ff$trials)))[,1]
+int = scale(as.numeric(as.character(ff$subjects)))[,1] * scale(as.numeric(as.character(ff$trials)))[,1]
+  
+
+design_matrix = data.frame(subs = subs,
+                           trials = trials,
+                           interaction = int)
+
+
+  
+standata = list(x = ff$group_change,
+                N = nrow(ff),
+                design_matrix = design_matrix,
+                param = ncol(design_matrix),
+                y = ff$significant)
+
+
+mod = cmdstanr::cmdstan_model(here::here("realshit","Power analysis","pathfinder","reaction time","power_analysis_psi","stanmodels","weibull2.stan"),stanc_options = list("O1"))
+
+
+fit_weibull <- mod$sample(
+  data = standata, 
+  chains = 4,
+  refresh = 50,
+  init = 0,
+  iter_warmup = 1000,
+  iter_sampling = 1000,
+  parallel_chains = 4,
+  adapt_delta = 0.80,
+  max_treedepth = 12
+)
+
+mcmc_trace(fit_weibull$draws(c("expo_alpha","expo_beta","intercept_beta","intercept_alpha")))
+
+
+d_wei = as_draws_df(fit_weibull$draws(c("expo_alpha","expo_beta","intercept_alpha","intercept_beta")))[1:1000,]
+
+names(d_wei)[1:8] = c("expo_alpha1","expo_alpha2","expo_alpha3",
+             "expo_beta1","expo_beta2","expo_beta3",
+             "intercept_alpha","intercept_beta")
+
+
+subbers = c(5,10,15,20,40)
+trials = c(10,50,100,150)
+bigdf = data.frame()
+
+for(subs in subbers){
+    subs1 = subs
+    subs = (subs-mean(as.numeric(as.character(ff$subjects)))) / sd(as.numeric(as.character(ff$subjects)))
+
+  for(trial in trials){
+    trial1 = trial
+    trial = (trial - mean(as.numeric(as.character(ff$trials)))) / sd(as.numeric(as.character(ff$trials)))
+    
+    data = d_wei %>% rowwise() %>% 
+      mutate(alpha = exp(intercept_alpha) * exp(-(expo_alpha1*subs + expo_alpha2*trial + expo_alpha3*trial*subs)),
+             beta = exp(intercept_beta) * exp(-(expo_beta1*subs + expo_beta2*trial + expo_beta3*trial*subs)))%>% 
+      mutate(power = list(psychometric(seq(0,2,by = 0.1), alpha, beta)),
+           obs_effectsize = list(seq(0,2,by = 0.1))) %>% 
+    unnest() %>% mutate(n_subject = subs1, n_trials = trial1)
+    
+    bigdf = rbind(data,bigdf)
+  }
+}
+
+ff %>% ggplot(aes(x = group_change, y = significant, col = subjects))+geom_smooth()+facet_wrap(~trials)
+
+
+bigdf %>% mutate(n_subject = as.factor(n_subject),
+                 n_trials = as.factor(n_trials)) %>% 
+    ggplot(aes(x = obs_effectsize, y = power, col = n_subject))+geom_smooth()+
+    scale_fill_continuous(type ="viridis")+facet_wrap(~n_trials)
+```
+
+
+```{r, fig.height=8, fig.width=10}
+
+bigdf_wei = data.frame()
+
+unique_combinations <- unique(alpha_df[c("trials", "subjects")])
+
+unique_combinations$trials = as.numeric(as.character(unique_combinations$trials))
+unique_combinations$subjects = as.numeric(as.character(unique_combinations$subjects))
+
+for(i in 1:nrow(unique_combinations)){
+    subs1 = unique_combinations[i,2]
+    subs = (subs1-mean(as.numeric(as.character(ff$subjects)))) / sd(as.numeric(as.character(ff$subjects)))
+
+    trial1 = unique_combinations[i,1]
+    trial = (trial1 - mean(as.numeric(as.character(ff$trials)))) / sd(as.numeric(as.character(ff$trials)))
+    
+    data = d_wei %>% rowwise() %>% 
+      mutate(alpha = exp(intercept_alpha) * exp(-(expo_alpha1*subs + expo_alpha2*trial + expo_alpha3*trial*subs)),
+             beta = exp(intercept_beta) * exp(-(expo_beta1*subs + expo_beta2*trial + expo_beta3*trial*subs)))%>% 
+      mutate(power = list(psychometric(seq(0,2,by = 0.1), alpha, beta)),
+           obs_effectsize = list(seq(0,2,by = 0.1))) %>% 
+    unnest() %>% mutate(subjects = subs1, trials = trial1)
+    
+    bigdf_wei = rbind(data,bigdf_wei)
+}
+
+bigdf_wei = bigdf_wei %>% group_by(obs_effectsize,subjects,trials) %>% summarize(meanpower = mean(power), sd = sd(power))
+
+
+library(scales)
+
+#display ggplot2 default hex color codes from 1 to 8
+
+length(unique(qq$subjects))*length(unique(qq$trials))
+
+intervals = qq %>% group_by(trials,subjects) %>% summarize(n()) %>% group_by(subjects) %>% summarize(n = n()) %>% .$n
+
+
+colors = hue_pal()(50)
+i = 10
+
+
+alpha_df %>% select(mean,parameter,trials,subjects) %>% 
+  pivot_wider(names_from = c("parameter"), values_from = c("mean")) %>% rowwise() %>% 
+  mutate(power = list(weibul(seq(0.01,3,by = 0.05),(alpha),(beta))),
+         effectsize = list(seq(0.01,3,by = 0.05))) %>% unnest() %>% ggplot()+
+  scale_color_manual(values = colors[c(1:intervals[1],(1:intervals[2])+i,(1:intervals[3])+i*2,(1:intervals[4])+i*3,(1:intervals[5])+i*4,(1:intervals[6])+i*4)])+
+  scale_fill_manual(values = colors[c(1:intervals[1],(1:intervals[2])+i,(1:intervals[3])+i*2,(1:intervals[4])+i*3,(1:intervals[5])+i*4,(1:intervals[6])+i*4)])+
+  guides(color = guide_legend(ncol = 2,name = "trials.subjects"))+
+  geom_ribbon(data = bigdf_wei, aes(x = obs_effectsize, y = meanpower, ymin = meanpower-2*sd, ymax = meanpower+2*sd, fill = interaction(subjects,trials)), alpha = 0.75)+
+    geom_pointrange(data = qq, aes(x = effectsize, y = median, ymin = q5, ymax = q95, col = interaction(subjects,trials)))+
+  facet_wrap(~trials)
+
+```
+
+
+
+```{r}
+weibull  = fit_weibull$loo()
+norm = fit_norm$loo()
+
+loo = loo::loo_compare(list(weibull, norm))
+
+
+plot(weibull)
+plot(norm)
+
+
+normal_shitters = loo::pareto_k_ids(norm, threshold = 0.7)
+
+ff[normal_shitters,]
+
+weibull_shitters = loo::pareto_k_ids(weibull, threshold = 0.7)
+
+ff[weibull_shitters,]
+
+```
+
+
+```{r}
+d = as_draws_df(fit_weibull$summary(c("expo_alpha","expo_beta","intercept_alpha","intercept_beta")))
+d = d %>% select(variable, mean) %>% pivot_wider(values_from = "mean",names_from = "variable")
+
+names(d)[1:8] = c("expo_alpha1","expo_alpha2","expo_alpha3",
+             "expo_beta1","expo_beta2","expo_beta3",
+             "intercept_alpha","intercept_beta")
+
+
+
+get_matrix = function(d, subbers, trials){
+
+bigdf = data.frame()
+
+for(subs in subbers){
+    subs1 = subs
+    subs = (subs-mean(as.numeric(as.character(ff$subjects)))) / sd(as.numeric(as.character(ff$subjects)))
+
+  for(trial in trials){
+    trial1 = trial
+    trial = (trial - mean(as.numeric(as.character(ff$trials)))) / sd(as.numeric(as.character(ff$trials)))
+    
+    data = d %>% rowwise() %>% 
+      mutate(alpha = exp(intercept_alpha) * exp(-(expo_alpha1*subs + expo_alpha2*trial + expo_alpha3*trial*subs)),
+             beta = exp(intercept_beta) * exp(-(expo_beta1*subs + expo_beta2*trial + expo_beta3*trial*subs)))%>% 
+      mutate(power = list(psychometric(seq(0,1,by = 0.01), alpha, beta)),
+           obs_effectsize = list(seq(0,1,by = 0.01))) %>% 
+    unnest() %>% mutate(n_subject = subs1, n_trials = trial1)
+    
+    bigdf = rbind(data,bigdf)
+  }
+}
+return(bigdf)
+}
+
+subbers = seq(5,50, by = 5)
+trials = c(20,50,100,150)
+ddf = get_matrix(d, subbers,trials)
+
+ddf = ddf %>% group_by(obs_effectsize, n_subject,n_trials) %>% summarize(mean_power = round(mean(power),2)) 
+
+ddf
+
+subtract = 0.03
+
+filtered_data <- ddf %>% filter(mean_power < 0.80+subtract & mean_power > 0.80-subtract)
+
+ddf %>% ggplot()+geom_raster(aes(x = n_subject, y = obs_effectsize, fill = mean_power))+
+  scale_fill_continuous(type = "viridis")+facet_wrap(~n_trials)+
+    geom_ellipse(aes(x0 = 30, y0 = 0.4, a = 1, b = 0.2, angle = 0))+
+  geom_line(data = filtered_data, aes(x = n_subject, y = obs_effectsize), color = "black")
+
+
+
+```
+
+
+
+```{r}
+d = as_draws_df(fit_norm$summary(c("expo_alpha","expo_beta","intercept_alpha","intercept_beta")))
+d = d %>% select(variable, mean) %>% pivot_wider(values_from = "mean",names_from = "variable")
+
+names(d)[1:8] = c("expo_alpha1","expo_alpha2","expo_alpha3",
+             "expo_beta1","expo_beta2","expo_beta3",
+             "intercept_alpha","intercept_beta")
+
+
+
+get_matrix = function(d, subbers, trials){
+
+bigdf = data.frame()
+
+for(subs in subbers){
+    subs1 = subs
+    subs = (subs-mean(as.numeric(as.character(ff$subjects)))) / sd(as.numeric(as.character(ff$subjects)))
+
+  for(trial in trials){
+    trial1 = trial
+    trial = (trial - mean(as.numeric(as.character(ff$trials)))) / sd(as.numeric(as.character(ff$trials)))
+    
+    data = d %>% rowwise() %>% 
+      mutate(alpha = exp(intercept_alpha) * exp(-(expo_alpha1*subs + expo_alpha2*trial + expo_alpha3*trial*subs)),
+             beta = exp(intercept_beta) * exp(-(expo_beta1*subs + expo_beta2*trial + expo_beta3*trial*subs)))%>% 
+      mutate(power = list(psychometric_norm(seq(0,1,by = 0.05), alpha, beta)),
+           obs_effectsize = list(seq(0,1,by = 0.05))) %>% 
+    unnest() %>% mutate(n_subject = subs1, n_trials = trial1)
+    
+    bigdf = rbind(data,bigdf)
+  }
+}
+return(bigdf)
+}
+
+library(ggforce)
+
+subbers = seq(5,50, by = 5)
+trials = c(20,50,100,150)
+ddf = get_matrix(d, subbers,trials)
+
+ddf = ddf %>% group_by(obs_effectsize, n_subject,n_trials) %>% summarize(mean_power = round(mean(power),2)) 
+
+ddf
+
+ddf %>% ggplot()+geom_raster(aes(x = n_subject, y = obs_effectsize, fill = mean_power))+
+  scale_fill_continuous(type = "viridis")+facet_wrap(~n_trials)+
+    geom_ellipse(aes(x0 = 30, y0 = 0.4, a = 1, b = 0.2, angle = 0))
+
+
+```
+
+
+
+```{r}
+psychometric = function(x, alpha,beta){
+  return(1-exp(-(x / alpha)^beta))
+}
+
+ef = function(dd){
+  return((mean(dd$X2-dd$X1) * sqrt(2*(1-cor.test(dd$X1, dd$X2)$estimate[[1]]))) / sqrt(sd(dd$X1)^2 + sd(dd$X2)^2 - 2 * sd(dd$X1) * sd(dd$X2) * cor.test(dd$X1, dd$X2)$estimate[[1]]))    
+}
+
+
+subss = 40
+trialss = 100
+
+n = subss
+mu1 = -10
+mu2 = -5
+sd1 = 10
+sd2 = 15
+cor = 0
+
+
+
+effectsize = c()
+correlation = c()
+for(i in 1:4000){
+  
+  dd = faux::rnorm_multi(n, mu = c(mu1,mu2), sd = c(sd1,sd2), r = cor)
+  f = ef(dd)
+  
+  correlation[i] = cor.test(dd$X1, dd$X2)$estimate[[1]]
+  effectsize[i] = f
+}
+
+hist(effectsize)
+
+
+d = as_draws_df(fit_weibull$draws(c("expo_alpha","expo_beta","intercept_alpha","intercept_beta")))
+
+names(d)[1:8] = c("expo_alpha1","expo_alpha2","expo_alpha3",
+             "expo_beta1","expo_beta2","expo_beta3",
+             "intercept_alpha","intercept_beta")
+d$effectsize = effectsize
+
+d$subs = (subss-mean(as.numeric(as.character(ff$subjects)))) / sd(as.numeric(as.character(ff$subjects)))
+
+d$trial = (trialss - mean(as.numeric(as.character(ff$trials)))) / sd(as.numeric(as.character(ff$trials)))
+
+
+data = d %>% rowwise() %>% 
+  mutate(alpha = exp(intercept_alpha) * exp(-(expo_alpha1*subs + expo_alpha2*trial + expo_alpha3*trial*subs)),
+         beta = exp(intercept_beta) * exp(-(expo_beta1*subs + expo_beta2*trial + expo_beta3*trial*subs)))%>% 
+  mutate(probability = 1-psychometric(effectsize, alpha, beta))
+
+data %>% ggplot(aes(x = probability))+geom_histogram(col = "black")
+
+data %>% ggplot(aes(x = effectsize, y = probability))+geom_point()+geom_hline(yintercept = 0.05)
+
+sum(data$probability < 0.05, na.rm = T) / nrow(data)
+
+```
+
+
+```{r}
+
+
+ef = function(dd){
+  return((mean(dd$X2-dd$X1) * sqrt(2*(1-cor.test(dd$X1, dd$X2)$estimate[[1]]))) / sqrt(sd(dd$X1)^2 + sd(dd$X2)^2 - 2 * sd(dd$X1) * sd(dd$X2) * cor.test(dd$X1, dd$X2)$estimate[[1]]))    
+}
+
+
+get_eff = function(parameters){
+
+subss =  parameters$subss
+
+n = subss
+mu1 = -10
+mu2 = -5
+sd1 = 10
+sd2 = 15
+cor =  parameters$cor
+
+
+
+effectsize = c()
+correlation = c()
+for(i in 1:2000){
+  
+  dd = faux::rnorm_multi(n, mu = c(mu1,mu2), sd = c(sd1,sd2), r = cor)
+  f = ef(dd)
+  
+  correlation[i] = cor.test(dd$X1, dd$X2)$estimate[[1]]
+  effectsize[i] = f
+}
+
+effectsize = data.frame(effectsize = effectsize) %>% mutate(cor = parameters$cor, subs = parameters$subss)
+
+return(effectsize)
+}
+
+parameters = expand.grid(subss = seq(10,50,by = 10),
+                        cor = seq(0,0.9, by = 0.3)) %>% mutate(id = 1:n())
+
+data_list <- split(parameters, parameters$id)
+  
+
+cores = 8
+plan(multisession, workers = cores)
+
+possfit_model = possibly(.f = get_eff, otherwise = "Error")
+
+results <- future_map(data_list, ~possfit_model(.x), .options = furrr_options(seed = TRUE), .progress = T)
+
+df = map_dfr(results,bind_rows)
+
+df %>% ggplot(aes(x = effectsize, fill = as.factor(cor)))+
+  facet_wrap(~subs, scales = "free")+geom_histogram(col = "black", alpha = 0.8, position = "identity")+theme_classic()
+
+```
+
+
+#lets combine all of this!
+
+```{r}
+
+
+dq = df %>% filter(subs == 30)%>% mutate(trials = list(c(20,50,100,150))) %>% unnest() %>% group_by(subs,trials,cor) %>% summarize(mean = mean(effectsize), sd = sd(effectsize)) %>% mutate(cor = as.factor(cor))
+
+
+ddf %>% ggplot()+geom_raster(aes(x = n_subject, y = obs_effectsize, fill = mean_power))+
+  scale_fill_continuous(type = "viridis")+facet_wrap(~n_trials)+
+#    geom_ellipse(aes(x0 = 30, y0 = 0.4, a = 1, b = 0.5, angle = 0))+
+  geom_ellipse(data = dq, aes(x0 = 30, y0 = mean, a = 1, b = 2*sd, angle = 0, col = cor))+
+  scale_color_manual(values = c("black","orange","darkblue","red"))
+
+
+```
+
+
+```{r}
+
+
+
+```
+
+
+
+```{r}
+# alpha = (int_alpha * exp(-expo_alpha * Subs) + asym_alpha)
+# beta = (int_beta * exp(-expo_beta * Subs) + asym_beta)
+
+# Probability of rejecting a hypothsis given an effectsize (x)
+
+# p(x) = 0.5+0.5 * erf((x - alpha ./ beta * sqrt(2)));
+
+# We want the opposite the effect_size at a given probability i.e. our desired power which we get using the quantile function:
+
+fit = fits10[[1]][[3]]
+
+get_effectsize = function(desired_power, n_sub, fit){
+  
+  parameters = c("expo_alpha","expo_beta","int_alpha","int_beta","asym_alpha","asym_beta")
+  params = fit$summary(parameters)
+  
+  alpha = params[params$variable == "int_alpha", "mean"] * exp(-params[params$variable == "expo_alpha", "mean"] * n_sub) + params[params$variable == "asym_alpha", "mean"] 
+  
+  beta = params[params$variable == "int_beta", "mean"] * exp(-params[params$variable == "expo_beta", "mean"] * n_sub) + params[params$variable == "asym_beta", "mean"] 
+  
+  qnorm(desired_power, alpha$mean, beta$mean)
+  
+}
+
+get_effectsize(desired_power = 0.8,
+               n_sub = 10,
+               fit = fit)
+
+estimated_effectsizes = data.frame(subjects = 1:100) %>% 
+  mutate(estimated_effect_sizes = sapply(subjects, function(x) get_effectsize(desired_power = 0.8,
+                                                                              n_sub = x,
+                                                                              fit = fit)))
+
+# plot to see:
+estimated_effectsizes %>% ggplot(aes(subjects, y = estimated_effect_sizes))+geom_point()+coord_cartesian(ylim = c(0,5))
+
+
+# Overlaying what we got from fitting things independently:
+
+alpha_df %>% select(mean,parameter,trials,subjects) %>% 
+  pivot_wider(names_from = c("parameter"), values_from = c("mean")) %>% rowwise() %>% 
+  mutate(effectsize_at_power = qnorm(power,alpha,beta)) %>% 
+  mutate(subjects = as.numeric(as.character(subjects))) %>% 
+  ggplot()+
+  geom_point(aes(x = subjects, y = effectsize_at_power,col = trials), width = 0.2, position=position_dodge(width=0.3))+
+  ylab(paste0("effect size at power = ", power))+theme_classic()+coord_cartesian(ylim = c(0,3.5))+
+  geom_line(data = estimated_effectsizes, aes(x = subjects , y = estimated_effect_sizes))
+
+
+# function to make one for each trial number
+
+get_effectsize_curves = function(desired_power, fit,alpha_df, trials){
+  
+  estimated_effect_sizes = data.frame(subjects = 1:100) %>% 
+    mutate(estimated_effect_sizes = sapply(subjects, function(x) get_effectsize(desired_power = 0.8,
+                                                                                n_sub = x,
+                                                                                fit = fit)))
+  
+  return(estimated_effect_sizes %>% mutate(trials = trials))
+  
+}
+
+estimated_effectsizes = rbind(
+  trials10 = get_effectsize_curves(desired_power = 0.8,
+                                   fit = fits10[[1]][[3]],
+                                   alpha_df = alpha_df,
+                                   trials = 10)
+  ,
+  
+  trials50 = get_effectsize_curves(desired_power = 0.8,
+                                   fit = fits50[[1]][[3]],
+                                   alpha_df = alpha_df,
+                                   trials = 50)
+  ,
+  
+  
+  trials100 = get_effectsize_curves(desired_power = 0.8,
+                                    fit = fits100[[1]][[3]],
+                                    alpha_df = alpha_df,
+                                    trials = 100)
+  ,
+  
+  trials150 = get_effectsize_curves(desired_power = 0.8,
+                                    fit = fits150[[1]][[3]],
+                                    alpha_df = alpha_df,
+                                    trials = 150)
+)
+
+
+
+alpha_df %>% select(mean,parameter,trials,subjects) %>% 
+  pivot_wider(names_from = c("parameter"), values_from = c("mean")) %>% rowwise() %>% 
+  mutate(effectsize_at_power = qnorm(power,alpha,beta)) %>% 
+  mutate(subjects = as.numeric(as.character(subjects))) %>% 
+  ggplot()+
+  geom_point(aes(x = subjects, y = effectsize_at_power,col = trials), width = 0.2, position=position_dodge(width=0.3))+
+  ylab(paste0("effect size at power = ", power))+theme_classic()+coord_cartesian(ylim = c(0,3.5))+
+  geom_line(data = estimated_effectsizes %>% mutate(trials = as.factor(trials)), aes(x = subjects , y = estimated_effect_sizes,col = trials))
+
+```
+
+
+
+```{r}
+source(here::here("Power analysis","R scripts","Visualization functions.R"))
+
+# Here we fit the trials ans subject independently such that we can look for the underlying pattern how the threshold and slope here are related to number of subjects and trials
+
+beta_df = fit_results_independent_trials_and_subjects(df_beta,
+                                                      "beta",
+                                                      0.05,
+                                                      0.8)
+
+# plotting the independent parameters as functions of trials and subjects:
+
+beta_df %>% ggplot()+
+  geom_pointrange(aes(x = subjects, y = mean, ymin = q5, ymax = q95, col = trials), width = 0.2, position=position_dodge(width=0.3))+
+  facet_wrap(~parameter)+theme_classic()
+
+
+
+# effect sizes at power = power
+power = 0.8
+
+# Using these parameter estimates we can obtain values for what effect size is required for a given power level:
+
+# Here we just use the mean values of the posterior draws of the parameters for each trial and subject: 
+
+beta_df %>% select(mean,parameter,trials,subjects) %>% 
+  pivot_wider(names_from = c("parameter"), values_from = c("mean")) %>% rowwise() %>% 
+  mutate(effectsize_at_power = qnorm(power,alpha,beta)) %>% ggplot()+
+  geom_point(aes(x = subjects, y = effectsize_at_power,col = trials), width = 0.2, position=position_dodge(width=0.3))+
+  ylab(paste0("effect size at power = ", power))+theme_classic()+coord_cartesian(ylim = c(0,3.5))
+
+
+
+# psychometric fits We can also plot the psychometrics from the parameter values shown above (fit independently:)
+
+beta_df %>% select(mean,parameter,trials,subjects) %>% 
+  pivot_wider(names_from = c("parameter"), values_from = c("mean")) %>% rowwise() %>% 
+  mutate(xs = list(seq(0,3,by = 0.1)), ys = list(pnorm(seq(0,3,by = 0.1), mean = alpha, sd = beta))) %>% 
+  unnest() %>% ggplot(aes(x = xs, y = ys, col = interaction(trials,subjects)))+geom_line()
+
+
+
+# Now in order to get an equation of how trials and subjects relate to the parameters of the psychometric we model the slope and threshold as exponential decays as a function of number of subjects at a give ntrial level:
+
+
+ntrials = 100
+exponentialfits = fit_exponential_decays(df = df_beta,
+                                         parameter = "beta",
+                                         ntrials = ntrials,
+                                         indi_parameters = beta_df,
+                                         signi_level = 0.05,
+                                         desired_power = 0.8)
+
+#fitting parameters independently and then seeing how this fit looks compared to:
+beta_df %>% filter(trials == ntrials) %>% 
+  mutate(subjects = as.numeric(as.character(subjects))) %>% 
+  ggplot()+
+  geom_pointrange(aes(x = subjects, y = mean, ymin = q5, ymax = q95, col = trials), width = 0.2, position=position_dodge(width=0.3))+
+  facet_wrap(~parameter, scales = "free")+
+  geom_line(data = exponentialfits[[2]], aes(x = x, y = y))
+
+
+
+# for all 
+
+fits10 = getfits(10,df_beta,beta_df)
+fits50 = getfits(50,df_beta,beta_df)
+fits100 = getfits(100,df_beta,beta_df)
+fits150 = getfits(150,df_beta,beta_df)
+```
+
+
+
+```{r}
+minMax <- function(x) {
+  (x - min(x)) / (max(x) - min(x))
+}
+
+psychometric_norm = function(x, alpha,beta){
+  return(0.5+0.5 * pracma::erf((x-alpha) / (beta * sqrt(2))))
+}
+
+df_alpha1 = df_alpha %>% filter(divergences == 0)
+ff = get_modeling_data(df = df_alpha1,parameter = "alpha", signi_level = 0.05, desired_power = 0.8)
+
+ff = ff %>% filter(group_change > 0 & group_change < 2 & subjects != 100)
+
+ff %>% ggplot(aes(x = group_change, y = significant, col = subjects))+geom_smooth()+facet_wrap(~trials)
+
+subs = (as.numeric(as.character(ff$subjects)))
+trials = (as.numeric(as.character(ff$trials)))
+int = (as.numeric(as.character(ff$subjects))) + (as.numeric(as.character(ff$trials)))
+  
+
+design_matrix = data.frame(subs = subs,
+                           trials = trials,
+                           intaction = int)
+
+
+
+  
+standata = list(x = ff$group_change,
+                N = nrow(ff),
+                design_matrix = design_matrix,
+                param = ncol(design_matrix),
+                y = ff$significant)
+
+
+mod = cmdstanr::cmdstan_model(here::here("realshit","Power analysis","pathfinder","reaction time","power_analysis_psi","stanmodels","normal_powerfunction.stan"),stanc_options = list("O1"))
+
+
+fit_test <- mod$sample(
+  data = standata, 
+  chains = 4,
+  refresh = 50,
+  init = 0,
+  iter_warmup = 1000,
+  iter_sampling = 1000,
+  parallel_chains = 4,
+  adapt_delta = 0.80,
+  max_treedepth = 12
+)
+
+mcmc_trace(fit_test$draws(c("expo_alpha","expo_beta","intercept_beta","intercept_alpha")))
+
+
+d_wei = as_draws_df(fit_test$draws(c("expo_alpha","expo_beta","intercept_alpha","intercept_beta")))[1:1000,]
+
+names(d_wei)[1:8] = c("expo_alpha1","expo_alpha2","expo_alpha3",
+             "expo_beta1","expo_beta2","expo_beta3",
+             "intercept_alpha","intercept_beta")
+
+
+subbers = c(5,10,15,20,40)
+trials = c(10,50,100,150)
+bigdf = data.frame()
+
+for(subs in subbers){
+    subs1 = subs
+    # subs = (subs-mean(as.numeric(as.character(ff$subjects)))) / sd(as.numeric(as.character(ff$subjects)))
+
+  for(trial in trials){
+    trial1 = trial
+    # trial = (trial - mean(as.numeric(as.character(ff$trials)))) / sd(as.numeric(as.character(ff$trials)))
+    
+    data = d_wei %>% rowwise() %>% 
+      mutate(alpha = exp(intercept_alpha) * subs ^ expo_alpha1 * trial^expo_alpha2* (trial+subs)^expo_alpha3,
+             beta = exp(intercept_beta) * subs ^ expo_beta1 * trial^expo_beta2 * (trial+subs)^expo_beta3)%>% 
+      mutate(power = list(psychometric_norm(seq(0,2,by = 0.1), alpha, beta)),
+           obs_effectsize = list(seq(0,2,by = 0.1))) %>% 
+    unnest() %>% mutate(n_subject = subs1, n_trials = trial1)
+    
+    bigdf = rbind(data,bigdf)
+  }
+}
+
+ff %>% ggplot(aes(x = group_change, y = significant, col = subjects))+geom_smooth()+facet_wrap(~trials)+
+  coord_cartesian(xlim = c(0,2))
+
+
+bigdf %>% mutate(n_subject = as.factor(n_subject),
+                 n_trials = as.factor(n_trials)) %>% 
+    ggplot(aes(x = obs_effectsize, y = power, col = n_subject))+geom_smooth()+
+    scale_fill_continuous(type ="viridis")+facet_wrap(~n_trials)
+
+
+ff %>% ggplot(aes(x = group_change, y = significant, col = trials))+geom_smooth()+facet_wrap(~subjects)+
+  coord_cartesian(xlim = c(0,2))
+
+
+bigdf %>% mutate(n_subject = as.factor(n_subject),
+                 n_trials = as.factor(n_trials)) %>% 
+    ggplot(aes(x = obs_effectsize, y = power, col = n_trials))+geom_smooth()+
+    scale_fill_continuous(type ="viridis")+facet_wrap(~n_subject)
+
+```
+
+
+
+```{r}
+
+minMax <- function(x) {
+  (x - min(x)) / (max(x) - min(x))
+}
+
+psychometric_norm = function(x, alpha,beta){
+  return(0.5+0.5 * pracma::erf((x-alpha) / (beta * sqrt(2))))
+}
+
+df_alpha1 = df_alpha %>% filter(divergences == 0)
+ff = get_modeling_data(df = df_alpha1,parameter = "alpha", signi_level = 0.05, desired_power = 0.8)
+
+ff = ff %>% filter(group_change > 0 & group_change < 2 & subjects != 100)
+
+ff %>% ggplot(aes(x = group_change, y = significant, col = subjects))+geom_smooth()+facet_wrap(~trials)
+
+subs = (as.numeric(as.character(ff$subjects)))
+trials = (as.numeric(as.character(ff$trials)))
+int = (as.numeric(as.character(ff$subjects))) + (as.numeric(as.character(ff$trials)))
+  
+
+
+design_matrix = data.frame(subs = subs,
+                           trials = trials)
+
+
+  
+standata = list(x = ff$group_change,
+                N = nrow(ff),
+                design_matrix = design_matrix,
+                param = ncol(design_matrix),
+                y = ff$significant)
+
+
+mod = cmdstanr::cmdstan_model(here::here("realshit","Power analysis","pathfinder","reaction time","power_analysis_psi","stanmodels","normal_powerfunction_noint.stan"),stanc_options = list("O1"))
+
+
+fit_test_noint <- mod$sample(
+  data = standata, 
+  chains = 4,
+  refresh = 50,
+  init = 0,
+  iter_warmup = 1000,
+  iter_sampling = 1000,
+  parallel_chains = 4,
+  adapt_delta = 0.80,
+  max_treedepth = 12
+)
+
+mcmc_trace(fit_test_noint$draws(c("expo_alpha","expo_beta","intercept_beta","intercept_alpha")))
+
+
+d_wei = as_draws_df(fit_test_noint$draws(c("expo_alpha","expo_beta","intercept_alpha","intercept_beta")))[1:1000,]
+
+names(d_wei)[1:6] = c("expo_alpha1","expo_alpha2",
+             "expo_beta1","expo_beta2",
+             "intercept_alpha","intercept_beta")
+
+
+subbers = c(5,10,15,20,40)
+trials = c(10,50,100,150)
+bigdf = data.frame()
+
+for(subs in subbers){
+    subs1 = subs
+    # subs = (subs-mean(as.numeric(as.character(ff$subjects)))) / sd(as.numeric(as.character(ff$subjects)))
+
+  for(trial in trials){
+    trial1 = trial
+    # trial = (trial - mean(as.numeric(as.character(ff$trials)))) / sd(as.numeric(as.character(ff$trials)))
+    
+    data = d_wei %>% rowwise() %>% 
+      mutate(alpha = exp(intercept_alpha) * subs ^ expo_alpha1 * trial^expo_alpha2,
+             beta = exp(intercept_beta) * subs ^ expo_beta1 * trial^expo_beta2)%>% 
+      mutate(power = list(psychometric_norm(seq(0,2,by = 0.1), alpha, beta)),
+           obs_effectsize = list(seq(0,2,by = 0.1))) %>% 
+    unnest() %>% mutate(n_subject = subs1, n_trials = trial1)
+    
+    bigdf = rbind(data,bigdf)
+  }
+}
+
+ff %>% ggplot(aes(x = group_change, y = significant, col = subjects))+geom_smooth()+facet_wrap(~trials)+
+  coord_cartesian(xlim = c(0,2))
+
+
+bigdf %>% mutate(n_subject = as.factor(n_subject),
+                 n_trials = as.factor(n_trials)) %>% 
+    ggplot(aes(x = obs_effectsize, y = power, col = n_subject))+geom_smooth()+
+    scale_fill_continuous(type ="viridis")+facet_wrap(~n_trials)
+
+
+ff %>% ggplot(aes(x = group_change, y = significant, col = trials))+geom_smooth()+facet_wrap(~subjects)+
+  coord_cartesian(xlim = c(0,2))
+
+
+bigdf %>% mutate(n_subject = as.factor(n_subject),
+                 n_trials = as.factor(n_trials)) %>% 
+    ggplot(aes(x = obs_effectsize, y = power, col = n_trials))+geom_smooth()+
+    scale_fill_continuous(type ="viridis")+facet_wrap(~n_subject)
+
+```
+```
+
