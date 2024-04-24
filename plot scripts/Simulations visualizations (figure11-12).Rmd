@@ -24,9 +24,9 @@ load(here::here("workspace psychometric","ICC_psycho_lowtrials_finished_beta=1.R
 ICC1 = ICC(results,"beta = 1")
 correlation1 = Correlations(results,"beta = 1")
 ICC_raw1 = ICC_raw(results,"beta = 1")
-trialwise_alpha1 = plot_trialwise(results,"alpha")
-trialwise_beta1 = plot_trialwise(results,"beta")
-trialwise_lambda1 = plot_trialwise(results,"lambda")
+trialwise_alpha1 = trialwise(results,"alpha")
+trialwise_beta1 = trialwise(results,"beta")
+trialwise_lambda1 = trialwise(results,"lambda")
 
 
 load(here::here("workspace psychometric","ICC_psycho_lowtrials_finished_beta=2.RData"))
@@ -39,9 +39,9 @@ load(here::here("workspace psychometric","ICC_psycho_lowtrials_finished_beta=3.R
 ICC3 = ICC(results,"beta = 3")
 correlation3 = Correlations(results,"beta = 3")
 ICC_raw3 = ICC_raw(results,"beta = 3")
-trialwise_alpha3 = plot_trialwise(results,"alpha")
-trialwise_beta3 = plot_trialwise(results,"beta")
-trialwise_lambda3 = plot_trialwise(results,"lambda")
+trialwise_alpha3 = trialwise(results,"alpha")
+trialwise_beta3 = trialwise(results,"beta")
+trialwise_lambda3 = trialwise(results,"lambda")
 
 
 ```
@@ -122,15 +122,17 @@ ggsave(here::here("Figures","ICC_vs_correlation.PNG"), p_ICC, height = 7.2,width
 #Figure 13
 ```{r}
 
-scatter_plot = rbind(trial_beta3) %>% mutate(Simulated = as.factor(Simulated)) %>% rename(subjects = n_subs) %>% 
+
+scatter_plot = rbind(trialwise_alpha1 %>% mutate(Simulated = "beta = 1"), trialwise_alpha3%>% mutate(Simulated = "beta = 3")) %>% mutate(Simulated = as.factor(Simulated)) %>% rename(subjects = n_subs) %>% filter(trials %in% c(40,120,200)) %>% 
   ggplot(aes(x = value, y = mean, ymin = q5, ymax = q95, col = Simulated, order = as.numeric(Simulated)))+
   geom_pointrange(alpha = 0.25)+
-  geom_pointrange(data = trial_beta1, alpha = 0.25) +
-  facet_grid(subjects~trials, labeller = label_both)+
+  geom_pointrange(data = trialwise_alpha1 %>% mutate(Simulated = "beta = 1")%>% filter(trials %in% c(40,120,200)), alpha = 0.25) +
+  facet_grid(~trials, labeller = label_both)+
   geom_abline(slope = 1, intercept = 0)+theme_classic()+theme(legend.position = "top")+
   xlab("Simulated value")+
   ylab("Recovered value")
 
+scatter_plot
 ggsave(here::here("Figures","scatter_plot.PNG"), scatter_plot, height = 5,width = 7.2)
 ```
 
@@ -207,6 +209,7 @@ add_column <- function(df, value) {
   df <- df %>% mutate(rts = value)
   return(df)
 }
+
 
 
 results <- lapply(results, function(x) {
@@ -296,6 +299,7 @@ ICC_rtplot = params_icc %>% filter(mean_div < 10) %>% group_by(trials,subs,rts, 
   ggplot(aes(x = trials, y = mean, ymin = q5, ymax = q95, col = interaction(rts,betart)))+
   geom_pointrange(position=position_dodge(width=8))+
   facet_grid(beta~variable, scales = "free", labeller = label_both)+theme_classic()+
+  guides(col = guide_legend(" "))+
   theme(legend.position = "top")
 
 ICC_rtplot

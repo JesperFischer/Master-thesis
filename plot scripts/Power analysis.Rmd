@@ -9,17 +9,22 @@ knitr::opts_chunk$set(echo = TRUE)
 
 pacman::p_load(cmdstanr, tidyverse,posterior, bayesplot, tidybayes, furrr,bridgesampling, rstan, brms, faux,LRO.utilities,reticulate)
 
-source(here::here("realshit","Power analysis","pathfinder","reaction time", "pathfinder_rt_datasets_scripts.R"))
-source(here::here("realshit","Power analysis","pathfinder","reaction time", "pathfinder_rt_fit_scripts.R"))
+
+load(here::here("Analyses","Power analysis","power analysis results","Full poweranalysis workspace.RData"))
+
+source(here::here("Analyses","Power analysis","power analysis results","helpers.R"))
+
+unloadNamespace("MASS")
+
+# source(here::here("realshit","Power analysis","pathfinder","reaction time", "pathfinder_rt_datasets_scripts.R"))
+# source(here::here("realshit","Power analysis","pathfinder","reaction time", "pathfinder_rt_fit_scripts.R"))
 ```
 
 # plot 15
 
 ```{r}
-load(here::here("realshit","Power analysis","pathfinder","reaction time","power_analysis_psi","Full poweranalysis workspace.RData"))
-
-
-source(here::here("realshit","Power analysis","pathfinder","reaction time","power_analysis_psi","helpers.R"))
+# load(here::here("realshit","Power analysis","pathfinder","reaction time","power_analysis_psi","Full poweranalysis workspace.RData"))
+# source(here::here("realshit","Power analysis","pathfinder","reaction time","power_analysis_psi","helpers.R"))
 
 df_alpha = get_full_df("alpha") %>% filter(effectsize < 2.1 & divergences == 0)
 
@@ -444,21 +449,41 @@ names(marginals)[1:8] = c("expo_alpha1","expo_alpha2","expo_alpha3",
              "intercept_alpha","intercept_beta")
 
 
-marginals_histogram = marginals %>% select(c("expo_alpha1","expo_alpha2","expo_alpha3","intercept_alpha",
+marginals_histogram = marginals %>% dplyr::select(c("expo_alpha1","expo_alpha2","expo_alpha3","intercept_alpha",
              "expo_beta1","expo_beta2","expo_beta3","intercept_beta")) %>% 
   pivot_longer(everything()) %>% 
   mutate(name = factor(name, levels = c("expo_alpha1", "expo_alpha2", "expo_alpha3",
                                         "intercept_alpha", "expo_beta1", "expo_beta2",
                                         "expo_beta3", "intercept_beta"))) %>%
+  mutate(name = as.character(name),
+         name = gsub("expo_alpha1", expression(alpha[1]), name),
+         name = gsub("expo_alpha2", expression(alpha[2]), name),
+         name = gsub("expo_alpha3", expression(alpha[3]), name),
+         name = gsub("intercept_alpha", expression(alpha[I]), name),
+         name = gsub("expo_beta1", expression(beta[1]), name),
+         name = gsub("expo_beta2", expression(beta[2]), name),
+         name = gsub("expo_beta3", expression(beta[3]), name),
+         name = gsub("intercept_beta", expression(beta[I]), name),
+         name = gsub("alpha", "alpha", name),
+         name = gsub("beta", "beta", name)) %>% 
+  mutate(name = as.factor(name)) %>% 
+  
+  
   ggplot(aes(x = value)) +
   geom_histogram(col = "black") +
-  facet_wrap(~name, scales = "free", ncol = 4)+
+  facet_wrap(~name, scales = "free", ncol = 4, labeller = label_parsed)+
   theme_classic()+
-  scale_x_continuous(breaks = scales::pretty_breaks(n = 4))+xlab("Parameter value")
+  scale_x_continuous(breaks = scales::pretty_breaks(n = 4))+xlab("Parameter value")+
+         theme(strip.text.x = element_text(size = 12),
+               text = element_text(family = "Sans"))
+
 
 marginals_histogram
 
-ggsave(here::here("Figures","marginals_histogram.PNG"), marginals_histogram, height = 6,width = 7.2)
+saveRDS(marginals_histogram, file = here::here("Figures","marginals_histogram.RDS"))
+
+
+ggsave(here::here("Figures","marginals_histogram.PNG"), marginals_histogram, height = 6,width = 7.2, dpi = 600)
 
 
 ```

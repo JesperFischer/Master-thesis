@@ -11,7 +11,7 @@ Correlations = function(results, string){
 
 
 
-plot_trialwise = function(results, parametera){
+trialwise = function(results, parametera){
   
   results2 <- unlist(results, recursive = FALSE)
   
@@ -20,12 +20,9 @@ plot_trialwise = function(results, parametera){
   
   q = trial %>% filter(parameter == parametera) %>% dplyr::select(-c("resp","prob","X","trials.1")) %>% distinct() %>% 
     pivot_longer(cols = c("real_beta_uncon","real_lambda_uncon","real_alpha_uncon")) %>% 
-    filter(paste0("real_",parameter, "_uncon") == name) %>% filter(trials %in% c(40,120,200))
+    filter(paste0("real_",parameter, "_uncon") == name)
   
-  qq = q %>% ggplot(aes(x = value, y = mean, ymin = q5, ymax = q95, group = sim_id))+
-    geom_pointrange()+facet_grid(n_subs~trials)+geom_abline(slope = 1, intercept = 0)
-  
-  return(qq)
+  return(q)
 }
 
 
