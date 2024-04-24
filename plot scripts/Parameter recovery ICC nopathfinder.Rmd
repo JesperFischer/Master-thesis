@@ -14,7 +14,7 @@ pacman::p_load(tidyverse,RWiener, tidybayes, posterior, furrr,gganimate, cmdstan
 ## R Markdown
 
 ```{r}
-source(here::here("realshit","Run_ICC_nopathfinder.R"))
+source(here::here("Analyses","ICC analysis","Run_ICC_nopathfinder.R"))
 
 ```
 
@@ -117,7 +117,7 @@ nested_hier_model = parameters %>% pivot_longer(cols = contains("_uncon")) %>%
   theme(legend.position = "top",
         legend.direction="horizontal",
         legend.margin=margin(0,0,0,0),
-        legend.box.margin=margin(-10,-10,-10,-10))+
+        legend.box.margin=margin(-5,-5,-5,-5))+
   ylab("Recovered value")+
   xlab("Simulated value")
   
@@ -157,7 +157,10 @@ pp = p1/p2
 pp
 p3
 
-ggsave(here::here("Figures","parameter_recovery_v1.PNG"),pp,width = 7.2,height = 7.2)
+ggsave(here::here("Figures","parameter_recovery_v1.PNG"),p1,width = 7.2,height = 5)
+ggsave(here::here("Figures","parameter_recovery_v2_nested.PNG"),p2,width = 7.2,height = 5)
+
+
 ggsave(here::here("Figures","Estimation_uncertainty_v1.PNG"),p3,width = 7.2,height = 4)
 
 

@@ -24,7 +24,7 @@ set.seed(123)
 # packages
 if (!require("pacman")) install.packages("pacman")
 
-packages_used = c("tidyverse", "here", "knitr","yaml", "cowplot","flextable", "correlation")
+packages_used = c("tidyverse", "here", "knitr","yaml", "cowplot","flextable", "correlation","cmdstanr")
 
 knit = knitr::opts_knit$get("rmarkdown.pandoc.to")
 
@@ -42,7 +42,12 @@ lapply(packages_used, library, character.only = TRUE)
 
 Trusting papers introducing models without formally testing them is like trusting a mathematician to measure a 1m stick because of a phd in mathematics or physics instead of having him measure the stick and compare it to the 1m stick. 
 
-**Keywords:** Uncertainty, Cognitive modeling 
+
+\newpage
+
+# Acknowledgement
+
+part of the computation done for this project was performed on the UCloud interactive HPC system, which is managed by the eScience Center at the University of Southern Denmark.
 
 \newpage
 
@@ -78,6 +83,7 @@ Trusting papers introducing models without formally testing them is like trustin
 ```{r Discussion, child="Discussion.Rmd"}
 
 ```
+
 
 
 # References
