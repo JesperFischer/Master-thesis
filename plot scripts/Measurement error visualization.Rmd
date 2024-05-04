@@ -21,13 +21,13 @@ error_bar_colory = "black"
 
 
 n = 50
-mu1 = 3
-mu2 = 10
-sd1 = 10
-sd2 = 8
+mu1 = 500
+mu2 = 100
+sd1 = 100
+sd2 = 40/2
 cor = 0.5
-x_un = 3
-y_un  = 3
+x_un = 20/2
+y_un  = 10/2
 
 x_error = truncnorm::rtruncnorm(n,0,Inf, 0, x_un)
 y_error = truncnorm::rtruncnorm(n,0,Inf, 0, y_un)

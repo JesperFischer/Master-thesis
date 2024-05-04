@@ -7,7 +7,7 @@ output:
   pdf_document:
     latex_engine: xelatex
   html_document: default
-bibliography: [Knitting files/Master_thesis_refs.bib, Knitting files/packages.bib]
+bibliography: [Knitting files/Master_thesis_refs.bib, Knitting files/packages.bib, Knitting files/rpackage.bib]
 link-citations: yes
 linkcolor: blue
 csl: Knitting files/apa.csl
@@ -24,7 +24,7 @@ set.seed(123)
 # packages
 if (!require("pacman")) install.packages("pacman")
 
-packages_used = c("tidyverse", "here", "knitr","yaml", "cowplot","flextable", "correlation","cmdstanr")
+packages_used = c("tidyverse", "here", "knitr","yaml", "cowplot","flextable", "correlation","cmdstanr","stats")
 
 knit = knitr::opts_knit$get("rmarkdown.pandoc.to")
 
@@ -56,7 +56,7 @@ part of the computation done for this project was performed on the UCloud intera
 ```
 
 
-```{r Measurement uncertainty, child="Measurement uncertainty.Rmd"}
+```{r Measurement uncertainty_v2, child="Measurement uncertainty_v2.Rmd"}
 
 ```
 
@@ -93,3 +93,6 @@ part of the computation done for this project was performed on the UCloud intera
 :::
 
 \newpage
+```{r supplementary, child="Supplementary material/supplementary material.Rmd"}
+
+```

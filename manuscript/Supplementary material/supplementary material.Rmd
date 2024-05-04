@@ -1,0 +1,36 @@
+# Supplementary material
+
+## **Supplementary Figures**
+
+### Supplementary figure 1
+
+```{r, fig.width=7.2, fig.height=5, warning = F, message = F, echo = F, fig.cap = "**Supplemenary figure 1 Comparison of analytical and bootstrapping correlation coefficient.** Histograms of the difference between different metrics of the correlation coefficient when bootstrapping and analytically calculating the correlation coefficient. Facets shows the different used metrics when evaluating the correlation coefficient i.e. the mean, the 2% quantile and the 97% quantile. colors represent the sample size, i.e. the number of datapoints the simulated correlation coefficient was based on."}
+
+cowplot::ggdraw() +
+    cowplot::draw_image(magick::image_read(here::here("Supplementary figures","Supplementary figure1.PNG")), scale = 1)
+
+```
+
+### Supplementary figure 2
+
+```{r, fig.width=7.2, fig.height=5, warning = F, message = F, echo = F, fig.cap = "**Supplemenary figure 2 Comparison of linear regression and correlation coefficient.** Scatter plot of the difference between the mean, quantile 2 and quantile 97 of the slope of a standardized linear regression and the correlation coefficient. Facets show the different statistical metric i.e. mean, q2 and q97 and the colors display the simulated correlation coefficient of the multinomial distribution. The x-axis is the number of datapoints simulated from the multinomial distribuion."}
+
+cowplot::ggdraw() +
+    cowplot::draw_image(magick::image_read(here::here("Supplementary figures","Supplementary figure2.PNG")), scale = 1)
+
+```
+
+
+## Supplementary Notes:
+
+### Priors
+
+In the section for Standard parameter recovery a single fit psychometric function was used to demonstrate the standard parameter recovery approach to internal validity of the psychometric function. The priors for that model were as follows for the threshold,slope and lapse rate respectively.
+
+$\alpha \sim N(0,20)$
+$\beta \sim N(0,2)$
+$\lambda \sim N(-4,2)$
+
+
+
+
