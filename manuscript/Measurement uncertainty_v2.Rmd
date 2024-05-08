@@ -43,3 +43,4 @@ Having shown that the two approaches are identical (or close to) we can add meas
 cowplot::ggdraw() +
     cowplot::draw_image(magick::image_read(here::here("Figures","figure_3_measurement_uncertainty.png")), scale = 1)
 ```
+

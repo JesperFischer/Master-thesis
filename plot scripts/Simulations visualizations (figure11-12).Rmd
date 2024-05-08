@@ -329,3 +329,357 @@ ggsave(here::here("Figures","ICC_rt_difplot.PNG"), ICC_rt_difplot, height = 7.2,
 
 ```
 
+
+# Supplementary material (Figure 3)
+
+```{r, fig.height=6, fig.width=8}
+cor = rbind(correlation1,correlation2,correlation3) %>% 
+  group_by(trials,parameter, ucnertainty_added, string) %>% 
+  summarize(mean = mean(correlation_mean), q2 = mean(correlation_q2), q97 = mean(correlation_q97)) %>% 
+  mutate(string = paste0("Simulated ",string)) %>% rename(Simulation = string, added_uncertainty = ucnertainty_added) %>% 
+  ggplot(aes(x = trials, y = mean, ymin = q2, ymax = q97, col = Simulation))+
+  geom_pointrange(position=position_dodge(width=10))+
+  facet_wrap(added_uncertainty~parameter, scales = "free", labeller = label_both)+
+  theme_classic()+
+  geom_hline(yintercept = 1, linetype = 2)+
+  ylab("Estimated Correlation Coefficient")+
+  theme(legend.position = "top")+
+  labs(color=NULL)
+  
+
+cor = cor+
+  facetted_pos_scales(
+    y = list(
+      parameter == "alpha" ~ scale_y_continuous(limits = c(0.5, 1), breaks = seq(0.5,1,0.1)),
+      parameter == "beta" ~ scale_y_continuous(limits = c(0.3, 1), breaks = seq(0.3,1,0.1)),
+      parameter == "lambda" ~ scale_y_continuous(limits = c(0, 1), breaks = seq(0,1,0.2))
+    
+    )
+  )
+
+cor
+```
+
+
+
+#aggregated over subjects
+```{r,fig.height=6, fig.width=8}
+ICC = rbind(ICC_raw1,ICC_raw2,ICC_raw3) %>% filter(grepl("ICC", variable)) %>% 
+  mutate(subs = as.factor(subs)) %>% 
+  group_by(trials,variable, string,residual_variance) %>% 
+  summarize(mean = mean(mean), q5 = mean(q5), q95 = mean(q95)) %>% 
+  mutate(string = paste0("Simulated ",string)) %>% rename(Simulation = string, parameter = variable) %>% 
+  mutate(parameter = ifelse(parameter == "ICC_alpha","alpha",
+                            ifelse(parameter == "ICC_beta","beta",
+                                   ifelse(parameter == "ICC_lambda","lambda",NA))),
+         residual_variance = ifelse(residual_variance == T, "ICC_2","ICC1")) %>% rename(estimate = residual_variance) %>% 
+  ggplot(aes(x = trials, y = mean, ymin = q5, ymax = q95, col = Simulation))+
+  geom_pointrange(position=position_dodge(width=10))+
+  facet_wrap(estimate~parameter, scales = "free",labeller = label_both)+
+  theme_classic()+
+  geom_hline(yintercept = 1, linetype = 2)+
+  ylab("Estimated ICC")+
+  theme(legend.position = "top")+
+  labs(color=NULL)
+  
+
+ICC = ICC+
+  facetted_pos_scales(
+    y = list(
+      parameter == "alpha" ~ scale_y_continuous(limits = c(0.5, 1), breaks = seq(0.5,1,0.1)),
+      parameter == "beta" ~ scale_y_continuous(limits = c(0.3, 1), breaks = seq(0.3,1,0.1)),
+      parameter == "lambda" ~ scale_y_continuous(limits = c(0, 1), breaks = seq(0,1,0.2))
+    
+    )
+  )
+
+ICC
+```
+
+
+```{r,fig.height=10, fig.width=7.2}
+library(patchwork)
+p_ICC =cor/ICC + plot_layout(guides = "collect") & theme(legend.position = "top")
+ggsave(here::here("Supplementary figures","Supplementary figure3.PNG"), p_ICC, height = 10,width = 7.2)
+```
+
+
+
+# Supplementary material (Figure 4 & 5)
+
+```{r, fig.height=6, fig.width=8}
+cor = rbind(correlation1,correlation2,correlation3) %>% 
+  group_by(trials,parameter, ucnertainty_added, string,subs) %>% 
+  summarize(mean = mean(correlation_mean), q2 = mean(correlation_q2), q97 = mean(correlation_q97)) %>% 
+  mutate(string = paste0("Simulated ",string)) %>% rename(Simulation = string, added_uncertainty = ucnertainty_added,subjects = subs) %>% 
+  ggplot(aes(x = trials, y = mean, ymin = q2, ymax = q97, col = interaction(Simulation,added_uncertainty)))+
+  geom_pointrange(position=position_dodge(width=10))+
+  facet_wrap(subjects~parameter, scales = "free", labeller = label_both)+
+  theme_classic()+
+  geom_hline(yintercept = 1, linetype = 2)+
+  ylab("Estimated Correlation Coefficient")+
+  theme(legend.position = "top")+
+  labs(color=NULL)
+  
+
+cor = cor+
+  facetted_pos_scales(
+    y = list(
+      parameter == "alpha" ~ scale_y_continuous(limits = c(0.5, 1), breaks = seq(0.5,1,0.1)),
+      parameter == "beta" ~ scale_y_continuous(limits = c(0.3, 1), breaks = seq(0.3,1,0.1)),
+      parameter == "lambda" ~ scale_y_continuous(limits = c(0, 1), breaks = seq(0,1,0.2))
+    
+    )
+  )
+
+cor
+```
+
+
+
+#aggregated over subjects
+```{r,fig.height=6, fig.width=8}
+ICC = rbind(ICC_raw1,ICC_raw2,ICC_raw3) %>% filter(grepl("ICC", variable)) %>% 
+  mutate(subs = as.factor(subs)) %>% 
+  group_by(trials,variable, string,residual_variance,subs) %>% 
+  summarize(mean = mean(mean), q5 = mean(q5), q95 = mean(q95)) %>% 
+  mutate(string = paste0("Simulated ",string)) %>% rename(Simulation = string, parameter = variable) %>% 
+  mutate(parameter = ifelse(parameter == "ICC_alpha","alpha",
+                            ifelse(parameter == "ICC_beta","beta",
+                                   ifelse(parameter == "ICC_lambda","lambda",NA))),
+         residual_variance = ifelse(residual_variance == T, "ICC_2","ICC1")) %>% 
+  rename(estimate = residual_variance, subjects = subs) %>% 
+  ggplot(aes(x = trials, y = mean, ymin = q5, ymax = q95, col = interaction(Simulation,estimate)))+
+  geom_pointrange(position=position_dodge(width=10))+
+  facet_wrap(subjects~parameter, scales = "free",labeller = label_both)+
+  theme_classic()+
+  geom_hline(yintercept = 1, linetype = 2)+
+  ylab("Estimated ICC")+
+  theme(legend.position = "top")+
+  labs(color=NULL)
+  
+
+ICC = ICC+
+  facetted_pos_scales(
+    y = list(
+      parameter == "alpha" ~ scale_y_continuous(limits = c(0.5, 1), breaks = seq(0.5,1,0.1)),
+      parameter == "beta" ~ scale_y_continuous(limits = c(0.3, 1), breaks = seq(0.3,1,0.1)),
+      parameter == "lambda" ~ scale_y_continuous(limits = c(0, 1), breaks = seq(0,1,0.2))
+    
+    )
+  )
+
+ICC
+```
+
+
+```{r,fig.height=10, fig.width=7.2}
+library(patchwork)
+p4 = ICC + plot_layout(guides = "collect") & theme(legend.position = "top")
+p5 = cor + plot_layout(guides = "collect") & theme(legend.position = "top")
+
+ggsave(here::here("Supplementary figures","Supplementary figure4.PNG"), p4, height = 10,width = 7.2)
+ggsave(here::here("Supplementary figures","Supplementary figure5.PNG"), p5, height = 10,width = 7.2)
+```
+
+
+
+# Supplementary figure 6
+
+```{r}
+
+
+scatter_plot = rbind(trialwise_beta1 %>% mutate(Simulated = "beta = 1"), trialwise_beta3%>% mutate(Simulated = "beta = 3")) %>% mutate(Simulated = as.factor(Simulated)) %>% rename(subjects = n_subs) %>% filter(trials %in% c(40,120,200)) %>% 
+  ggplot(aes(x = value, y = mean, ymin = q5, ymax = q95, col = Simulated, order = as.numeric(Simulated)))+
+  geom_pointrange(alpha = 0.25)+
+  geom_pointrange(data = trialwise_beta1 %>% mutate(Simulated = "beta = 1")%>% filter(trials %in% c(40,120,200)), alpha = 0.25) +
+  facet_grid(~trials, labeller = label_both)+
+  geom_abline(slope = 1, intercept = 0)+theme_classic()+theme(legend.position = "top")+
+  xlab("Simulated value")+
+  ylab("Recovered value")
+
+scatter_plot
+
+
+
+ggsave(here::here("Supplementary figures","Supplementary figure6.PNG"), scatter_plot, height = 5,width = 7.2)
+```
+
+
+# Supplementary Figure 7
+
+
+# RT's
+
+```{r}
+load(here::here("workspace psychometric","ICC_psycho_lowtrials_finished_beta=3 comparison RT (betart=1.5) 30reps.RData"))
+
+results <- unlist(results, recursive = FALSE)
+
+
+add_column <- function(df, value) {
+  df <- df %>% mutate(rts = value)
+  return(df)
+}
+
+
+results <- lapply(results, function(x) {
+  x[[1]][[3]] <- add_column(x[[1]][[3]], "rts")
+  return(x)
+}) 
+
+
+results <- lapply(results, function(x) {
+  x[[2]][[3]] <- add_column(x[[2]][[3]], "norts")
+  return(x)
+})
+
+params_cor_norts <- map_dfr(results, ~ .x[[2]][[3]])
+params_cor_rts <- map_dfr(results, ~ .x[[1]][[3]])
+
+params_cor_betart15_beta3 = rbind(params_cor_norts,params_cor_rts) %>% mutate(betart = "1.5", beta = "3")
+
+load(here::here("workspace psychometric","ICC_psycho_lowtrials_finished_beta=3 comparison RT (betart=1) 30reps.RData"))
+
+results <- unlist(results, recursive = FALSE)
+
+
+add_column <- function(df, value) {
+  df <- df %>% mutate(rts = value)
+  return(df)
+}
+
+
+results <- lapply(results, function(x) {
+  x[[1]][[3]] <- add_column(x[[1]][[3]], "rts")
+  return(x)
+})
+
+
+results <- lapply(results, function(x) {
+  x[[2]][[3]] <- add_column(x[[2]][[3]], "norts")
+  return(x)
+})
+
+params_cor_norts <- map_dfr(results, ~ .x[[2]][[3]])
+params_cor_rts <- map_dfr(results, ~ .x[[1]][[3]])
+
+params_cor_betart1_beta3 = rbind(params_cor_norts,params_cor_rts) %>% mutate(betart = "1", beta = "3")
+
+params_icc = rbind(params_cor_betart1_beta3 %>% unnest(), params_cor_betart15_beta3 %>% unnest())
+```
+
+
+```{r}
+load(here::here("workspace psychometric","ICC_psycho_lowtrials_finished_beta=1 comparison RT (beta=1).RData"))
+
+
+results <- unlist(results, recursive = FALSE)
+
+
+add_column <- function(df, value) {
+  df <- df %>% mutate(rts = value)
+  return(df)
+}
+
+
+
+results <- lapply(results, function(x) {
+  x[[1]][[3]] <- add_column(x[[1]][[3]], "rts")
+  return(x)
+}) 
+
+
+results <- lapply(results, function(x) {
+  x[[2]][[3]] <- add_column(x[[2]][[3]], "norts")
+  return(x)
+})
+
+
+
+params_cor_norts <- map_dfr(results, ~ .x[[2]][[3]])
+params_cor_rts <- map_dfr(results, ~ .x[[1]][[3]])
+
+params_cor_betart1_beta1 = rbind(params_cor_norts,params_cor_rts) %>% mutate(betart = "1", beta = "1")
+
+
+
+load(here::here("workspace psychometric","ICC_psycho_lowtrials_finished_beta=1 comparison RT (beta=1.5).RData"))
+
+
+results <- unlist(results, recursive = FALSE)
+
+
+add_column <- function(df, value) {
+  df <- df %>% mutate(rts = value)
+  return(df)
+}
+
+
+results <- lapply(results, function(x) {
+  x[[1]][[3]] <- add_column(x[[1]][[3]], "rts")
+  return(x)
+}) 
+
+
+results <- lapply(results, function(x) {
+  x[[2]][[3]] <- add_column(x[[2]][[3]], "norts")
+  return(x)
+})
+
+
+
+params_cor_norts <- map_dfr(results, ~ .x[[2]][[3]])
+params_cor_rts <- map_dfr(results, ~ .x[[1]][[3]])
+
+params_cor_betart15_beta1 = rbind(params_cor_norts,params_cor_rts) %>% mutate(betart = "1.5", beta = "1")
+
+
+```
+
+
+
+```{r, fig.height=7.2, fig.width=7.2}
+params_cor = rbind(params_cor_betart1_beta3 %>% unnest(), params_cor_betart15_beta3 %>% unnest(),
+                   params_cor_betart1_beta1 %>% unnest(), params_cor_betart15_beta1 %>% unnest())
+
+#difference distribution:
+
+g = params_cor %>% mutate(correlation_sd = (correlation_q97-correlation_q2) / 3.92) %>% 
+  filter(parameter %in% c("alpha","beta","lambda")) %>% 
+  rename(mean = correlation_mean, sd = correlation_sd) %>% mutate(variable = parameter) %>%  
+  filter(ucnertainty_added == T) %>% 
+  dplyr::select(mean,sd,variable,rts,sim_id, trials, subs,betart,beta) %>% 
+  pivot_wider(names_from = "rts", values_from = c("mean", "sd")) %>% unnest() %>% distinct()
+
+
+g %>% filter(trials == 100) %>% ungroup() %>% mutate(trials = as.factor(trials)) %>% 
+  dplyr::mutate(meandif = mean_rts-mean_norts, sddif = sqrt(sd_norts^2+sd_rts^2)) %>% 
+  ggplot(aes(x = meandif, fill = betart))+geom_histogram(col = "black", position = "identity", alpha = 0.8)+
+  facet_grid(beta~variable, labeller = label_both)+theme_classic()+
+  scale_x_continuous(breaks = seq(-0.4,0.4,0.1))+
+  geom_vline(xintercept = 0,linetype = 2)
+
+
+
+
+ICC_rtplot = params_cor %>% mutate(q5 = correlation_q2, q95 = correlation_q97) %>% 
+  filter(parameter %in% c("alpha","beta","lambda")) %>% 
+  rename(mean = correlation_mean) %>% mutate(variable = parameter) %>% 
+  group_by(trials,subs,rts, variable, ucnertainty_added,beta,betart) %>% 
+  summarize(mean = mean(mean), q5 = mean(q5), q95 = mean(q95)) %>% 
+  filter(ucnertainty_added == T) %>% 
+  ggplot(aes(x = trials, y = mean, ymin = q5, ymax = q95, col = interaction(rts,betart)))+
+  geom_pointrange(position=position_dodge(width=8))+
+  facet_grid(beta~variable, scales = "free", labeller = label_both)+theme_classic()+
+  guides(col = guide_legend(" "))+
+  theme(legend.position = "top")
+
+ICC_rtplot
+ggsave(here::here("Supplementary figures","Supplementary figure7.PNG"), ICC_rtplot, height = 7.2,width = 7.2)
+
+```
+
+
+
+

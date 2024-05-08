@@ -33,3 +33,13 @@ Another limitation of the current study is the quite limited power analysis done
 This added time for doing the optimization of posterior distributions of parameters has drawbacks in a need for access to bigger machines to necessitate the need for parallelization of the computational burden especially when several chains are needed to ensure convergence. Fortunately the access to bigger machine both privately but also on a institutation level is something that is growing in accessibility and already available to many universities or centers of research and has been correlated with research competitiveness [@apon_high_2010]. The current thesis was supported by Ucloud (see acknowledgement).
 
 \newpage
+
+
+
+
+
+<!-- discarded discussion points from other sections -->
+
+
+<!-- However mindlessly increasing trials to gain a certain recovery and or statistical power can be troublesome in non-obvious ways. The obvious problems with increasing the trials number are resources costs, both in terms of money to the participants completing the experiment, the experimenter, but also espeically the time investment from the participants' side. However, the most problematic aspect becomes more obvious if we take a step back and think carefully about what we are studying. We are studying a complex system that has its own goals, desires and motivations and it is not trivial to how this participant will behave if the task is double the length. Firstly, will the participant employ a different strategy knowing that the experiment is going to take X time longer, or will they halfway through employ a different strategy. Even if the participant keeps the same underlying cognitive strategy that we are trying to model, then one reasonable assumption would be that attentional lapses and engagement in the task will decreasing, making each additional trial after a certain point less “valuable”. -->
+

@@ -14,14 +14,18 @@ pacman::p_load(pracma, tidyverse, ggh4x, patchwork, furrr, dplyr)
 
 ## R 
 
-# Single run
+# Single run visualiztion
 
 ```{r, fig.height=6,fig.width=8}
-source(here::here("realshit","Visualizing pathfinder scripts.R"))
+source(here::here("Analyses","ICC analysis","Visualizing pathfinder scripts.R"))
+
+#function for single estimation
+
 #df = get_params_single(50)
 
 colors = c("#F8766D","#00BA38","#619CFF")
 
+#load saved workspace.
 load(here::here("workspace psychometric","visualize_pathfinder.RData"))
 
 
@@ -39,7 +43,7 @@ pathfinder = df[[1]][[1]] %>%
   facet_wrap(~variable, scales = "free")+
   geom_hline(data = reals_path, aes(yintercept = value))+
   theme_classic()+scale_color_manual(values = colors)+
-  ylab("Estimated parameter value")
+  ylab(" ")
 
 
   
@@ -101,7 +105,7 @@ psi = df[[3]][[1]] %>% mutate(trials = 1:nrow(.)) %>%
   facet_wrap(~variable, scales = "free")+
   geom_hline(data = reals_psi, aes(yintercept = value))+
   theme_classic()+theme(legend.position = "none")+
-  ylab("Estimated parameter value")
+  ylab(" ")
 
 
 
@@ -129,16 +133,18 @@ p1
 
 ggsave(here::here("Figures","Pathfinder.PNG"), p1, height = 7.2,width = 7.2)
 
-df[[1]][[2]]
-df[[3]][[2]]
+
+# time elapsed for pathfinder
+df[[1]][[2]]$callback_msg
+# time elapsed for PSI
+df[[3]][[2]]$callback_msg
 
 ```
 
 
 
 
-# Many runs:
-
+# functions and scripts for running the comparison of the three algorithms 100 times over different number of trials
 
 ```{r}
 source(here::here("realshit","Visualizing pathfinder scripts.R"))
@@ -162,7 +168,7 @@ cores = 40
 
 ```
 
-
+#visualization of the bias and estimation uncertainty
 ```{r}
 load("~/Master-thesis/workspace psychometric/100sims_pathfinder_comparison_beta=2.RData")
 
@@ -241,7 +247,7 @@ scatter_bias2
 
 ```
 
-
+# Same as above just with another value for the mean simulated slope of the psychometric i.e. 1 instead of 2. (in logspace)
 ```{r}
 load("~/Master-thesis/workspace psychometric/100sims_pathfinder_comparison_beta=1.RData")
 
@@ -317,7 +323,7 @@ scatter_bias1
 
 ```
 
-
+#compare the two
 ```{r}
 
 
@@ -328,6 +334,7 @@ scatter_bias2
 scatter_bias1
 ```
 
+# plot for the actual manuscript:
 
 ```{r, fig.height=7.2, fig.width=7.2}
 

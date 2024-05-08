@@ -1,7 +1,7 @@
 
 
 
-
+# getting stimulus values of agent based on the uniform approach (without fitting)
 fit_static = function(parameters){
   
   N = parameters$trials
@@ -37,7 +37,7 @@ fit_static = function(parameters){
   return(df_trial)
 }
 
-
+#given trials gives stimulus values of agent.
 get_params_single = function(trials){
   
   alpha_uncon = rnorm(1,0,10)
@@ -65,9 +65,7 @@ get_params_single = function(trials){
 
 
 
-
-
-
+# fits the single subject psychometric function and returns a dataframe with posterior parameters
 get_ICC_psychometric_singe_fit = function(trialwise_data){
   
   sim_n_id = rnorm(1,0,10)
@@ -110,6 +108,9 @@ get_ICC_psychometric_singe_fit = function(trialwise_data){
 }
 
 
+
+#function to combine the above functions. Takes the number of trials in a dataframe (parameters) 
+# and returns the fitted posterior distribution of the parameters.
 together = function(parameters){
   iccs = get_ICC_psychometric_singe_fit(get_params_single(parameters$trials))
   return(list(iccs))

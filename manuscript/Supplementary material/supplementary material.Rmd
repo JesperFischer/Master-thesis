@@ -19,11 +19,57 @@ cowplot::ggdraw() +
     cowplot::draw_image(magick::image_read(here::here("Supplementary figures","Supplementary figure2.PNG")), scale = 1)
 
 ```
+### Supplementary figure 3
+
+```{r, fig.height=10, fig.width=7.2, warning = F, message = F, echo = F, fig.cap = "**Supplemenary figure 3 Parameter recovery of the psychometric function for all four parameter recovery metrics investigated.**"}
+
+cowplot::ggdraw() +
+    cowplot::draw_image(magick::image_read(here::here("Supplementary figures","Supplementary figure3.PNG")), scale = 1)
+
+```
+
+### Supplementary figure 4
+
+```{r, fig.height=10, fig.width=7.2, warning = F, message = F, echo = F, fig.cap = "**Supplemenary figure 3 Parameter recovery of the psychometric function for all four parameter recovery metrics investigated.**"}
+
+cowplot::ggdraw() +
+    cowplot::draw_image(magick::image_read(here::here("Supplementary figures","Supplementary figure4.PNG")), scale = 1)
+
+```
+
+### Supplementary figure 5
+
+```{r, fig.height=10, fig.width=7.2, warning = F, message = F, echo = F, fig.cap = "**Supplemenary figure 3 Parameter recovery of the psychometric function for all four parameter recovery metrics investigated.**"}
+
+cowplot::ggdraw() +
+    cowplot::draw_image(magick::image_read(here::here("Supplementary figures","Supplementary figure5.PNG")), scale = 1)
+
+```
+
+### Supplementary figure 6
+
+```{r, fig.height=5, fig.width=7.2, warning = F, message = F, echo = F, fig.cap = "**Supplemenary figure 3 Parameter recovery of the psychometric function for all four parameter recovery metrics investigated.**"}
+
+cowplot::ggdraw() +
+    cowplot::draw_image(magick::image_read(here::here("Supplementary figures","Supplementary figure6.PNG")), scale = 1)
+
+```
+
+
+
+### Supplementary figure 7
+
+```{r, fig.height=7.2, fig.width=7.2, warning = F, message = F, echo = F, fig.cap = "**Supplemenary figure 3 Parameter recovery of the psychometric function for all four parameter recovery metrics investigated.**"}
+
+cowplot::ggdraw() +
+    cowplot::draw_image(magick::image_read(here::here("Supplementary figures","Supplementary figure7.PNG")), scale = 1)
+
+```
 
 
 ## Supplementary Notes:
 
-### Priors
+### Supplementary note 1: Priors
 
 In the section for Standard parameter recovery a single fit psychometric function was used to demonstrate the standard parameter recovery approach to internal validity of the psychometric function. The priors for that model were as follows for the threshold,slope and lapse rate respectively.
 
@@ -31,6 +77,39 @@ $\alpha \sim N(0,20)$
 $\beta \sim N(0,2)$
 $\lambda \sim N(-4,2)$
 
+Next the priors for the nested hierarchical model was as follows:
+
+$\mu_{\alpha} \sim N(0,10)$
+$\sigma_{\alpha(within)} \sim N(0,10)$
+$\sigma_{\alpha(between)} \sim N(0,10)$
+
+$\mu_{\beta} \sim N(0,3)$
+$\sigma_{\beta(within)} \sim N(0,3)$
+$\sigma_{\beta(between)} \sim N(0,3)$
+
+
+$\mu_{\lambda} \sim N(-4,2)$
+$\sigma_{\lambda(within)} \sim N(0,3)$
+$\sigma_{\lambda(between)} \sim N(0,3)$
+
+$\rho_{between} \sim LKJ(2)$
+$\rho_{within} \sim LKJ(2)$
+
+
+### Supplementary note 2: Lapse rate explanation
+
+As mentioned in the main text, the lapse rate can be quite difficult to estimate if the proportion of lapses are low. In the main text it is argued that lapse rate of approximately 1% is difficult to estimate as this would on average in the particular simulation with 100 trials per subject amount to 1 trial where the subject would have a lapse. However from the models perspective, these lapses are not created equally, which makes it even more dificult to estimate this parameter. This is because of the difference between having a lapse when the stimulus value is extreme in either end (high or low) or having a lapse when the stimulus value is close to the simulated threshold. A lapse close to the simulated threshold would from the models perspective not interfere with the estimation of the parameters as this response could just be due to the stochastic nature of the task (i.e. the y-axis of the Psychometric function is the probability of responding 1). Therefore only lapses at the extreme ends would inform the model about the underlying probability of having a lapse.
+
+
+
+### Supplementary note 3: Pathfinder explanation
+
+The pathfinder algorithm was used for optimization of the trial by trial simulations. The implementation was as follows. Firstly a randomly drawn stimulus value in the domamin of [-50 ; 50] was drawn. After the representation of this stimulus value a response is collected based on the simulated parameters. The stimulus value together with the responses is then fit to pathfinder which uses the priors of the model with this observation to update the parameters. The next stimulus is then selected by taking the posterior mean of the threshold. This was done for the first 5 trials to get resonable estimates of the parameters of the model. In order to properly explore the width and size of the psychometric function the stimulus values were after the first 5 trials selected based on a single draw from the posterior threshold and slope. This meant extracting a draw of the threshold and then randomly either adding the draw of the slope or subtracting it. For the  [full code see](https://github.com/JesperFischer/Master-thesis/blob/main/Analyses/ICC%20analysis/Visualizing%20pathfinder%20scripts.R). The priors for this model are identical to those found in the single subject psychometric function (see supplementary note 1)
+
+
+### Supplementary note 4: Comparison of ADO algorithms
+
+Comparison between the 3 tested model rested on having each algorithm simulate stimulus values based on simulated parameter values. These simulated stimulus values were then used to obtain responses of the agents (again using the simulated parameter values). Each set of stimuli and responses for each algorithm were then fit using the same bayesian model (see supplementary note 3 and 1) and the posterior distributions were computed for each of the three parameters values (i.e. threshold $\alpha$, slope $\beta$ and lapse rate $\lambda$).
 
 
 

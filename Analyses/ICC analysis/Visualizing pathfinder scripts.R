@@ -29,6 +29,7 @@ get_params_single = function(trials){
   return(list(pathfinder,uniform,psi))
 }
 
+# algorithm and function to obtain simulus and values as well as the fitted posterior distribution for the uniform approach
 get_uniform = function(parameters){
   
   N = parameters$trials
@@ -96,7 +97,7 @@ return(df_runif)
   
 }
 
-
+# algorithm and function to obtain simulus and values as well as the fitted posterior distribution for the pathfinder approach
 get_pathfinder = function(parameters){
   
   
@@ -186,7 +187,7 @@ get_pathfinder = function(parameters){
 
 
 
-
+# algorithm and function to obtain simulus and values as well as the fitted posterior distribution for the PSI approach
 get_psi = function(parameters){
   
   python_script <- here::here("Python","Psi_script.py")
@@ -219,7 +220,8 @@ get_psi = function(parameters){
 }
 
 
-
+# function that combines the above functions in order to compare the 3 different ways of computing the trial-by-trial stimulus values.
+# This function also fits these trial-by-trial stimulus with the same model. Making the comparison between the methods fair.
 get_params_single_multiple = function(params){
   
   sim_n_id = rnorm(1,0,10)

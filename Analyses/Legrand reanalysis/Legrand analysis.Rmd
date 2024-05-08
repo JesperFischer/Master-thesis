@@ -8,16 +8,15 @@ date: "2024-03-27"
 ```{r}
 knitr::opts_chunk$set(echo = TRUE)
 pacman::p_load(cmdstanr, tidyverse,posterior, bayesplot, tidybayes, furrr,LRO.utilities)
+source(here::here("Analyses","Legrand reanalysis","legrand_scripts.R"))
+
 ```
 
-# single fit model
+# single fit model (No RT no Confidence)
 ```{r}
+hrd = get_data(rt_threshold_s = 0.1)
 
-source(here::here("Legrand reanalysis","legrand_scripts.R"))
-
-hrd = get_data_rt(rt_threshold_s = 0.1)
-
-mod = cmdstanr::cmdstan_model(here::here("Legrand reanalysis","single_fit_nolapse","singlefit_nolapse.stan"))
+mod = cmdstanr::cmdstan_model(here::here("Analyses","Legrand reanalysis","Stan models","single fit","singlefit_nolapse.stan"))
 
 i = 1
 ss = 1
@@ -55,16 +54,18 @@ for(i in 1:length(unique(hrd$s))){
 }
 
 
-#write.csv(dfbig, here::here("realshit","Legrand reanalysis","single_fit_nolapse","single_fit_nolapse.csv"))
+#write.csv(dfbig, here::here("Analyses","Legrand reanalysis","workspace","single_fit_nolapse.csv"))
+
+
+dfbig = read.csv(here::here("Analyses","Legrand reanalysis","workspace","single_fit_nolapse.csv"))
 ```
+
+
 # Nolapse RTS
 
 ```{r}
-source(here::here("realshit","Legrand reanalysis","legrand_scripts.R"))
 
-hrd = get_data_rt(rt_threshold_s = 0.1)
-
-mod = cmdstanr::cmdstan_model(here::here("realshit","Legrand reanalysis","single_fit_nolapse","singlefit_nolapse_rt.stan"))
+mod = cmdstanr::cmdstan_model(here::here("Analyses","Legrand reanalysis","Stan models","signle fit","singlefit_nolapse_rt.stan"))
 
 i = 1
 ss = 1
@@ -102,9 +103,9 @@ for(i in 1:length(unique(hrd$s))){
   }
 }
 
-#write.csv(dfbig_rt, here::here("realshit","Legrand reanalysis","single_fit_nolapse","single_fit_nolapse_rt.csv"))
+#write.csv(dfbig_rt, here::here("Analyses","Legrand reanalysis","workspace","single_fit_nolapse_rt.csv"))
 
-dfbig_rt = read.csv(here::here("realshit","Legrand reanalysis","single_fit_nolapse","single_fit_nolapse_rt.csv"))
+dfbig_rt = read.csv(here::here("Analyses","Legrand reanalysis","workspace","single_fit_nolapse_rt.csv"))
 
 correlations_rt = get_things(dfbig_rt, n_div = 3)  
 
@@ -114,11 +115,8 @@ correlations_rt
 # Nolapse full
 
 ```{r}
-source(here::here("realshit","Legrand reanalysis","legrand_scripts.R"))
 
-hrd = get_data_rt(rt_threshold_s = 0.1)
-
-mod = cmdstanr::cmdstan_model(here::here("realshit","Legrand reanalysis","single_fit_nolapse","singlefit_nolapse_full.stan"))
+mod = cmdstanr::cmdstan_model(here::here("Analyses","Legrand reanalysis","Stan models","single fit","singlefit_nolapse_full.stan"))
 
 i = 1
 ss = 1
@@ -160,9 +158,9 @@ for(i in 1:length(unique(hrd$s))){
   }
 }
 
-#write.csv(dfbig_full, here::here("realshit","Legrand reanalysis","single_fit_nolapse","single_fit_nolapse_full.csv"))
+#write.csv(dfbig_full,  here::here("Analyses","Legrand reanalysis","workspace","single_fit_nolapse_full.csv"))
 
-dfbig_full  = read.csv(here::here("realshit","Legrand reanalysis","single_fit_nolapse","single_fit_nolapse_full.csv"))
+dfbig_full  = read.csv( here::here("Analyses","Legrand reanalysis","workspace","single_fit_nolapse_full.csv"))
 
 
 correlations_full = get_things(dfbig_full, n_div = 3)  
@@ -173,11 +171,10 @@ correlations_full
 # With lapse
 
 ```{r}
-source(here::here("realshit","Legrand reanalysis","legrand_scripts.R"))
 
 hrd = get_data_rt(rt_threshold_s = 0.1)
 
-mod = cmdstanr::cmdstan_model(here::here("realshit","Legrand reanalysis","single_fit_lapse","singlefit_lapse.stan"))
+mod = cmdstanr::cmdstan_model(here::here("Analyses","Legrand reanalysis","Stan models","single fit","singlefit_lapse.stan"))
 
 i = 1
 ss = 1
@@ -216,9 +213,9 @@ for(i in 1:length(unique(hrd$s))){
 }
 
 
-#write.csv(dfbig_lapse, here::here("realshit","Legrand reanalysis","single_fit_lapse","single_fit_lapse.csv"))
+#write.csv(dfbig_lapse,here::here("Analyses","Legrand reanalysis","workspace","single_fit_lapse.csv"))
 
-dfbig_lapse = read.csv(here::here("realshit","Legrand reanalysis","single_fit_lapse","single_fit_lapse.csv"))
+dfbig_lapse = read.csv(here::here("Analyses","Legrand reanalysis","workspace","single_fit_lapse.csv"))
 
 
 correlations_lapse = get_things(dfbig_lapse, n_div = 3)  
@@ -230,11 +227,8 @@ correlations_lapse
 # With lapse and rt
 
 ```{r}
-source(here::here("realshit","Legrand reanalysis","legrand_scripts.R"))
 
-hrd = get_data_rt(rt_threshold_s = 0.1)
-
-mod = cmdstanr::cmdstan_model(here::here("realshit","Legrand reanalysis","single_fit_lapse","singlefit_lapse_rt.stan"))
+mod = cmdstanr::cmdstan_model(here::here("Analyses","Legrand reanalysis","Stan models","single fit","singlefit_lapse_rt.stan"))
 
 i = 1
 ss = 1
@@ -274,16 +268,12 @@ for(i in 1:length(unique(hrd$s))){
   }
 }
 
-#write.csv(dfbig_lapse_rt, here::here("realshit","Legrand reanalysis","single_fit_lapse","single_fit_lapse_rt.csv"))
+write.csv(dfbig_lapse_rt, here::here("Analyses","Legrand reanalysis","workspace","single_fit_lapse_rt.csv"))
 ```
 # with lapse rt and conf:
 
 ```{r}
-source(here::here("realshit","Legrand reanalysis","legrand_scripts.R"))
-
-hrd = get_data_rt(rt_threshold_s = 0.1)
-
-mod = cmdstanr::cmdstan_model(here::here("realshit","Legrand reanalysis","single_fit_lapse","singlefit_lapse_full.stan"))
+mod = cmdstanr::cmdstan_model(here::here("Analyses","Legrand reanalysis","Stan models","single fit","singlefit_lapse_full.stan"))
 
 i = 1
 ss = 1
@@ -325,7 +315,7 @@ for(i in 1:length(unique(hrd$s))){
   }
 }
 
-write.csv(dfbig_lapse_full, here::here("realshit","Legrand reanalysis","single_fit_lapse","single_fit_lapse_full.csv"))
+write.csv(dfbig_lapse_full, here::here("Analyses","Legrand reanalysis","workspace","single_fit_lapse_full.csv"))
 ```
 
 #  combining no lapse results:
@@ -477,14 +467,12 @@ rbind(d1,d2,d3,d4,d5,d6) %>% filter(variable %in% c("alpha","beta"))
 
 ## Get data  (single hierarchical model)
 ```{r}
-source(here::here("realshit","Legrand reanalysis","legrand_scripts.R"))
 
-hrd = get_data_rt(rt_threshold_s = 0.1)
-
-mod = cmdstanr::cmdstan_model(here::here("realshit","Legrand reanalysis","test retest nort.stan"))
+mod = cmdstanr::cmdstan_model(here::here("Analyses","Legrand reanalysis","Stan models","nonnested","test retest nort.stan"))
 
 df = hrd
 
+df = df %>% arrange(s,session) 
 
 datastan = list(Y = cbind(df %>% filter(session == 1) %>% .$y, df %>% filter(session == 2) %>% .$y),
                 N = nrow(df),
@@ -496,22 +484,21 @@ datastan = list(Y = cbind(df %>% filter(session == 1) %>% .$y, df %>% filter(ses
                 S_id = cbind(df %>% filter(session == 1) %>% .$s, df %>% filter(session == 2) %>% .$s),
                 X =  cbind(df %>% filter(session == 1) %>% .$x, df %>% filter(session == 2) %>% .$x))
 
-# fit <- mod$sample(
-#   data = datastan, 
-#   iter_sampling = 1000,
-#   iter_warmup = 1000,
-#   chains = 4,
-#   parallel_chains = 4,
-#   refresh = 100,
-#   init= 0,
-#   adapt_delta = 0.90,
-#   max_treedepth = 12,
-# )
+fit <- mod$sample(
+  data = datastan,
+  iter_sampling = 1000,
+  iter_warmup = 1000,
+  chains = 4,
+  parallel_chains = 4,
+  refresh = 100,
+  init= 0,
+  adapt_delta = 0.90,
+  max_treedepth = 12,
+)
 
-#fit$save_object(here::here("realshit","Legrand reanalysis","workspace","correlation_nort.RDS"))
+#fit$save_object(here::here("Analyses","Legrand reanalysis","workspace","correlation_nort.RDS"))
 
-
-correlation_nort <- readRDS(here::here("realshit","Legrand reanalysis","workspace","correlation_nort.RDS"))
+correlation_nort <- readRDS(here::here("Analyses","Legrand reanalysis","workspace","correlation_nort.RDS"))
 
 
 
@@ -568,14 +555,6 @@ ddq = data.frame(variable = c("alpha","beta","lambda"),
 
 ```
 
-
-```{r}
-source(here::here("realshit","Legrand reanalysis","legrand_scripts.R"))
-
-hrd = get_data_rt(rt_threshold_s = 0.1)
-
-```
-
 ## Visualize RT
 ```{r, fig.height=7, fig.width=7}
 ss = "7"
@@ -598,11 +577,12 @@ psycho/RTS
 
 ## Fit RT (single hierarchical)
 ```{r, fig.height=7, fig.width=12}
-mod = cmdstanr::cmdstan_model(here::here("realshit","Legrand reanalysis","test retest reaction time.stan"))
+mod = cmdstanr::cmdstan_model(here::here("Analyses","Legrand reanalysis","Stan models","nonnested","test retest reaction time.stan"))
 
 
 df = hrd
 
+df = df %>% arrange(s,session) 
 
 datastan = list(Y = cbind(df %>% filter(session == 1) %>% .$y, df %>% filter(session == 2) %>% .$y),
                 N = nrow(df),
@@ -619,20 +599,22 @@ datastan = list(Y = cbind(df %>% filter(session == 1) %>% .$y, df %>% filter(ses
                 X =  cbind(df %>% filter(session == 1) %>% .$x, df %>% filter(session == 2) %>% .$x))
 
 # 
-# correlation_rt_real_biggest_hier  <- mod$sample(
-#   data = datastan, 
-#   iter_sampling = 1000,
-#   iter_warmup = 1000,
-#   chains = 4, 
-#   parallel_chains = 4,
-#   refresh = 50,
-#   adapt_delta = 0.90,
-#   max_treedepth = 10
-# )
+correlation_rt_real_biggest_hier  <- mod$sample(
+  data = datastan,
+  iter_sampling = 1000,
+  iter_warmup = 1000,
+  chains = 4,
+  parallel_chains = 4,
+  refresh = 50,
+  adapt_delta = 0.90,
+  max_treedepth = 10
+)
 # 
 
-#correlation_rt_real_biggest_hier $save_object(here::here("realshit","Legrand reanalysis","workspace","correlation_rt_real_biggest_hier.RDS"))
-correlation_rt_real_biggest_hier <- readRDS(here::here("realshit","Legrand reanalysis","workspace","correlation_rt_real_biggest_hier.RDS"))
+#correlation_rt_real_biggest_hier $save_object(here::here("Analyses","Legrand reanalysis","workspace","correlation_rt_real_biggest_hier.RDS"))
+
+
+correlation_rt_real_biggest_hier <- readRDS(here::here("Analyses","Legrand reanalysis","workspace","correlation_rt_real_biggest_hier.RDS"))
 
 get_session_cor = function(var){
   if(var == "mean"){
@@ -684,13 +666,12 @@ write.csv(between_variance, here::here("realshit","Power analysis","pathfinder",
 
 # full model no ICC
 ```{r}
-source(here::here("realshit","Legrand reanalysis","legrand_scripts.R"))
 
-hrd = get_data_rt(rt_threshold_s = 0.1)
-
-mod = cmdstanr::cmdstan_model(here::here("realshit","Legrand reanalysis","test retest full.stan"))
+mod = cmdstanr::cmdstan_model(here::here("Analyses","Legrand reanalysis","Stan models","nonnested","test retest full.stan"))
 
 df = hrd
+
+df = df %>% arrange(s,session) 
 
 df = df %>% mutate(Confidence = ifelse(Confidence == 0, 0.01, ifelse(Confidence == 100, 0.99, Confidence/100))) %>% drop_na()
     
@@ -698,7 +679,7 @@ df = df %>% mutate(Confidence = ifelse(Confidence == 0, 0.01, ifelse(Confidence 
 datastan = list(Y = cbind(df %>% filter(session == 1) %>% .$y, df %>% filter(session == 2) %>% .$y),
                 N = nrow(df),
                 RT = cbind(df %>% filter(session == 1) %>% .$RT, df %>% filter(session == 2) %>% .$RT),
-                conf = cbind(df %>% filter(session == 1) %>% .$Confidence, df %>% filter(session == 2) %>% .$Confidence),
+                Conf = cbind(df %>% filter(session == 1) %>% .$Confidence, df %>% filter(session == 2) %>% .$Confidence),
                 N_s1 = nrow(df %>% filter(session == 1)),
                 N_s2 = nrow(df %>% filter(session == 2)),
                 C = 2,
@@ -711,20 +692,20 @@ datastan = list(Y = cbind(df %>% filter(session == 1) %>% .$y, df %>% filter(ses
 
 
 
-# full  <- mod$sample(
-#   data = datastan,
-#   iter_sampling = 1000,
-#   iter_warmup = 1000,
-#   chains = 4,
-#   parallel_chains = 4,
-#   refresh = 50,
-#   adapt_delta = 0.90,
-#   max_treedepth = 10
-# )
-#  
+full  <- mod$sample(
+  data = datastan,
+  iter_sampling = 1000,
+  iter_warmup = 1000,
+  chains = 4,
+  parallel_chains = 4,
+  refresh = 50,
+  adapt_delta = 0.90,
+  max_treedepth = 10
+)
 
-#full$save_object(here::here("realshit","Legrand reanalysis","workspace","full_rt.RDS"))
-full_rt <- readRDS(here::here("realshit","Legrand reanalysis","workspace","full_rt.RDS"))
+
+full$save_object(here::here("Analyses","Legrand reanalysis","workspace","full_rt.RDS"))
+#full_rt <- readRDS(here::here("Analyses","Legrand reanalysis","workspace","full_rt.RDS"))
 
 get_session_cor = function(var){
   if(var == "mean"){
@@ -774,20 +755,12 @@ rbind(d1,d2,d3,d4,d5,d6) %>% filter(variable %in% c("alpha","beta"))
 rbind(ddq_full,ddq_rt,ddq) %>% filter(variable %in% c("alpha","beta"))
 ```
 
-
 # ICC's
-
-## Get data nort
-```{r}
-source(here::here("realshit","Legrand reanalysis","legrand_scripts.R"))
-
-hrd = get_data_rt(rt_threshold_s = 0.1)
-```
 
 
 ## Fit nort ICC
 ```{r}
-mod = cmdstanr::cmdstan_model(here::here("realshit","Legrand reanalysis","ICC","ICC_nort.stan"))
+mod = cmdstanr::cmdstan_model(here::here("Analyses","Legrand reanalysis","Stan models","nested","ICC_nort.stan"))
 
 df = hrd
 
@@ -831,22 +804,22 @@ datastan = list(Y = Y,
                 )
                   
 #                   
-# fit <- mod$sample(
-#   data = datastan, 
-#   iter_sampling = 1000,
-#   iter_warmup = 1000,
-#   chains = 4, 
-#   seed = 123,
-#   parallel_chains = 4,
-#   refresh = 10,
-#   adapt_delta = 0.90,
-#   max_treedepth = 12,
-# )
+fit <- mod$sample(
+  data = datastan,
+  iter_sampling = 1000,
+  iter_warmup = 1000,
+  chains = 4,
+  init = 0,
+  parallel_chains = 4,
+  refresh = 100,
+  adapt_delta = 0.90,
+  max_treedepth = 12,
+)
 
-#fit$save_object(here::here("realshit","Legrand reanalysis","ICC","workspace","ICC_nort_new.RDS"))
+fit$save_object(here::here("Analyses","Legrand reanalysis","workspace","ICC_nort_new.RDS"))
 
 
-fit <- readRDS(here::here("realshit","Legrand reanalysis","ICC","workspace","ICC_nort_new.RDS"))
+fit <- readRDS(here::here("Analyses","Legrand reanalysis","workspace","ICC_nort_new.RDS"))
 
 
 get_correlation = function(fit,parameter){
@@ -918,16 +891,13 @@ ICC = rbind(icc1,icc2)
 ```
 
 
+
+
 # ICC RT:
 
 ## Fit RT ICC
 ```{r, fig.height=10, fig.width=7}
-
-source(here::here("realshit","Legrand reanalysis","legrand_scripts.R"))
-
-hrd = get_data_rt(rt_threshold_s = 0.1)
-
-mod = cmdstanr::cmdstan_model(here::here("realshit","Legrand reanalysis","ICC","ICC_rt.stan"))
+mod = cmdstanr::cmdstan_model(here::here("Analyses","Legrand reanalysis","Stan models","nested","ICC_rt.stan"))
 
 df = hrd
 
@@ -977,23 +947,21 @@ datastan = list(Y = Y,
                 X =  X
                 )
 
-# fit_RT <- mod$sample(
-#   data = datastan, 
-#   iter_sampling = 1000,
-#   iter_warmup = 1000,
-#   chains = 4, 
-#   parallel_chains = 4,
-#   refresh = 10,
-#   adapt_delta = 0.90,
-#   max_treedepth = 12,
-# )
-#
+fit_RT <- mod$sample(
+  data = datastan,
+  iter_sampling = 1000,
+  iter_warmup = 1000,
+  chains = 4,
+  parallel_chains = 4,
+  refresh = 10,
+  adapt_delta = 0.90,
+  max_treedepth = 12,
+)
 
-#ICC_RT$summary("ICC")
 
-#fit_RT$save_object(here::here("realshit","Legrand reanalysis","ICC","workspace","ICC_RT.RDS"))
+fit_RT$save_object(here::here("Analyses","Legrand reanalysis","workspace","ICC_RT.RDS"))
 
-fit_RT <- readRDS(here::here("realshit","Legrand reanalysis","ICC","workspace","ICC_RT.RDS"))
+fit_RT <- readRDS(here::here("Analyses","Legrand reanalysis","workspace","ICC_RT.RDS"))
 
 
 cor_noun_alpha = get_correlation(fit_RT,"psyalpha")
