@@ -1,7 +1,7 @@
 
 get_data_nort = function(rt_threshold_s = 0.1){
   
-  
+  select <- dplyr::select
   
   
   df = data.frame()
@@ -85,7 +85,7 @@ get_data_nort = function(rt_threshold_s = 0.1){
 
 get_data = function(rt_threshold_s = 0.1){
   
-  
+  select <- dplyr::select
   df = data.frame()
   for(files in list.files(here::here("Analyses","Legrand reanalysis","raw data","HRD"), recursive = T)){
     

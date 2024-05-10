@@ -66,6 +66,28 @@ cowplot::ggdraw() +
 
 ```
 
+### Supplementary figure 8
+
+```{r, fig.height=7.2, fig.width=7.2, warning = F, message = F, echo = F, fig.cap = "**Supplemenary figure 8. Group level posterior predictive checks of the 3 types of responses, Confidence, binary (faster or slower) and reaction time on the binary response.** Facets represent the 3 types of responses, 0-1 Confidence ratings, 0 or 1 binary responses of (faster or slower) and the reaction time for these binary responses. Red line depicts the mean of the posterior and the blue lines represents 100 posterior draws."}
+
+cowplot::ggdraw() +
+    cowplot::draw_image(magick::image_read(here::here("Supplementary figures","Supplementary figure8.PNG")), scale = 1)
+
+```
+
+## Supplementary tables
+
+### Supplementary table 1
+
+<!-- this is table of the posterior estimates of the ICC binary model -->
+
+```{r, fig.height=7.2, fig.width=7.2, warning = F, message = F, echo = F}
+# 
+# cowplot::ggdraw() +
+#     cowplot::draw_image(magick::image_read(here::here("Supplementary tables","Supplementary table1.PNG")), scale = 1)
+
+```
+
 
 ## Supplementary Notes:
 
@@ -111,5 +133,14 @@ The pathfinder algorithm was used for optimization of the trial by trial simulat
 
 Comparison between the 3 tested model rested on having each algorithm simulate stimulus values based on simulated parameter values. These simulated stimulus values were then used to obtain responses of the agents (again using the simulated parameter values). Each set of stimuli and responses for each algorithm were then fit using the same bayesian model (see supplementary note 3 and 1) and the posterior distributions were computed for each of the three parameters values (i.e. threshold $\alpha$, slope $\beta$ and lapse rate $\lambda$).
 
+### Supplementary note 5: Posterior preditive checks
 
+Supplementary figure 8 and 10 displays the posterior predictive check for the two hierarchical models with the three types of responses i.e. binary, reaction time and confidence ratings. In these plots the group means of the parameters are depicted giving an indicating of the overall structure of the behavioral responses of the participants. 
+
+Supplementary figure 9 and 11 depicts instead of the group level estimates a particular participant at a particular session with overlaid data. Interrested readers are refered to [the github ](https://github.com/JesperFischer/Master-thesis/blob/main/manuscript/Supplementary%20material/supplementary%20analyses.Rmd) to explore other participants than depicted here.
+
+
+### Supplementary note 6: Power analysis model description
+
+### Supplementary note 7: Power analysis complete set of models
 

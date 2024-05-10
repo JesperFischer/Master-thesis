@@ -162,3 +162,153 @@ ggsave(here::here("Supplementary figures","Supplementary figure2.PNG"),plot = p2
 
 ```
 
+
+# Predictive checks group level ICC
+
+```{r, fig.height=7.2,fig.width=7.2}
+ICC_full <- readRDS("~/Master-thesis/Analyses/Legrand reanalysis/workspace/ICC_full.RDS")
+
+psychometric = function(x, alpha, beta,lapse,int,beta_rt,ndt,int_conf,beta_conf){
+  
+  phi = lapse + (1 - 2* lapse) * (0.5+0.5*pracma::erf((x-alpha)/(beta*sqrt(2))))
+  
+  mu_rt = int + beta_rt * phi * (1-phi) + ndt
+  
+  mu_conf = brms::inv_logit_scaled(int_conf + beta_conf * phi * (1-phi))
+  
+  return(data.frame(phi = phi, rt = mu_rt, conf = mu_conf))
+}
+
+
+groupmeans = as_draws_df(ICC_full$draws("mu_g")) %>% dplyr::select(-contains("."))
+
+names(groupmeans) = c("alpha","beta","lapse","int","beta_rt","sigma_rt","ndt","int_conf","beta_conf","sigma_conf")
+
+x = seq(-50,50,by = 0.1)
+
+
+qq = groupmeans%>% mutate(draw = 1:n()) %>% rowwise() %>% 
+  mutate(ys = list(psychometric(x,alpha,exp(beta),brms::inv_logit_scaled(lapse)/2,int,exp(beta_rt), ndt,int_conf,beta_conf)),
+         xs = list(x)) %>% unnest() %>% 
+  rename(Probability = phi, Reaction_time = rt, Confidence = conf) %>% 
+  pivot_longer(cols =  c("Probability","Reaction_time","Confidence"), values_to = "value", names_to = "response") %>% filter(draw < 100) 
+
+
+meanmean = groupmeans%>% mutate(draw = 1:n()) %>% rowwise() %>% 
+  mutate(ys = list(psychometric(x,alpha,exp(beta),brms::inv_logit_scaled(lapse)/2,int,exp(beta_rt), ndt,int_conf,beta_conf)),
+         xs = list(x)) %>% unnest() %>% 
+  rename(Probability = phi, Reaction_time = rt, Confidence = conf) %>% 
+  pivot_longer(cols = c("Probability","Reaction_time","Confidence"), values_to = "value", names_to = "response") %>% 
+  group_by(xs,response) %>% summarize(mean = mean(value)) %>% mutate(draw = NA)
+
+
+
+ICC_group = qq %>% 
+  ggplot(aes(x = xs, y = value, group = draw))+
+  geom_line(col = "lightblue1", alpha = 0.5)+
+  geom_line(data = meanmean, aes(x = xs, y = mean), col = "red")+
+  facet_wrap(~response, ncol = 1)+
+  theme_classic()+ggtitle("Full model using the nested hierarchical model")
+
+ICC_group
+ggsave(here::here("Supplementary figures","Supplementary figure8.PNG"),plot = ICC_group, dpi = 600, width = 7.2, height = 7.2)
+```
+
+# Single sub visualiztion (ICC)
+
+```{r, fig.height=7.2,fig.width=7.2}
+select <- dplyr::select
+
+source(here::here("Analyses","Legrand reanalysis","legrand_scripts.R"))
+hrd = get_data(rt_threshold_s = 0.1)
+
+ICC_full <- readRDS("~/Master-thesis/Analyses/Legrand reanalysis/workspace/ICC_full.RDS")
+```
+
+
+```{r, fig.height=7.2,fig.width=7.2}
+psychometric_singlesub = function(x, alpha, beta,lapse,int,beta_rt,ndt,int_conf,beta_conf,minrt){
+  
+  phi = lapse + (1 - 2* lapse) * (0.5+0.5*pracma::erf((x-alpha)/(beta*sqrt(2))))
+  
+  mu_rt = int + beta_rt * phi * (1-phi) + ndt*minrt+1
+  
+  mu_conf = brms::inv_logit_scaled(int_conf + beta_conf * phi * (1-phi))
+  
+  return(data.frame(phi = phi, rt = mu_rt, conf = mu_conf))
+}
+
+s_id = 100
+ses = 2
+
+realdata = hrd %>% arrange(s,session) %>% filter(s == s_id, session == ses) %>% mutate(Confidence = Confidence/100) %>% 
+  rename(Probability = y, Reaction_time = RT, Confidence = Confidence) %>% 
+  pivot_longer(cols = c("Probability","Reaction_time","Confidence"), values_to = "value", names_to = "response")
+
+
+variable = "psyalpha"
+variable1 = "psybeta"
+variable2 = "lapse"
+variable3 = "intercept"
+variable4 = "beta"
+variable5 = "sigma"
+variable6 = "ndt"
+variable7 = "intercept_conf"
+variable8 = "beta_conf"
+variable9 = "sigma_conf"
+
+groupmeans = as_draws_df(ICC_full$draws(c(paste0(variable,"[",s_id+(ses-1)*187,"]"),
+                                        paste0(variable1,"[",s_id+(ses-1)*187,"]"),
+                                        paste0(variable2,"[",s_id+(ses-1)*187,"]"),
+                                        paste0(variable3,"[",s_id+(ses-1)*187,"]"),
+                                        paste0(variable4,"[",s_id+(ses-1)*187,"]"),
+                                        paste0(variable5,"[",s_id+(ses-1)*187,"]"),
+                                        paste0(variable6,"[",s_id+(ses-1)*187,"]"),
+                                        paste0(variable7,"[",s_id+(ses-1)*187,"]"),
+                                        paste0(variable8,"[",s_id+(ses-1)*187,"]"),
+                                        paste0(variable9,"[",s_id+(ses-1)*187,"]")
+                                        ))) %>% dplyr::select(-contains("."))
+
+names(groupmeans) = c("alpha","beta","lapse","int","beta_rt","sigma_rt","ndt","int_conf","beta_conf","sigma_conf")
+
+x = seq(-50,50,by = 0.1)
+
+
+qq = groupmeans%>% mutate(draw = 1:n()) %>% rowwise() %>% 
+  mutate(ys = list(psychometric_singlesub(x,alpha,beta,lapse,int,beta_rt,
+                                          ndt,int_conf,beta_conf,
+                                          min(realdata %>% filter(response == "Reaction_time") %>% .$value))),
+         xs = list(x)) %>% unnest() %>% 
+  rename(Probability = phi, Reaction_time = rt, Confidence = conf) %>% 
+  pivot_longer(cols =  c("Probability","Reaction_time","Confidence"), values_to = "value", names_to = "response") %>% filter(draw < 100) 
+
+
+ICC_single = realdata %>% 
+  ggplot(aes(x = x, y = value))+geom_point()+facet_wrap(~response,ncol=1, scales ="free")+theme_classic()+
+  geom_line(data = qq, aes(x = xs, y = value, group = draw), alpha = 0.5,col = "lightblue3")
+
+
+ICC_single
+
+ggsave(here::here("Supplementary figures","Supplementary figure9.PNG"),plot = ICC_single, dpi = 600, width = 7.2, height = 7.2)
+
+```
+
+# Predictive checks group level (no ICC)
+
+
+```{r}
+full_rt <- readRDS(here::here("Analyses","Legrand reanalysis","workspace","full_rt.RDS"))
+
+full_rt
+```
+
+
+## Supplementary table 1
+
+```{r}
+ICC_nort_new <- readRDS("~/Master-thesis/Analyses/Legrand reanalysis/workspace/ICC_nort_new.RDS")
+
+ICC_nort_new 
+```
+

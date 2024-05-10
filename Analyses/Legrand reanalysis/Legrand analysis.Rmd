@@ -671,7 +671,7 @@ mod = cmdstanr::cmdstan_model(here::here("Analyses","Legrand reanalysis","Stan m
 
 df = hrd
 
-df = df %>% arrange(s,session) 
+df = df %>% arrange(s,session)
 
 df = df %>% mutate(Confidence = ifelse(Confidence == 0, 0.01, ifelse(Confidence == 100, 0.99, Confidence/100))) %>% drop_na()
     
@@ -959,7 +959,7 @@ fit_RT <- mod$sample(
 )
 
 
-fit_RT$save_object(here::here("Analyses","Legrand reanalysis","workspace","ICC_RT.RDS"))
+#fit_RT$save_object(here::here("Analyses","Legrand reanalysis","workspace","ICC_RT.RDS"))
 
 fit_RT <- readRDS(here::here("Analyses","Legrand reanalysis","workspace","ICC_RT.RDS"))
 
@@ -1011,7 +1011,7 @@ ICC_rt = rbind(ICC_rt1,ICC_rt2)
 
 #ICC FULL
 ```{r, fig.height=10, fig.width=7}
-mod = cmdstanr::cmdstan_model(here::here("realshit","Legrand reanalysis","ICC","ICC_full.stan"))
+mod = cmdstanr::cmdstan_model(here::here("Analyses","Legrand reanalysis","Stan models","nested","ICC_full.stan"))
 
 
 df = hrd
@@ -1060,32 +1060,30 @@ datastan = list(Y = Y,
                 P = length(unique(df$s)),
                 t_p_s_p_ses = trials_per_subject_per_session,
                 RT = RT,
-                conf = conf,
+                Conf = conf,
                 min_RT = min_RT,
                 #npx = cbind(df %>% filter(session == 1) %>% .$n, df %>% filter(session == 2) %>% .$n),
                 
                 #S_id = cbind(df %>% filter(session == 1) %>% .$s, df %>% filter(session == 2) %>% .$s),
                 X =  X
                 )
-# 
-# fit_full <- mod$sample(
-#   data = datastan, 
-#   iter_sampling = 1000,
-#   iter_warmup = 1000,
-#   chains = 4, 
-#   parallel_chains = 4,
-#   refresh = 10,
-#   init = 0,
-#   adapt_delta = 0.80,
-#   max_treedepth = 12,
-# )
-# #
 
-#ICC_RT$summary("ICC")
+fit_full <- mod$sample(
+  data = datastan,
+  iter_sampling = 1000,
+  iter_warmup = 1000,
+  chains = 4,
+  init = 0,
+  parallel_chains = 4,
+  refresh = 10,
+  adapt_delta = 0.80,
+  max_treedepth = 12,
+)
 
-# fit_full$save_object(here::here("realshit","Legrand reanalysis","ICC","workspace","ICC_full.RDS"))
 
-ICC_full <- readRDS(here::here("realshit","Legrand reanalysis","ICC","workspace","ICC_full.RDS"))
+fit_full$save_object(here::here("Analyses","Legrand reanalysis","workspace","ICC_full.RDS"))
+
+#ICC_full <- readRDS(here::here("Analyses","Legrand reanalysis","workspace","ICC_full.RDS"))
 
 
 cor_noun_alpha = get_correlation(ICC_full,"psyalpha")
@@ -1178,4 +1176,3 @@ write.csv(table, file = here::here("table3.csv"))
 
 flextable::flextable(table) %>% width(1:2, width = 1.5)
 ```
-
