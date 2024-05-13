@@ -19,11 +19,13 @@ Two types of hierarchical models are going to be fit, one with a single layer am
 
 Table 3 displays the correlation coefficient between the first and second session for the threshold and slope for each model when uncertainty has been propagated using bootstrapping. For a full table of all parameters of all models as well as with and without uncertainty propagation see the [github page](https://github.com/JesperFischer/Master-thesis) linked to the thesis.
 
+\newpage
+
 ```{r table3, fig.width = 7, fig.height = 7, warning = F, message = F, echo = F, fig.cap = "**Table 3. Results from reanalysis of legrand (2022).** Table showing the correlation between sessions of the threshold and slope parameter of the psychometric function using different model fomulations as well as hierarchical model structures."}
 table3 = read.csv(here::here("tables","table3.csv")) %>% mutate(X = NULL)
 
 
-table3 = flextable::flextable(table3) %>% width(c(1,2), width = 1.8)%>% width(5, width = 1.1)%>% width(4, width = 1.4)
+table3 = flextable::flextable(table3) %>% width(c(1,2), width = 1.7)%>% width(5, width = 1.1)%>% width(4, width = 1)
 
 table3
 ```

@@ -9,13 +9,12 @@ date: "2024-03-27"
 knitr::opts_chunk$set(echo = TRUE)
 pacman::p_load(cmdstanr, tidyverse,posterior, bayesplot, tidybayes, furrr,LRO.utilities)
 source(here::here("Analyses","Legrand reanalysis","legrand_scripts.R"))
+hrd = get_data(rt_threshold_s = 0.1)
 
 ```
 
 # single fit model (No RT no Confidence)
 ```{r}
-hrd = get_data(rt_threshold_s = 0.1)
-
 mod = cmdstanr::cmdstan_model(here::here("Analyses","Legrand reanalysis","Stan models","single fit","singlefit_nolapse.stan"))
 
 i = 1
@@ -54,10 +53,7 @@ for(i in 1:length(unique(hrd$s))){
 }
 
 
-#write.csv(dfbig, here::here("Analyses","Legrand reanalysis","workspace","single_fit_nolapse.csv"))
-
-
-dfbig = read.csv(here::here("Analyses","Legrand reanalysis","workspace","single_fit_nolapse.csv"))
+write.csv(dfbig, here::here("Analyses","Legrand reanalysis","workspace","single_fit_nolapse.csv"))
 ```
 
 
@@ -103,13 +99,9 @@ for(i in 1:length(unique(hrd$s))){
   }
 }
 
-#write.csv(dfbig_rt, here::here("Analyses","Legrand reanalysis","workspace","single_fit_nolapse_rt.csv"))
+write.csv(dfbig_rt, here::here("Analyses","Legrand reanalysis","workspace","single_fit_nolapse_rt.csv"))
 
-dfbig_rt = read.csv(here::here("Analyses","Legrand reanalysis","workspace","single_fit_nolapse_rt.csv"))
 
-correlations_rt = get_things(dfbig_rt, n_div = 3)  
-
-correlations_rt
 ```
 
 # Nolapse full
@@ -158,15 +150,110 @@ for(i in 1:length(unique(hrd$s))){
   }
 }
 
-#write.csv(dfbig_full,  here::here("Analyses","Legrand reanalysis","workspace","single_fit_nolapse_full.csv"))
+write.csv(dfbig_full,  here::here("Analyses","Legrand reanalysis","workspace","single_fit_nolapse_full.csv"))
 
-dfbig_full  = read.csv( here::here("Analyses","Legrand reanalysis","workspace","single_fit_nolapse_full.csv"))
+```
+
+#  combining no lapse results:
+```{r}
+#without lapse
+bootstrap_correlation_unc <- function(mx,my,sdx,sdy, truncated) {
+  
+  df1 = data.frame(mx = mx, my = my, sdx = sdx, sdy = sdy)
+  
+  ind <- sample(nrow(df1), nrow(df1), replace=TRUE)
+  
+  if(truncated){
+    df1 = df1 %>% rowwise() %>% mutate(x = truncnorm::rtruncnorm(1,0,Inf, mx, sdx),
+                                       y = truncnorm::rtruncnorm(1,0,Inf, my, sdy)) %>% unnest(cols = c()) %>% as.data.frame(.)
+  }else{
+    df1 = df1 %>% rowwise() %>% mutate(x = rnorm(1, mx, sdx),
+                                       y = rnorm(1, my, sdy)) %>% unnest(cols = c()) %>% as.data.frame(.)
+  }
+
+  return(cor.test(df1[ind, 1], df1[ind, 2], method = "pearson",exact = FALSE)$estimate[[1]])
+}
+
+
+get_things = function(df, n_div = 10){
+  
+  # times 2 because there are two sessions
+  print(paste0("participants excluded (i.e. both their sessions) : "))
+  (nrow(df) - nrow(df %>% select(mean,sd,variable, session, div,id) %>% group_by(id)%>% filter(any(div < n_div)))) / (length(unique(df$variable)) * 2)
+  
+  cor_nouncertainty = df %>% select(mean,sd,variable, session, div,id) %>% group_by(id)%>% filter(any(div < n_div)) %>% select(-div, id) %>%
+    group_by(variable) %>%
+    summarize(correlation_mean = cor.test(mean[session == 1], mean[session == 2])$estimate[[1]],
+              correlation_q5 = cor.test(mean[session == 1], mean[session == 2])$conf.int[[1]],
+              correlation_q95 = cor.test(mean[session == 1], mean[session == 2])$conf.int[[2]])
+
+  
+      cor_nouncertainty$text = paste0(sprintf("%.2f",(round(cor_nouncertainty$correlation_mean,2))), " [", sprintf("%.2f",(round(cor_nouncertainty$correlation_q5,2))), " ; ",sprintf("%.2f",(round(cor_nouncertainty$correlation_q95,2))), "]")
+  
+  cor_uncertainty = df %>% select(mean,sd,variable, session, div,id) %>% group_by(id)%>% filter(any(div < n_div)) %>% select(-div, id) %>% 
+    group_by(variable) %>% mutate(id = list(1:1000)) %>% unnest() %>% group_by(variable,id) %>% 
+    summarize(correlation = ifelse(variable == "alpha",
+                                 bootstrap_correlation_unc(mean[session == 1], mean[session == 2],
+                                                           sd[session == 1], sd[session == 2], F),
+                                 bootstrap_correlation_unc(mean[session == 1], mean[session == 2],
+                                                           sd[session == 1], sd[session == 2], T))) %>% 
+    group_by(variable) %>% 
+    summarize(mean = mean(correlation),
+              q5 = HDInterval::hdi(correlation)[[1]],
+              q95 = HDInterval::hdi(correlation)[[2]])
+  
+  
+   cor_uncertainty$text = paste0(sprintf("%.2f",(round(cor_uncertainty$mean,2))), " [", sprintf("%.2f",(round(cor_uncertainty$q5,2))), " ; ",sprintf("%.2f",(round(cor_uncertainty$q95,2))), "]")
+  
+  
+  
+  return(list(cor_nouncertainty, cor_uncertainty))
+}
+  
+
+make_table_noun = function(cor){
+  paste0(round(cor$correlation_mean,2), " [", round(cor$correlation_q5,2), " ; ",round(cor$correlation_q95,2), "]")
+  
+}
+
+
+dfbig = read.csv(here::here("Analyses","Legrand reanalysis","workspace","single_fit_nolapse.csv"))
+
+correlations = get_things(dfbig, n_div = 3)
+
+d4 = rbind(
+  correlations[[1]] %>% select(variable,text) %>% mutate(propergated_uncertainty = FALSE, lapse = F, model = "Binary", structure = "Single"),
+  correlations[[2]] %>% select(variable,text) %>% mutate(propergated_uncertainty = TRUE, lapse = F, model = "Binary", structure = "Single")
+)
+
+
+
+
+dfbig_rt = read.csv(here::here("Analyses","Legrand reanalysis","workspace","single_fit_nolapse_rt.csv"))
+
+correlations_rt = get_things(dfbig_rt, n_div = 3)  
+
+d5 = rbind(
+  correlations_rt[[1]] %>% select(variable,text) %>% mutate(propergated_uncertainty = FALSE, lapse = F, model = "RT", structure = "Single"),
+  correlations_rt[[2]] %>% select(variable,text) %>% mutate(propergated_uncertainty = TRUE, lapse = F, model = "RT", structure = "Single")
+)
+
+
+
+dfbig_full  = read.csv(here::here("Analyses","Legrand reanalysis","workspace","single_fit_nolapse_full.csv"))
 
 
 correlations_full = get_things(dfbig_full, n_div = 3)  
 
-correlations_full
+d6 = rbind(
+  correlations_full[[1]] %>% select(variable,text) %>% mutate(propergated_uncertainty = FALSE, lapse = F, model = "RT+Conf", structure = "Single"),
+  correlations_full[[2]] %>% select(variable,text) %>% mutate(propergated_uncertainty = TRUE, lapse = F, model = "RT+Conf", structure = "Single")
+)
+
+
+
 ```
+
 
 # With lapse
 
@@ -318,111 +405,12 @@ for(i in 1:length(unique(hrd$s))){
 write.csv(dfbig_lapse_full, here::here("Analyses","Legrand reanalysis","workspace","single_fit_lapse_full.csv"))
 ```
 
-#  combining no lapse results:
-```{r}
-#without lapse
-bootstrap_correlation_unc <- function(mx,my,sdx,sdy, truncated) {
-  
-  df1 = data.frame(mx = mx, my = my, sdx = sdx, sdy = sdy)
-  
-  ind <- sample(nrow(df1), nrow(df1), replace=TRUE)
-  
-  if(truncated){
-    df1 = df1 %>% rowwise() %>% mutate(x = truncnorm::rtruncnorm(1,0,Inf, mx, sdx),
-                                       y = truncnorm::rtruncnorm(1,0,Inf, my, sdy)) %>% unnest(cols = c()) %>% as.data.frame(.)
-  }else{
-    df1 = df1 %>% rowwise() %>% mutate(x = rnorm(1, mx, sdx),
-                                       y = rnorm(1, my, sdy)) %>% unnest(cols = c()) %>% as.data.frame(.)
-  }
-
-  return(cor.test(df1[ind, 1], df1[ind, 2], method = "pearson",exact = FALSE)$estimate[[1]])
-}
-
-
-get_things = function(df, n_div = 10){
-  
-  # times 2 because there are two sessions
-  print(paste0("participants excluded (i.e. both their sessions) : "))
-  (nrow(df) - nrow(df %>% select(mean,sd,variable, session, div,id) %>% group_by(id)%>% filter(any(div < n_div)))) / (length(unique(df$variable)) * 2)
-  
-  cor_nouncertainty = df %>% select(mean,sd,variable, session, div,id) %>% group_by(id)%>% filter(any(div < n_div)) %>% select(-div, id) %>%
-    group_by(variable) %>%
-    summarize(correlation_mean = cor.test(mean[session == 1], mean[session == 2])$estimate[[1]],
-              correlation_q5 = cor.test(mean[session == 1], mean[session == 2])$conf.int[[1]],
-              correlation_q95 = cor.test(mean[session == 1], mean[session == 2])$conf.int[[2]])
-
-  
-      cor_nouncertainty$text = paste0(sprintf("%.2f",(round(cor_nouncertainty$correlation_mean,2))), " [", sprintf("%.2f",(round(cor_nouncertainty$correlation_q5,2))), " ; ",sprintf("%.2f",(round(cor_nouncertainty$correlation_q95,2))), "]")
-  
-  cor_uncertainty = df %>% select(mean,sd,variable, session, div,id) %>% group_by(id)%>% filter(any(div < n_div)) %>% select(-div, id) %>% 
-    group_by(variable) %>% mutate(id = list(1:1000)) %>% unnest() %>% group_by(variable,id) %>% 
-    summarize(correlation = ifelse(variable == "alpha",
-                                 bootstrap_correlation_unc(mean[session == 1], mean[session == 2],
-                                                           sd[session == 1], sd[session == 2], F),
-                                 bootstrap_correlation_unc(mean[session == 1], mean[session == 2],
-                                                           sd[session == 1], sd[session == 2], T))) %>% 
-    group_by(variable) %>% 
-    summarize(mean = mean(correlation),
-              q5 = HDInterval::hdi(correlation)[[1]],
-              q95 = HDInterval::hdi(correlation)[[2]])
-  
-  
-   cor_uncertainty$text = paste0(sprintf("%.2f",(round(cor_uncertainty$mean,2))), " [", sprintf("%.2f",(round(cor_uncertainty$q5,2))), " ; ",sprintf("%.2f",(round(cor_uncertainty$q95,2))), "]")
-  
-  
-  
-  return(list(cor_nouncertainty, cor_uncertainty))
-}
-  
-
-make_table_noun = function(cor){
-  paste0(round(cor$correlation_mean,2), " [", round(cor$correlation_q5,2), " ; ",round(cor$correlation_q95,2), "]")
-  
-}
-
-
-dfbig = read.csv(here::here("realshit","Legrand reanalysis","single_fit_nolapse","single_fit_nolapse.csv"))
-
-correlations = get_things(dfbig, n_div = 3)
-
-d4 = rbind(
-  correlations[[1]] %>% select(variable,text) %>% mutate(propergated_uncertainty = FALSE, lapse = F, model = "Binary", structure = "Single"),
-  correlations[[2]] %>% select(variable,text) %>% mutate(propergated_uncertainty = TRUE, lapse = F, model = "Binary", structure = "Single")
-)
-
-
-
-
-dfbig_rt = read.csv(here::here("realshit","Legrand reanalysis","single_fit_nolapse","single_fit_nolapse_rt.csv"))
-
-correlations_rt = get_things(dfbig_rt, n_div = 3)  
-
-d5 = rbind(
-  correlations_rt[[1]] %>% select(variable,text) %>% mutate(propergated_uncertainty = FALSE, lapse = F, model = "RT", structure = "Single"),
-  correlations_rt[[2]] %>% select(variable,text) %>% mutate(propergated_uncertainty = TRUE, lapse = F, model = "RT", structure = "Single")
-)
-
-
-
-dfbig_full  = read.csv(here::here("realshit","Legrand reanalysis","single_fit_nolapse","single_fit_nolapse_full.csv"))
-
-
-correlations_full = get_things(dfbig_full, n_div = 3)  
-
-d6 = rbind(
-  correlations_full[[1]] %>% select(variable,text) %>% mutate(propergated_uncertainty = FALSE, lapse = F, model = "RT+Conf", structure = "Single"),
-  correlations_full[[2]] %>% select(variable,text) %>% mutate(propergated_uncertainty = TRUE, lapse = F, model = "RT+Conf", structure = "Single")
-)
-
-
-
-```
 
 #  combining with lapse results:
 ```{r}
 #with lapse
 
-dfbig_lapse = read.csv(here::here("realshit","Legrand reanalysis","single_fit_lapse","single_fit_lapse.csv"))
+dfbig_lapse = read.csv(here::here("Analyses","Legrand reanalysis","workspace","single_fit_lapse.csv"))
 
 
 correlations_lapse = get_things(dfbig_lapse, n_div = 3)  
@@ -434,7 +422,7 @@ d3 = rbind(
   correlations_lapse[[2]] %>% select(variable,text) %>% mutate(propergated_uncertainty = TRUE, lapse = T, model = "Binary", structure = "Single")
 )
 
-dfbig_lapse_rt = read.csv(here::here("realshit","Legrand reanalysis","single_fit_lapse","single_fit_lapse_rt.csv"))
+dfbig_lapse_rt = read.csv(here::here("Analyses","Legrand reanalysis","workspace","single_fit_lapse_rt.csv"))
 
 correlations_lapse_rt = get_things(dfbig_lapse_rt, n_div = 3)  
 
@@ -446,7 +434,7 @@ d2 = rbind(
 )
 
 
-dfbig_lapse_full = read.csv(here::here("realshit","Legrand reanalysis","single_fit_lapse","single_fit_lapse_full.csv"))
+dfbig_lapse_full = read.csv(here::here("Analyses","Legrand reanalysis","workspace","single_fit_lapse_full.csv"))
 
 correlations_lapse_full = get_things(dfbig_lapse_full, n_div = 3)  
 
@@ -456,10 +444,6 @@ d1 = rbind(
   correlations_lapse_full[[1]]%>% select(variable,text) %>% mutate(propergated_uncertainty = FALSE, lapse = T, model = "RT+Conf", structure = "Single"),
   correlations_lapse_full[[2]]%>% select(variable,text) %>% mutate(propergated_uncertainty = TRUE, lapse = T, model = "RT+Conf", structure = "Single")
 )
-
-
-
-rbind(d1,d2,d3,d4,d5,d6) %>% filter(variable %in% c("alpha","beta"))
 ```
 
 
@@ -467,7 +451,6 @@ rbind(d1,d2,d3,d4,d5,d6) %>% filter(variable %in% c("alpha","beta"))
 
 ## Get data  (single hierarchical model)
 ```{r}
-
 mod = cmdstanr::cmdstan_model(here::here("Analyses","Legrand reanalysis","Stan models","nonnested","test retest nort.stan"))
 
 df = hrd
@@ -496,11 +479,12 @@ fit <- mod$sample(
   max_treedepth = 12,
 )
 
-#fit$save_object(here::here("Analyses","Legrand reanalysis","workspace","correlation_nort.RDS"))
+fit$save_object(here::here("Analyses","Legrand reanalysis","workspace","correlation_nort.RDS"))
+```
 
+#getting correlation estimates
+```{r}
 correlation_nort <- readRDS(here::here("Analyses","Legrand reanalysis","workspace","correlation_nort.RDS"))
-
-
 
 mean_cor = matrix(correlation_nort $summary("correlation_matrix") %>% .$mean, byrow = T, nrow = 6)
 colnames(mean_cor) = c("alpha_ses1","beta_ses1","lambda_ses1","alpha_ses2","beta_ses2","lambda_ses2")
@@ -611,9 +595,11 @@ correlation_rt_real_biggest_hier  <- mod$sample(
 )
 # 
 
-#correlation_rt_real_biggest_hier $save_object(here::here("Analyses","Legrand reanalysis","workspace","correlation_rt_real_biggest_hier.RDS"))
+correlation_rt_real_biggest_hier$save_object(here::here("Analyses","Legrand reanalysis","workspace","correlation_rt_real_biggest_hier.RDS"))
+```
 
 
+```{r, fig.height=7, fig.width=12}
 correlation_rt_real_biggest_hier <- readRDS(here::here("Analyses","Legrand reanalysis","workspace","correlation_rt_real_biggest_hier.RDS"))
 
 get_session_cor = function(var){
@@ -640,33 +626,13 @@ get_text = function(mean,q5,q95){
   paste0(sprintf("%.2f",round(mean,2)), " [", sprintf("%.2f",round(q5,2)), " ; ",sprintf("%.2f",round(q95,2)), "]")
 }
 
-get_text(mean,q5,q95)
-
 ddq_rt = data.frame(variable = c("alpha","beta","lambda","intercept","betart","sigma","ndt"),
                  text = get_text(mean,  q5, q95))%>% 
   mutate(propergated_uncertainty = TRUE, lapse = T, model = "RT", structure = "Hierarchical")
 ```
 
-#things for power analysis
-```{r, fig.height=7, fig.width=12}
-a = matrix(correlation_rt_real_biggest_hier $summary("correlation_matrix") %>% .$mean, nrow = 14, byrow = TRUE)
-
-write.csv(a, here::here("realshit","Power analysis","pathfinder","reaction time","Legrand reults", "correlation matrix.csv"))
-
-
-means = correlation_rt_real_biggest_hier$summary("gm") %>% .$mean
-
-write.csv(means, here::here("realshit","Power analysis","pathfinder","reaction time","Legrand reults", "means.csv"))
-
-between_variance = correlation_rt_real_biggest_hier$summary("tau_u") %>% .$mean
-
-write.csv(between_variance, here::here("realshit","Power analysis","pathfinder","reaction time","Legrand reults", "between_variance.csv"))
-
-```
-
 # full model no ICC
 ```{r}
-
 mod = cmdstanr::cmdstan_model(here::here("Analyses","Legrand reanalysis","Stan models","nonnested","test retest full.stan"))
 
 df = hrd
@@ -705,7 +671,11 @@ full  <- mod$sample(
 
 
 full$save_object(here::here("Analyses","Legrand reanalysis","workspace","full_rt.RDS"))
-#full_rt <- readRDS(here::here("Analyses","Legrand reanalysis","workspace","full_rt.RDS"))
+```
+
+
+```{r}
+full_rt <- readRDS(here::here("Analyses","Legrand reanalysis","workspace","full_rt.RDS"))
 
 get_session_cor = function(var){
   if(var == "mean"){
@@ -730,33 +700,13 @@ get_text = function(mean,q5,q95){
   paste0(sprintf("%.2f",round(mean,2)), " [", sprintf("%.2f",round(q5,2)), " ; ",sprintf("%.2f",round(q95,2)), "]")
 }
 
-get_text(mean,q5,q95)
-
 ddq_full = data.frame(variable = c("alpha","beta","lambda","intercept","betart","sigma","ndt","intercept_conf","beta_conf","sigma_conf"),
                  text = get_text(mean,  q5, q95))%>% 
   mutate(propergated_uncertainty = TRUE, lapse = T, model = "RT+Conf", structure = "Hierarchical")
 ```
 
 
-#correlation matrix
-```{r}
-mean = matrix(full$summary("correlation_matrix") %>% .$mean, nrow = 20, byrow = TRUE)
-
-q5 = matrix(full$summary("correlation_matrix") %>% .$q5, nrow = 20, byrow = TRUE)
-
-q95 = matrix(full$summary("correlation_matrix") %>% .$q95, nrow = 20, byrow = TRUE)
-
-```
-
-
-```{r}
-rbind(d1,d2,d3,d4,d5,d6) %>% filter(variable %in% c("alpha","beta"))
-
-rbind(ddq_full,ddq_rt,ddq) %>% filter(variable %in% c("alpha","beta"))
-```
-
 # ICC's
-
 
 ## Fit nort ICC
 ```{r}
@@ -817,8 +767,10 @@ fit <- mod$sample(
 )
 
 fit$save_object(here::here("Analyses","Legrand reanalysis","workspace","ICC_nort_new.RDS"))
+```
 
 
+```{r}
 fit <- readRDS(here::here("Analyses","Legrand reanalysis","workspace","ICC_nort_new.RDS"))
 
 
@@ -959,8 +911,11 @@ fit_RT <- mod$sample(
 )
 
 
-#fit_RT$save_object(here::here("Analyses","Legrand reanalysis","workspace","ICC_RT.RDS"))
+fit_RT$save_object(here::here("Analyses","Legrand reanalysis","workspace","ICC_RT.RDS"))
+```
 
+
+```{r, fig.height=10, fig.width=7}
 fit_RT <- readRDS(here::here("Analyses","Legrand reanalysis","workspace","ICC_RT.RDS"))
 
 
@@ -1082,8 +1037,11 @@ fit_full <- mod$sample(
 
 
 fit_full$save_object(here::here("Analyses","Legrand reanalysis","workspace","ICC_full.RDS"))
+```
 
-#ICC_full <- readRDS(here::here("Analyses","Legrand reanalysis","workspace","ICC_full.RDS"))
+
+```{r, fig.height=10, fig.width=7}
+ICC_full <- readRDS(here::here("Analyses","Legrand reanalysis","workspace","ICC_full.RDS"))
 
 
 cor_noun_alpha = get_correlation(ICC_full,"psyalpha")
@@ -1143,36 +1101,8 @@ ICC_full = rbind(ICC_full1,ICC_full2)
 ```
 
 
-
+#save workspace for table
 
 ```{r}
-
-d = rbind(
-  rbind(d1,d2,d3,d4,d5,d6),
-  rbind(ddq_full,ddq_rt,ddq),
-  rbind(ICC, ICC_rt, ICC_full)
-)%>% filter(variable %in% c("alpha", "beta") & propergated_uncertainty == TRUE)
-
-
-d$model = as.factor(d$model)
-d$structure = as.factor(d$structure)
-
-levels(d$model)
-levels(d$structure)
-
-d$structure <- factor(d$structure, levels = c("Single","Hierarchical","Nested Hierarchical"))
-
-d$text <- as.character(d$text)
-
-d
-
-table = d %>% arrange(structure,model,lapse) %>% mutate(propergated_uncertainty = NULL) %>% pivot_wider(names_from = "variable",values_from = "text") %>% 
-  select(alpha,beta,lapse,model,structure)
-
-library(flextable)
-
-
-write.csv(table, file = here::here("table3.csv"))
-
-flextable::flextable(table) %>% width(1:2, width = 1.5)
+save.image("~/Master-thesis/Analyses/Legrand reanalysis/workspace/full_workspace.RData")
 ```

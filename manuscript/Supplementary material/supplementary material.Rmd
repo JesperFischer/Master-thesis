@@ -88,6 +88,21 @@ cowplot::ggdraw() +
 
 ```
 
+### Supplementary table 2
+
+```{r, fig.height=7.2, fig.width=7.2, warning = F, message = F, echo = F}
+
+table3 = read.csv(here::here("Supplementary tables","Supplementary table2.PNG")) %>% mutate(X = NULL)
+
+
+table3 = flextable::flextable(table3) %>% width(c(1,2), width = 1.7)%>% width(5, width = 1.1)%>% width(4, width = 1)
+
+table3
+
+```
+
+
+
 
 ## Supplementary Notes:
 
