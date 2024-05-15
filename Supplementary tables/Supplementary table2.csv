@@ -1,0 +1,10 @@
+"","variable","mean","q5","q95"
+"1","mu_threshold",-8.35,-9.5,-7.17
+"2","mu_slope",2.26,2.21,2.31
+"3","mu_lapse",-4.93,-5.93,-4.15
+"4","std_threshold_between",7.92,6.86,8.98
+"5","std_slope_between",0.14,0.03,0.23
+"6","std_lapse_between",0.48,0.04,1.19
+"7","std_threshold_within",7.36,6.7,8.08
+"8","std_slope_within",0.34,0.26,0.41
+"9","std_lapse_within",1.99,1.46,2.61

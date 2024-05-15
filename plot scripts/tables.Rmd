@@ -102,35 +102,9 @@ table3 = flextable::flextable(table3) %>% width(1:2, width = 1.5)
 saveRDS(table3,here::here("tables","table3.rds"))
 ```
 
-# Supplementary table 2
+# Supplementary table 1
 ```{r}
-load(here::here("Analyses","Legrand reanalysis","workspace","full_workspace.RData"))
 
-d = rbind(
-  rbind(d1,d2,d3,d4,d5,d6),
-  rbind(ddq_full,ddq_rt,ddq),
-  rbind(ICC, ICC_rt, ICC_full)
-)
-
-
-d$model = as.factor(d$model)
-d$structure = as.factor(d$structure)
-
-levels(d$model)
-levels(d$structure)
-
-d$structure <- factor(d$structure, levels = c("Single","Hierarchical","Nested Hierarchical"))
-
-d$text <- as.character(d$text)
-
-table = d %>% mutate(lapse_included = lapse) %>% mutate(lapse = NULL) %>% 
-  mutate(variable = ifelse(variable == "lapse","lambda",variable)) %>% 
-  mutate(variable = ifelse(variable == "conf_int","intercept_conf",variable)) %>% 
-  arrange(structure,model,lapse_included,propergated_uncertainty) %>% 
-  pivot_wider(names_from = "variable",values_from = "text")
-
-library(xlsx)
-write.xlsx(table, file = here::here("Supplementary tables","Supplementary table2.xlsx"))
 ```
 
 

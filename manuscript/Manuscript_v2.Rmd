@@ -55,36 +55,43 @@ part of the computation done for this project was performed on the UCloud intera
 
 ```
 
+\newpage
 
 ```{r Measurement uncertainty_v2, child="Measurement uncertainty_v2.Rmd"}
 
 ```
 
+\newpage
 
 ```{r Modeling definitions, child="Modeling definitions.Rmd"}
 
 ```
 
+\newpage
 
 ```{r uncertainty minimazation, child="uncertainty minimazation.Rmd"}
 
 ```
 
+\newpage
+
 ```{r Real data, child="Real data.Rmd"}
 
 ```
 
+\newpage
 
 ```{r Power analysis, child="Power analysis.Rmd"}
 
 ```
 
+\newpage
 
 ```{r Discussion, child="Discussion.Rmd"}
 
 ```
 
-
+\newpage
 
 # References
 

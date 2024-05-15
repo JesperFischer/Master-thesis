@@ -1,3 +1,6 @@
+
+\newpage
+
 # Supplementary material
 
 ## **Supplementary Figures**
@@ -59,7 +62,7 @@ cowplot::ggdraw() +
 
 ### Supplementary figure 7
 
-```{r, fig.height=7.2, fig.width=7.2, warning = F, message = F, echo = F, fig.cap = "**Supplemenary figure 3 Parameter recovery of the psychometric function for all four parameter recovery metrics investigated.**"}
+```{r, fig.height=7.2, fig.width=7.2, warning = F, message = F, echo = F, fig.cap = "**Supplemenary figure 7. Parameter recovery of the psychometric function for the correlation coefficient for each parameter (columns) in each combination of including and not including rts and its size (color) and the simulated mean slope (rows) for differing number of trials x-axis.**"}
 
 cowplot::ggdraw() +
     cowplot::draw_image(magick::image_read(here::here("Supplementary figures","Supplementary figure7.PNG")), scale = 1)
@@ -68,41 +71,64 @@ cowplot::ggdraw() +
 
 ### Supplementary figure 8
 
-```{r, fig.height=7.2, fig.width=7.2, warning = F, message = F, echo = F, fig.cap = "**Supplemenary figure 8. Group level posterior predictive checks of the 3 types of responses, Confidence, binary (faster or slower) and reaction time on the binary response.** Facets represent the 3 types of responses, 0-1 Confidence ratings, 0 or 1 binary responses of (faster or slower) and the reaction time for these binary responses. Red line depicts the mean of the posterior and the blue lines represents 100 posterior draws."}
+```{r, fig.height=7.2, fig.width=7.2, warning = F, message = F, echo = F, fig.cap = "**Supplemenary figure 8. Group level posterior predictive checks of the 3 types of responses, Confidence, binary (faster or slower) and reaction time on the binary response for the Nested Hierarchical model.** Facets represent the 3 types of responses, 0-1 Confidence ratings, 0 or 1 binary responses of (faster or slower) and the reaction time for these binary responses. Red line depicts the mean of the posterior and the blue lines represents 100 posterior draws."}
 
 cowplot::ggdraw() +
     cowplot::draw_image(magick::image_read(here::here("Supplementary figures","Supplementary figure8.PNG")), scale = 1)
 
 ```
+### Supplementary figure 9
+
+```{r, fig.height=7.2, fig.width=7.2, warning = F, message = F, echo = F, fig.cap = "**Supplemenary figure 8. Group level posterior predictive checks of the 3 types of responses, Confidence, binary (faster or slower) and reaction time on the binary response for the Nested Hierarchical model.** Facets represent the 3 types of responses, 0-1 Confidence ratings, 0 or 1 binary responses of (faster or slower) and the reaction time for these binary responses. Red line depicts the mean of the posterior and the blue lines represents 100 posterior draws."}
+
+cowplot::ggdraw() +
+    cowplot::draw_image(magick::image_read(here::here("Supplementary figures","Supplementary figure9.PNG")), scale = 1)
+
+```
+
+### Supplementary figure 10
+
+```{r, fig.height=7.2, fig.width=7.2, warning = F, message = F, echo = F, fig.cap = "**Supplemenary figure 8. Group level posterior predictive checks of the 3 types of responses, Confidence, binary (faster or slower) and reaction time on the binary response for the non-nested Hierarchical model.** Facets represent the 3 types of responses, 0-1 Confidence ratings, 0 or 1 binary responses of (faster or slower) and the reaction time for these binary responses. Red line depicts the mean of the posterior and the blue lines represents 100 posterior draws."}
+
+cowplot::ggdraw() +
+    cowplot::draw_image(magick::image_read(here::here("Supplementary figures","Supplementary figure10.PNG")), scale = 1)
+
+```
+
+### Supplementary figure 11
+
+```{r, fig.height=7.2, fig.width=7.2, warning = F, message = F, echo = F, fig.cap = "**Supplemenary figure 8. Group level posterior predictive checks of the 3 types of responses, Confidence, binary (faster or slower) and reaction time on the binary response for the non-nested Hierarchical model.** Facets represent the 3 types of responses, 0-1 Confidence ratings, 0 or 1 binary responses of (faster or slower) and the reaction time for these binary responses. Red line depicts the mean of the posterior and the blue lines represents 100 posterior draws."}
+
+cowplot::ggdraw() +
+    cowplot::draw_image(magick::image_read(here::here("Supplementary figures","Supplementary figure11.PNG")), scale = 1)
+
+```
+
+\newpage
 
 ## Supplementary tables
 
 ### Supplementary table 1
 
-<!-- this is table of the posterior estimates of the ICC binary model -->
+see [Supplementary table 1](https://github.com/JesperFischer/Master-thesis/blob/main/Supplementary%20tables/Supplementary%20table2.xlsx) which is linked to the github of the thesis. As the table is to big to show on a single page.
 
-```{r, fig.height=7.2, fig.width=7.2, warning = F, message = F, echo = F}
-# 
-# cowplot::ggdraw() +
-#     cowplot::draw_image(magick::image_read(here::here("Supplementary tables","Supplementary table1.PNG")), scale = 1)
-
-```
 
 ### Supplementary table 2
 
+<!-- this is table of the posterior estimates of the ICC binary model -->
+
 ```{r, fig.height=7.2, fig.width=7.2, warning = F, message = F, echo = F}
 
-table3 = read.csv(here::here("Supplementary tables","Supplementary table2.PNG")) %>% mutate(X = NULL)
+table2 = read.csv(here::here("Supplementary tables","Supplementary table2.csv")) %>% mutate(X = NULL)
 
 
-table3 = flextable::flextable(table3) %>% width(c(1,2), width = 1.7)%>% width(5, width = 1.1)%>% width(4, width = 1)
+table2 = flextable::flextable(table2) %>% width(c(1), width = 1.5)
 
-table3
+table2
 
 ```
 
-
-
+\newpage
 
 ## Supplementary Notes:
 
@@ -146,7 +172,7 @@ The pathfinder algorithm was used for optimization of the trial by trial simulat
 
 ### Supplementary note 4: Comparison of ADO algorithms
 
-Comparison between the 3 tested model rested on having each algorithm simulate stimulus values based on simulated parameter values. These simulated stimulus values were then used to obtain responses of the agents (again using the simulated parameter values). Each set of stimuli and responses for each algorithm were then fit using the same bayesian model (see supplementary note 3 and 1) and the posterior distributions were computed for each of the three parameters values (i.e. threshold $\alpha$, slope $\beta$ and lapse rate $\lambda$).
+Comparison between the 3 tested model rested on having each algorithm simulate stimulus values based on simulated parameter values. These simulated stimulus values were then used to obtain responses of the agents (again using the simulated parameter values). Each set of stimuli and responses for each algorithm were then fit using the same Bayesian model (see supplementary note 3 and 1) and the posterior distributions were computed for each of the three parameters values (i.e. threshold $\alpha$, slope $\beta$ and lapse rate $\lambda$).
 
 ### Supplementary note 5: Posterior preditive checks
 
@@ -154,8 +180,12 @@ Supplementary figure 8 and 10 displays the posterior predictive check for the tw
 
 Supplementary figure 9 and 11 depicts instead of the group level estimates a particular participant at a particular session with overlaid data. Interrested readers are refered to [the github ](https://github.com/JesperFischer/Master-thesis/blob/main/manuscript/Supplementary%20material/supplementary%20analyses.Rmd) to explore other participants than depicted here.
 
+Note that for the non-nested hierarchical model the group level estimates are the mean of the two sessions whereas this is directly estimated in the nested hierarchical model.
+
 
 ### Supplementary note 6: Power analysis model description
+
+
 
 ### Supplementary note 7: Power analysis complete set of models
 

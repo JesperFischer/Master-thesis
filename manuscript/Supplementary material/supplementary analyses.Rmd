@@ -300,15 +300,193 @@ ggsave(here::here("Supplementary figures","Supplementary figure9.PNG"),plot = IC
 ```{r}
 full_rt <- readRDS(here::here("Analyses","Legrand reanalysis","workspace","full_rt.RDS"))
 
-full_rt
+
+
+psychometric = function(x, alpha, beta,lapse,int,beta_rt,ndt,int_conf,beta_conf){
+  
+  phi = lapse + (1 - 2* lapse) * (0.5+0.5*pracma::erf((x-alpha)/(beta*sqrt(2))))
+  
+  mu_rt = int + beta_rt * phi * (1-phi) + ndt
+  
+  mu_conf = brms::inv_logit_scaled(int_conf + beta_conf * phi * (1-phi))
+  
+  return(data.frame(phi = phi, rt = mu_rt, conf = mu_conf))
+}
+
+
+groupmeans = as_draws_df(full_rt$draws("gm")) %>% dplyr::select(-contains("."))
+
+names(groupmeans) = c("alpha_ses1","beta_ses1","lapse_ses1","int_ses1","beta_rt_ses1","sigma_rt_ses1","ndt_ses1","int_conf_ses1","beta_conf_ses1","sigma_conf_ses1","alpha_ses2","beta_ses2","lapse_ses2","int_ses2","beta_rt_ses2","sigma_rt_ses2","ndt_ses2","int_conf_ses2","beta_conf_ses2","sigma_conf_ses2")
+
+q = groupmeans %>%
+  pivot_longer(cols = everything(), names_to = c(".value", "session"),
+               names_sep = "_ses") %>% group_by(session) %>% mutate(draw = 1:n()) %>% ungroup() %>% 
+  group_by(draw) %>%
+  summarize(across(c(alpha, beta, lapse, int, beta_rt, sigma_rt, ndt, int_conf, beta_conf, sigma_conf), \(x) mean(x,na.rm = TRUE)))
+
+
+x = seq(-50,50,by = 0.1)
+
+
+qq = q %>% rowwise() %>% 
+  mutate(ys = list(psychometric(x,alpha,exp(beta),brms::inv_logit_scaled(lapse)/2,int,exp(beta_rt), ndt,int_conf,beta_conf)),
+         xs = list(x)) %>% unnest() %>% 
+  rename(Probability = phi, Reaction_time = rt, Confidence = conf) %>% 
+  pivot_longer(cols =  c("Probability","Reaction_time","Confidence"), values_to = "value", names_to = "response") %>% filter(draw < 100) 
+
+
+meanmean = q %>% rowwise() %>% 
+  mutate(ys = list(psychometric(x,alpha,exp(beta),brms::inv_logit_scaled(lapse)/2,int,exp(beta_rt), ndt,int_conf,beta_conf)),
+         xs = list(x)) %>% unnest() %>% 
+  rename(Probability = phi, Reaction_time = rt, Confidence = conf) %>% 
+  pivot_longer(cols = c("Probability","Reaction_time","Confidence"), values_to = "value", names_to = "response") %>% 
+  group_by(xs,response) %>% summarize(mean = mean(value)) %>% mutate(draw = NA)
+
+
+
+NOICC_group = qq %>% 
+  ggplot(aes(x = xs, y = value, group = draw))+
+  geom_line(col = "lightblue1", alpha = 0.5)+
+  geom_line(data = meanmean, aes(x = xs, y = mean), col = "red")+
+  facet_wrap(~response, ncol = 1)+
+  theme_classic()+ggtitle("Full model using the non-nested hierarchical model")
+
+NOICC_group
+ggsave(here::here("Supplementary figures","Supplementary figure10.PNG"),plot = NOICC_group, dpi = 600, width = 7.2, height = 7.2)
+
+```
+
+# Single sub visualiztion (no ICC)
+
+```{r, fig.height=7.2,fig.width=7.2}
+select <- dplyr::select
+
+source(here::here("Analyses","Legrand reanalysis","legrand_scripts.R"))
+hrd = get_data(rt_threshold_s = 0.1)
+
 ```
 
 
+```{r, fig.height=7.2,fig.width=7.2}
+psychometric_singlesub = function(x, alpha, beta,lapse,int,beta_rt,ndt,int_conf,beta_conf,minrt){
+  
+  phi = lapse + (1 - 2* lapse) * (0.5+0.5*pracma::erf((x-alpha)/(beta*sqrt(2))))
+  
+  mu_rt = int + beta_rt * phi * (1-phi) + ndt*minrt+1
+  
+  mu_conf = brms::inv_logit_scaled(int_conf + beta_conf * phi * (1-phi))
+  
+  return(data.frame(phi = phi, rt = mu_rt, conf = mu_conf))
+}
+
+s_id = 100
+ses = 2
+
+realdata = hrd %>% arrange(s,session) %>% filter(s == s_id, session == ses) %>% mutate(Confidence = Confidence/100) %>% 
+  rename(Probability = y, Reaction_time = RT, Confidence = Confidence) %>% 
+  pivot_longer(cols = c("Probability","Reaction_time","Confidence"), values_to = "value", names_to = "response")
+
+
+variable = "psyalpha"
+variable1 = "psybeta"
+variable2 = "lapse"
+variable3 = "intercept"
+variable4 = "beta"
+variable5 = "sigma"
+variable6 = "ndt"
+variable7 = "intercept_conf"
+variable8 = "beta_conf"
+variable9 = "sigma_conf"
+
+groupmeans = as_draws_df(full_rt$draws(c(variable,variable1,variable2,variable3,variable4,variable5,variable6,variable7,variable8,variable9))) %>% dplyr::select(-contains("."))
+
+pattern <- paste0("\\[",s_id,",",ses,"\\]")  # Match any number followed by ',2' inside square brackets
+
+# Extract the matching elements
+matching_columns <- grep(pattern, names(groupmeans))
+
+groupmeans = groupmeans[,matching_columns]
+
+names(groupmeans) = c("alpha","beta","lapse","int","beta_rt","sigma_rt","ndt","int_conf","beta_conf","sigma_conf")
+
+x = seq(-50,50,by = 0.1)
+
+
+qq = groupmeans%>% mutate(draw = 1:n()) %>% rowwise() %>% 
+  mutate(ys = list(psychometric_singlesub(x,alpha,beta,lapse,int,beta_rt,
+                                          ndt,int_conf,beta_conf,
+                                          min(realdata %>% filter(response == "Reaction_time") %>% .$value))),
+         xs = list(x)) %>% unnest() %>% 
+  rename(Probability = phi, Reaction_time = rt, Confidence = conf) %>% 
+  pivot_longer(cols =  c("Probability","Reaction_time","Confidence"), values_to = "value", names_to = "response") %>% filter(draw < 100) 
+
+
+noICC_single = realdata %>% 
+  ggplot(aes(x = x, y = value))+geom_point()+facet_wrap(~response,ncol=1, scales ="free")+theme_classic()+
+  geom_line(data = qq, aes(x = xs, y = value, group = draw), alpha = 0.5,col = "lightblue3")
+
+
+noICC_single
+
+ggsave(here::here("Supplementary figures","Supplementary figure11.PNG"),plot = noICC_single, dpi = 600, width = 7.2, height = 7.2)
+
+```
 ## Supplementary table 1
+
+
+```{r}
+load(here::here("Analyses","Legrand reanalysis","workspace","full_workspace.RData"))
+
+d = rbind(
+  rbind(d1,d2,d3,d4,d5,d6),
+  rbind(ddq_full,ddq_rt,ddq),
+  rbind(ICC, ICC_rt, ICC_full)
+)
+
+
+d$model = as.factor(d$model)
+d$structure = as.factor(d$structure)
+
+levels(d$model)
+levels(d$structure)
+
+d$structure <- factor(d$structure, levels = c("Single","Hierarchical","Nested Hierarchical"))
+
+d$text <- as.character(d$text)
+
+table = d %>% mutate(lapse_included = lapse) %>% mutate(lapse = NULL) %>% 
+  mutate(variable = ifelse(variable == "lapse","lambda",variable)) %>% 
+  mutate(variable = ifelse(variable == "conf_int","intercept_conf",variable)) %>% 
+  arrange(structure,model,lapse_included,propergated_uncertainty) %>% 
+  pivot_wider(names_from = "variable",values_from = "text")
+
+library(xlsx)
+write.xlsx(table, file = here::here("Supplementary tables","Supplementary table1.xlsx"))
+```
+
+## Supplementary table 2
 
 ```{r}
 ICC_nort_new <- readRDS("~/Master-thesis/Analyses/Legrand reanalysis/workspace/ICC_nort_new.RDS")
 
-ICC_nort_new 
+d = ICC_nort_new$summary(c("mu_g","tau_b","tau_w")) %>% dplyr::select(variable,mean,q5,q95)
+
+names = c("mu_threshold","mu_slope","mu_lapse","std_threshold_between","std_slope_between","std_lapse_between",
+          "std_threshold_within","std_slope_within","std_lapse_within")
+
+d$variable = names
+
+library(flextable)
+
+d[,2:4] = round(d[,2:4],2)
+
+
+write.csv(d, here::here("Supplementary tables","Supplementary table2.csv"))
+
+# Create flextable
+ft <- flextable(d)
+ft
+
+saveRDS(ft,here::here("Supplementary tables","Supplementary table2.rds"))
 ```
 
