@@ -185,6 +185,7 @@ Note that for the non-nested hierarchical model the group level estimates are th
 
 ### Supplementary note 6: Power analysis model description
 
+The full stancode for the model used in the power analysis, see [the github](https://github.com/JesperFischer/Master-thesis/blob/main/Analyses/Power%20analysis/Make%20datasets/Parameterized%20cummulative%20normal.stan). The model assumes that all three parameters of the psychometric function is drawn from a multivariate normal distribution with group means and between subjects variances, furthermore two group differences are also drawn from this multivariate normal distribution that calculates the the difference between slopes and thresholds between sessions. The variance co-variance matrix was decomposed using the Cholesky-decomposition and the LKJ-prior was used for the correlation coefficients between parameters which was set to $\eta = 2$ i.e. a quite wide prior on the correlation but with less mass for more extreme correlations.
 
 
 ### Supplementary note 7: Power analysis complete set of models

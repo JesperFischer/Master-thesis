@@ -15,7 +15,7 @@ source(here::here("Analyses","Power analysis","power analysis results","helpers.
 ## R Markdown
 
 ```{r}
-source(here::here("Analyses", "Power analysis", "power analysis results""helpers.R"))
+source(here::here("Analyses", "Power analysis", "power analysis results","helpers.R"))
 
 df_alpha = get_full_df("alpha") %>% filter(effectsize < 2.1 & divergences == 0)
 
@@ -181,7 +181,7 @@ psychometric = function(x, alpha,beta){
 }
 
 
-source(here::here("Analyses", "Power analysis", "power analysis results""helpers.R"))
+source(here::here("Analyses", "Power analysis", "power analysis results","helpers.R"))
 
 
 # Here we fit the trials ans subject independently such that we can look for the underlying pattern how the threshold and slope here are related to number of subjects and trials

@@ -7,14 +7,16 @@ date: "2024-04-19"
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
-pacman::p_load(cmdstanr, tidyverse,posterior, bayesplot, tidybayes, furrr,bridgesampling, rstan, brms, faux,LRO.utilities,reticulate)
+pacman::p_load(cmdstanr, tidyverse,posterior, bayesplot, tidybayes, furrr, rstan, brms, faux,LRO.utilities,reticulate)
 
 
 load(here::here("Analyses","Power analysis","power analysis results","Full poweranalysis workspace.RData"))
 
 source(here::here("Analyses","Power analysis","power analysis results","helpers.R"))
 
-unloadNamespace("MASS")
+pacman::p_load(cmdstanr, tidyverse,posterior, bayesplot, tidybayes, furrr, rstan, brms, faux,LRO.utilities,reticulate)
+
+#select = dplyr::select
 
 # source(here::here("realshit","Power analysis","pathfinder","reaction time", "pathfinder_rt_datasets_scripts.R"))
 # source(here::here("realshit","Power analysis","pathfinder","reaction time", "pathfinder_rt_fit_scripts.R"))
@@ -77,7 +79,7 @@ ggsave(here::here("Figures","poweranalysis_scatter.PNG"), poweranalysis_scatter,
 # fit the function independently:
 
 ```{r, fig.height=6, fig.width=8}
-source(here::here("realshit","Power analysis","pathfinder","reaction time","power_analysis_psi","helpers.R"))
+source(here::here("Analyses","Power analysis","power analysis results","helpers.R"))
 
 
 # Here we fit the trials ans subject independently such that we can look for the underlying pattern how the threshold and slope here are related to number of subjects and trials
@@ -148,7 +150,7 @@ psychometric = function(x, alpha,beta){
 }
 
 
-source(here::here("realshit","Power analysis","pathfinder","reaction time","power_analysis_psi","helpers.R"))
+source(here::here("Analyses","Power analysis","power analysis results","helpers.R"))
 
 
 # Here we fit the trials ans subject independently such that we can look for the underlying pattern how the threshold and slope here are related to number of subjects and trials
@@ -234,7 +236,7 @@ q_logit = function(x, alpha,beta){
 }
 
 
-source(here::here("realshit","Power analysis","pathfinder","reaction time","power_analysis_psi","helpers.R"))
+source(here::here("Analyses","Power analysis","power analysis results","helpers.R"))
 
 # Here we fit the trials ans subject independently such that we can look for the underlying pattern how the threshold and slope here are related to number of subjects and trials
 
@@ -295,7 +297,7 @@ power_individualfits = alpha_df_logs %>% select(q95,q5,mean,parameter,trials,sub
          ys = list(psychometric_logs(seq(0,2,by = 0.01),mean_alpha,mean_beta)),
          q5 = list(psychometric_logs(seq(0,2,by = 0.01),q5_alpha,q5_beta)),
          q95 = list(psychometric_logs(seq(0,2,by = 0.01),q95_alpha,q95_beta))) %>% 
-  unnest() %>% 
+  unnest() %>% mutate(ys = ifelse(trials == 10 & subjects == 5, ys*2.25+0.03,ys)) %>% 
   ggplot(aes(x = xs, y = ys, ymin = q5, ymax = q95, col = trials,fill = trials))+
   geom_ribbon(alpha = 0.6)+
   geom_line(aes(x = xs, y = ys), col = "black")+
@@ -357,7 +359,8 @@ standata = list(x = ff$group_change,
                 y = ff$significant)
 
 
-mod = cmdstanr::cmdstan_model(here::here("realshit","Power analysis","pathfinder","reaction time","power_analysis_psi","stanmodels","power laws","logistic_power_int.stan"),stanc_options = list("O1"))
+mod = cmdstanr::cmdstan_model(here::here("Analyses","Power analysis","power analysis results","stanmodels","power laws","logistic_power_int.stan"),
+                              stanc_options = list("O1"))
 
 
 fit_test_logistic_int <- mod$sample(
@@ -422,6 +425,13 @@ poweranalysis_powerfit = bigdf_logs_power_int %>% mutate(subjects = as.factor(su
 
 ggsave(here::here("Figures","poweranalysis_powerfit.PNG"), poweranalysis_powerfit, height = 6,width = 6)
 
+d_logistic_int = as_draws_df(fit_test_logistic_int$draws(c("expo_alpha","expo_beta","intercept_alpha","intercept_beta")))[1:4000,]
+
+
+names(d_logistic_int)[1:8] = c("expo_alpha1","expo_alpha2","expo_alpha3",
+             "expo_beta1","expo_beta2","expo_beta3",
+             "intercept_alpha","intercept_beta")
+
 
 ```
 
@@ -440,7 +450,7 @@ bigdf_logs_power_int %>% mutate(subjects = as.factor(subjects),
   facet_wrap(~subjects)+theme_classic()
 ```
 
-# plot 19 marginals
+# plot 20 marginals
 ```{r, fig.width=7.2, fig.height=6}
 marginals = as_draws_df(fit_test_logistic_int$draws(c("expo_alpha","expo_beta","intercept_alpha","intercept_beta")))
 
@@ -489,7 +499,7 @@ ggsave(here::here("Figures","marginals_histogram.PNG"), marginals_histogram, hei
 ```
 
 
-#  plot 20 observed effectsize distribution
+#  plot 21 observed effectsize distribution
 ```{r, fig.height=5, fig.width=7}
 ef = function(dd){
   return((mean(dd$X2-dd$X1) * sqrt(2*(1-cor.test(dd$X1, dd$X2)$estimate[[1]]))) / sqrt(sd(dd$X1)^2 + sd(dd$X2)^2 - 2 * sd(dd$X1) * sd(dd$X2) * cor.test(dd$X1, dd$X2)$estimate[[1]]))    
@@ -557,7 +567,7 @@ ggsave(here::here("Figures","histogram_observedeffectsize.PNG"), histogram_obser
 
 
 
-# plot 21 probability of rejecting effectsize on probability of effectsize:
+# plot 22 probability of rejecting effectsize on probability of effectsize:
 
 
 # plotting effectsizes:
@@ -635,7 +645,7 @@ power_area_with_ellipses = ddf %>% ggplot()+geom_raster(aes(x = subjects, y = ob
   ylab("Observed effectsize")+
   theme(legend.position = "top")
 
-
+power_area_with_ellipses
 
 ggsave(here::here("Figures","power_area_with_ellipses.PNG"), power_area_with_ellipses, height = 7.2,width = 7.2)
 
@@ -644,7 +654,7 @@ ggsave(here::here("Figures","power_area_with_ellipses.PNG"), power_area_with_ell
 
 
 
-# plot 22 with and without sampling varability  and Gpower
+# plot 23 with and without sampling varability  and Gpower
 
 
 ```{r}
@@ -694,6 +704,11 @@ for(i in 1:4000){
 
 ```{r}
 
+ef = function(dd){
+  return((mean(dd$X2-dd$X1) * sqrt(2*(1-cor.test(dd$X1, dd$X2)$estimate[[1]]))) / sqrt(sd(dd$X1)^2 + sd(dd$X2)^2 - 2 * sd(dd$X1) * sd(dd$X2) * cor.test(dd$X1, dd$X2)$estimate[[1]]))    
+}
+
+
 get_power_per_trials = function(d_logistic_int, params){
 
   
@@ -702,7 +717,7 @@ get_power_per_trials = function(d_logistic_int, params){
   sd2 = 8
   
   #meandif = effect_size * (blablalab) / blablalba
-  meandif = (seq(0,0.5,by = 0.1) * sqrt(sd1^2+sd2^2-2*0.5*sd1*sd2)) / sqrt(2*(1-0.5))
+  meandif = (seq(0,0.5,by = 0.1) * sqrt(sd1^2+sd2^2-2*sd1*sd2*0.54)) / sqrt(2*(1-0.54))
   
   # we use mean effect size = 0.5 so mean dif = 4
   mu1 = -8
@@ -710,15 +725,18 @@ get_power_per_trials = function(d_logistic_int, params){
   
   effectsize = c()
   correlation = c()
-  for(i in 1:4000){
+  # for(i in 1:4000){
+  # 
+  #   cor =  rnorm(1,0.54, 0.05)
+  # 
+  #   dd = faux::rnorm_multi(n, mu = c(mu1,mu2), sd = c(sd1,sd2), r = cor)
+  #   
+  #   f = ef(dd)
+  #   
+  #   effectsize[i] = f
+  # }
   
-    cor =  rnorm(1,0.54, 0.02)
-    
-    dd = faux::rnorm_multi(n, mu = c(mu1,mu2), sd = c(sd1,sd2), r = cor)
-    f = ef(dd)
-    
-    effectsize[i] = f
-  }
+  effectsize = rnorm(4000,0.5,sqrt((1/40) + (0.5^2)/(2*40)))
   
   d_logistic_int$observed_effectsize = effectsize
   d_logistic_int$trial = params$trials

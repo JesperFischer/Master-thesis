@@ -1,5 +1,5 @@
 get_df = function(subjects,trials,parameter){
-  files = list.files(here::here("realshit","Power analysis","pathfinder","reaction time","power_analysis_psi",parameter), recursive = T)
+  files = list.files(here::here("Analyses","Power analysis","power analysis results",parameter), recursive = T)
   
   realfiles = files[grepl(paste0("trials=",trials),files)]
   
@@ -12,7 +12,7 @@ get_df = function(subjects,trials,parameter){
   df = data.frame()
   for(i in 1:length(realfiles)){
     effectsize = str_sub(realfiles[i], nchar(realfiles[i])-6,nchar(realfiles[i])-4)
-    result = readRDS(here::here("realshit","Power analysis","pathfinder","reaction time","power_analysis_psi", parameter,realfiles[i]))
+    result = readRDS(here::here("Analyses","Power analysis","power analysis results", parameter,realfiles[i]))
     tester = map_dfr(result, 1) %>% mutate(effectsize = as.numeric(effectsize), parameters = parameter)
     df = rbind(df,tester)
   }
@@ -22,7 +22,7 @@ get_df = function(subjects,trials,parameter){
 
 
 get_full_df = function(parameter){
-  dirs = list.files(here::here("realshit","Power analysis","pathfinder","reaction time","power_analysis_psi",parameter))
+  dirs = list.files(here::here("Analyses","Power analysis","power analysis results",parameter))
   #dirs = dirs[!grepl("subjects=50",dirs)]
   #dirs = dirs[!grepl("subjects=10_trials=25",dirs)]
   
@@ -110,7 +110,7 @@ fit_results_independent_trials_and_subjects = function(df,parameter, signi_level
                   y = ff$significant)
   
   
-  mod = cmdstanr::cmdstan_model(here::here("realshit","Power analysis","pathfinder","reaction time","power_analysis_psi","stanmodels","indpendent trials and subject effects.stan"),stanc_options = list("O1"))
+  mod = cmdstanr::cmdstan_model(here::here("Analyses","Power analysis","power analysis results","stanmodels","indpendent trials and subject effects.stan"),stanc_options = list("O1"))
   
   
   fit_cond_cmd <- mod$sample(
@@ -168,7 +168,7 @@ fit_results_independent_trials_and_subjects_v2 = function(df,parameter, signi_le
                   y = ff$significant)
   
   
-  mod = cmdstanr::cmdstan_model(here::here("realshit","Power analysis","pathfinder","reaction time","power_analysis_psi","stanmodels","indpendent trials and subject effects weibull.stan"),stanc_options = list("O1"))
+  mod = cmdstanr::cmdstan_model(here::here("Analyses","Power analysis","power analysis results","stanmodels","indpendent trials and subject effects weibull.stan"),stanc_options = list("O1"))
   
   
   fit_cond_cmd <- mod$sample(
@@ -227,7 +227,7 @@ fit_results_independent_trials_and_subjects_v3 = function(df,parameter, signi_le
                   y = ff$significant)
   
   
-  mod = cmdstanr::cmdstan_model(here::here("realshit","Power analysis","pathfinder","reaction time","power_analysis_psi","stanmodels","independent trials and subjects logs.stan"),stanc_options = list("O1"))
+  mod = cmdstanr::cmdstan_model(here::here("Analyses","Power analysis","power analysis results","stanmodels","independent trials and subjects logs.stan"),stanc_options = list("O1"))
   
   
   fit_cond_cmd <- mod$sample(
@@ -279,7 +279,7 @@ fit_exponential_decays = function(df,parameter, ntrials, indi_parameters, signi_
                   y = ff$significant)
   
   
-  mod = cmdstanr::cmdstan_model(here::here("realshit","Power analysis","pathfinder","reaction time","power_analysis_psi","stanmodels","exponential decay with asymptote.stan"),stanc_options = list("O1"))
+  mod = cmdstanr::cmdstan_model(here::here("Analyses","Power analysis","power analysis results","stanmodels","exponential decay with asymptote.stan"),stanc_options = list("O1"))
   #mod = cmdstanr::cmdstan_model(here::here("realshit","Power analysis","pathfinder","reaction time","power_analysis_psi","stanmodels","exponential decay with asymptote_both.stan"),stanc_options = list("O1"))
   #mod = cmdstanr::cmdstan_model(here::here("realshit","Power analysis","pathfinder","reaction time","power_analysis_psi","stanmodels","exponential decay without asymptote.stan"),stanc_options = list("O1"))
   
@@ -398,9 +398,9 @@ fit_exponential_decays = function(df,parameter, ntrials, indi_parameters, signi_
                   y = ff$significant)
   
   
-  mod = cmdstanr::cmdstan_model(here::here("realshit","Power analysis","pathfinder","reaction time","power_analysis_psi","stanmodels","exponential decay with asymptote_both.stan"),stanc_options = list("O1"))
+  mod = cmdstanr::cmdstan_model(here::here("Analyses","Power analysis","power analysis results","stanmodels","exponential decay with asymptote_both.stan"),stanc_options = list("O1"))
 
-  mod = cmdstanr::cmdstan_model(here::here("realshit","Power analysis","pathfinder","reaction time","power_analysis_psi","stanmodels","weibull2.stan"),stanc_options = list("O1"))
+  mod = cmdstanr::cmdstan_model(here::here("Analyses","Power analysis","power analysis results","stanmodels","weibull2.stan"),stanc_options = list("O1"))
   
   
   fit <- mod$sample(
