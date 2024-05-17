@@ -8,8 +8,10 @@ date: "2024-04-19"
 knitr::opts_chunk$set(echo = TRUE)
 
 pacman::p_load(cmdstanr, tidyverse,posterior, bayesplot, tidybayes, furrr, rstan, brms, faux,LRO.utilities,reticulate)
+```
 
 
+```{r}
 load(here::here("Analyses","Power analysis","power analysis results","Full poweranalysis workspace.RData"))
 
 source(here::here("Analyses","Power analysis","power analysis results","helpers.R"))
@@ -558,7 +560,7 @@ histogram_observedeffectsize = df %>% mutate(cor = as.factor(cor)) %>% rename(co
   facet_wrap(~subs, scales = "free", labeller = label_both, ncol = 4)+geom_histogram(col = "black", alpha = 0.8, position = "identity")+theme_classic()+xlab("Observed effectsize")+theme(legend.position = "top")+
   scale_x_continuous(breaks = scales::pretty_breaks(n = 4))+geom_vline(xintercept = 0, linetype = 2)
 
-
+histogram_observedeffectsize
 
 ggsave(here::here("Figures","histogram_observedeffectsize.PNG"), histogram_observedeffectsize, height = 5,width = 7)
 
@@ -699,6 +701,8 @@ for(i in 1:4000){
   correlation[i] = cor.test(dd$X1, dd$X2)$estimate[[1]]
   effectsize[i] = f
 }
+
+hist(effectsize)
 ```
 
 
@@ -721,22 +725,20 @@ get_power_per_trials = function(d_logistic_int, params){
   
   # we use mean effect size = 0.5 so mean dif = 4
   mu1 = -8
-  mu2 = (-8 + meandif[6])
+  mu2 = (-8 + 4)
   
   effectsize = c()
   correlation = c()
-  # for(i in 1:4000){
-  # 
-  #   cor =  rnorm(1,0.54, 0.05)
-  # 
-  #   dd = faux::rnorm_multi(n, mu = c(mu1,mu2), sd = c(sd1,sd2), r = cor)
-  #   
-  #   f = ef(dd)
-  #   
-  #   effectsize[i] = f
-  # }
-  
-  effectsize = rnorm(4000,0.5,sqrt((1/40) + (0.5^2)/(2*40)))
+  for(i in 1:4000){
+
+    cor =  rnorm(1,0.54, 0.05)
+
+    dd = faux::rnorm_multi(n, mu = c(mu1,mu2), sd = c(sd1,sd2), r = cor)
+
+    f = ef(dd)
+
+    effectsize[i] = f
+  }
   
   d_logistic_int$observed_effectsize = effectsize
   d_logistic_int$trial = params$trials
@@ -755,10 +757,10 @@ get_power_per_trials = function(d_logistic_int, params){
 }
 
 
-trials = seq(10,200,by = 1)
+trials = seq(10,200,by = 2)
 subs = seq(10,50,by = 1)
 
-replicate = 1:3
+replicate = 1:5
 
 
 parameters = expand.grid(trials = trials,
@@ -768,8 +770,8 @@ parameters = expand.grid(trials = trials,
 data_list <- split(parameters, parameters$id)
   
 
-cores = 15
-plan(multisession, workers = cores)
+#cores = 15
+#plan(multisession, workers = cores)
 
 possfit_model = possibly(.f = get_power_per_trials, otherwise = "Error")
 
@@ -783,8 +785,8 @@ df_un %>% group_by(trials, subs) %>% summarize(mean = mean(power), sd = sd(power
   geom_pointrange(aes(x = trials, y = mean, ymin = mean-2*sd, ymax = mean+2*sd, col = subs))+facet_wrap(~subs)
 
 
-subtract = 0.015
-linedata = df_un %>% group_by(trials, subs) %>% summarize(mean_power = round(mean(power),3)) %>% filter(mean_power < 0.8+subtract & mean_power > 0.8-subtract) %>% filter(trials < 199)
+subtract = 0.005
+linedata = df_un %>% group_by(trials, subs) %>% summarize(mean_power = round(mean(power),3)) %>% filter(mean_power < 0.8+subtract & mean_power > 0.8-subtract)
 
 pun = df_un %>% 
   group_by(trials, subs) %>% summarize(mean_power = round(mean(power),3))%>% 
@@ -814,11 +816,11 @@ get_power_per_trials_no_unc = function(d_logistic_int, params){
   sd2 = 8
   
   #meandif = effect_size * (blablalab) / blablalba
-  meandif = (seq(0,0.5,by = 0.1) * sqrt(sd1^2+sd2^2-2*0.5*sd1*sd2)) / sqrt(2*(1-0.5))
+  meandif = (seq(0,0.5,by = 0.1) * sqrt(sd1^2+sd2^2-2*0.54*sd1*sd2)) / sqrt(2*(1-0.54))
   
   # we use mean effect size = 0.5 so mean dif = 4
   mu1 = -8
-  mu2 = (-8 + meandif[6])
+  mu2 = (-8 + 4)
   
   effectsize = 0.5
 
@@ -839,7 +841,7 @@ get_power_per_trials_no_unc = function(d_logistic_int, params){
 }
 
 
-trials = seq(10,300,by = 1)
+trials = seq(10,200,by = 2)
 subs = seq(10,50,by = 1)
 
 replicate = 1
@@ -852,8 +854,8 @@ parameters = expand.grid(trials = trials,
 data_list <- split(parameters, parameters$id)
   
 
-cores = 8
-plan(multisession, workers = cores)
+# cores = 8
+# plan(multisession, workers = cores)
 
 possfit_model = possibly(.f = get_power_per_trials_no_unc, otherwise = "Error")
 
@@ -862,10 +864,10 @@ results <- future_map(data_list, ~possfit_model(d_logistic_int,.x), .options = f
 df_noun = map_dfr(results,bind_rows)
 
 
-
-df_noun %>% group_by(trials, subs) %>% summarize(mean = mean(power), sd = sd(power)) %>% 
-  ggplot(aes(x = trials, y = mean, ymin = mean-2*sd, ymax = mean+2*sd, col = subs))+
-  geom_pointrange(position=position_dodge(width = 0.2))+facet_wrap(~subs)
+# 
+# df_noun %>% group_by(trials, subs) %>% summarize(mean = mean(power), sd = sd(power)) %>% 
+#   ggplot(aes(x = trials, y = mean, ymin = mean-2*sd, ymax = mean+2*sd, col = subs))+
+#   geom_pointrange(position=position_dodge(width = 0.2))+facet_wrap(~subs)
 
 
 
@@ -884,14 +886,75 @@ p_noun = df_noun %>% group_by(trials, subs) %>% summarize(mean_power = round(mea
 p_noun
 
 ```
+# replicate gpower
+
+```{r}
+
+get_power_gpower = function(params){
+
+  
+  n = params$subs
+  sd1 = 8
+  sd2 = 8
+  
+  # we use mean effect size = 0.5 so mean dif = 4
+  mu1 = -8
+  mu2 = (-8 + 4)
+  
+  
+  effectsize = c()
+  correlation = c()
+  pval = c()
+  for(i in 1:4000){
+
+    cor =  rnorm(1,0.54, 0.05)
+
+    dd = faux::rnorm_multi(n, mu = c(mu1,mu2), sd = c(sd1,sd2), r = cor)
+
+    f = ef(dd)
+
+    q = t.test(dd$X1,dd$X2,alternative = "less", paired = T)
+
+    pval[i] = q$p.value
+    
+    effectsize[i] = f
+  }
+  
+  data.frame(power = sum(pval < 0.05)/4000, subs = params$subs, replication = params$replicate)
+}
+
+
+subs = seq(10,40,by = 1)
+
+replicate = 1
+
+
+parameters = expand.grid(replicate = replicate,
+                        subs = subs) %>% mutate(id = 1:n())
+
+data_list <- split(parameters, parameters$id)
+  
+
+# cores = 8
+# plan(multisession, workers = cores)
+
+possfit_model = possibly(.f = get_power_gpower, otherwise = "Error")
+
+results <- future_map(data_list, ~possfit_model(.x), .options = furrr_options(seed = TRUE), .progress = T)
+
+df_noun = map_dfr(results,bind_rows)
+
+
+df_noun
+```
 
 
 
 ```{r, fig.width=7.2,fig.height=7.2}
 library(patchwork)
 
-power_sampling_varability_and_gpower = p_noun+geom_segment(aes(y = 20, yend = 20, x = 10, xend = 200),linetype = 2, col = "red")+
-  pun+geom_segment(aes(y = 20, yend = 20, x = 10, xend = 200),linetype = 2, col = "red")+ 
+power_sampling_varability_and_gpower = p_noun+geom_segment(aes(y = 25, yend = 25, x = 10, xend = 200),linetype = 2, col = "red")+
+  pun+geom_segment(aes(y = 25, yend = 25, x = 10, xend = 200),linetype = 2, col = "red")+ 
   plot_layout(guides = "collect")&theme(legend.position = "top")
 
 power_sampling_varability_and_gpower
