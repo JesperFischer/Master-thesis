@@ -69,10 +69,17 @@ $$
 To show how these reaction times help with recovery of the parameters of interest i.e. the threshold and slope of the PF, agents with the parameter values displayed in table 2 were simulated. To understand the influence of the size of coupling between the binary responses and the reaction times ($\beta_{RT}$) this parameter was simulated with either a high or low group mean, 1.5 and 1 respectively. The steepness of the slope of the PF was also varied between high and low, 1 and 3 respectively. Again, showing and understanding what these parameter values mean, one simulates the parameters and display the behavior. This can be seen in figure 14 where 10 simulated subjects are visualized. The figure clearly shows the relationship between the PF and the reaction time function. In the high stimulus values i.e. the most extreme x-values the reaction times are fast and the psychometric function is approaching 0 or 1. As the PF increases from very low stimulus values (the left side), the reactions times increase up untill the threshold for that agent is reached and then decreases. 
 
 
-```{r Table 2, warning = F, message = F, echo = F, fig.cap = "**Table 2: Parameter distributions for reaction time simulations** Parameter distributions for the simulated agents and the transformations for each of the parameters when including the Reaction times in the psychometric function."}
+```{r Table 2, warning = F, message = F, echo = F}
 table2 = read.csv(here::here("tables","table2.csv")) %>% mutate(X = NULL)
 
-table2 = flextable::flextable(table2) %>% flextable::width(c(1), width = 1.3) %>% flextable::width(c(4), width = 1.8)
+table2 = flextable::flextable(table2) %>% flextable::width(c(1), width = 1.3) %>% 
+  flextable::width(c(4), width = 1.8) %>% 
+  flextable::width(c(2:3), width = 1.2) 
+
+
+table2 = set_caption(table2,
+  caption ="Table 2: Parameter distributions for reaction time simulations. Parameter distributions for the simulated agents and the transformations for each of the parameters when including the Reaction times in the psychometric function.")
+
 table2
 ```
 
@@ -86,9 +93,6 @@ Next utilizing this generative model a parameter recovery analysis can be conduc
 Figure 15 displays the difference in parameter recovery between including reaction times in the modeling or not, on the 3 parameters of the psychometric function. The plot firstly highlights increased $ICC_2$ values for the two parameters of particular interest i.e. the threshold (Alpha) and the slope (Beta). This difference seems to be present in the slope for both slope conditions (i.e. steep and shallow simulated mean slopes i.e. 1 and 3) but also in the shallow simulated slope (beta = 3) for the threshold where the $ICC_2$ metric has not reached its asymptote of 1 as in the steep slope simulation.
 
 ```{r Figure 15, fig.width = 7.2, fig.height = 7.2, warning = F, message = F, echo = F, fig.cap = "Figure 15 Parameter recovery of the psychometric function for the ICC for each parameter (columns), in each combination of including and not including rts and its size (color), and the simulated mean slope (rows) for differing number of trials x-axis. Stronger coupling is associated with better parameter recovery effects for both threshold slope, and lapse rate, with a strength dependent association i.e. the higher the coupling strength the more improve recovery when comparing to not uterlizing reaction times."}
-
-
-"**Supplemenary figure 7. Parameter recovery of the psychometric function for the correlation coefficient for each parameter (columns) in each combination of including and not including rts and its size (color) and the simulated mean slope (rows) for differing number of trials x-axis.**"
 
 cowplot::ggdraw() +
     cowplot::draw_image(magick::image_read(here::here("Figures","ICC_rtplot.PNG")), scale = 1)

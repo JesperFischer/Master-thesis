@@ -38,56 +38,58 @@ lapply(packages_used, library, character.only = TRUE)
 
 \newpage
 
-# Abstract
+# Summary
 
-Trusting papers introducing models without formally testing them is like trusting a mathematician to measure a 1m stick because of a phd in mathematics or physics instead of having him measure the stick and compare it to the 1m stick. 
+
 
 
 \newpage
 
 # Acknowledgement
 
-part of the computation done for this project was performed on the UCloud interactive HPC system, which is managed by the eScience Center at the University of Southern Denmark.
+part of the computation done for this project was performed on the UCloud interactive HPC system, which is managed by the eScience Center at the University of Southern Denmark. 
+
+All scripts, code, models and simulated data can be found on the following [Github page](https://github.com/JesperFischer/Master-thesis). Here all analyses as well as the entire manuscript is documented. 
 
 \newpage
 
-```{r Introduction, child="Introduction.Rmd"}
+```{r Introduction, child="1_Introduction.Rmd"}
 
 ```
 
 \newpage
 
-```{r Measurement uncertainty_v2, child="Measurement uncertainty_v2.Rmd"}
+```{r Measurement uncertainty_v2, child="2_Measurement uncertainty_v2.Rmd"}
 
 ```
 
 \newpage
 
-```{r Modeling definitions, child="Modeling definitions.Rmd"}
+```{r Modeling definitions, child="3_Modeling definitions.Rmd"}
 
 ```
 
 \newpage
 
-```{r uncertainty minimazation, child="uncertainty minimazation.Rmd"}
+```{r uncertainty minimazation, child="4_uncertainty minimazation.Rmd"}
 
 ```
 
 \newpage
 
-```{r Real data, child="Real data.Rmd"}
+```{r Real data, child="5_Real data.Rmd"}
 
 ```
 
 \newpage
 
-```{r Power analysis, child="Power analysis.Rmd"}
+```{r Power analysis, child="6_Power analysis.Rmd"}
 
 ```
 
 \newpage
 
-```{r Discussion, child="Discussion.Rmd"}
+```{r Discussion, child="7_Discussion.Rmd"}
 
 ```
 

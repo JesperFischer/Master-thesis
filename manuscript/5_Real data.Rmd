@@ -16,12 +16,20 @@ Table 3 displays the correlation coefficient between the first and second sessio
 
 \newpage
 
-```{r table3, fig.width = 7, fig.height = 7, warning = F, message = F, echo = F, fig.cap = "**Table 3. Results from reanalysis of legrand (2022).** Table showing the correlation between sessions of the threshold and slope parameter of the psychometric function using different model fomulations as well as hierarchical model structures."}
+```{r table3, fig.width = 7, fig.height = 7, warning = F, message = F, echo = F}
 table3 = read.csv(here::here("tables","table3.csv")) %>% mutate(X = NULL)
 
 table3 = flextable::flextable(table3) %>% width(c(1,2), width = 1.7)%>% width(5, width = 1.1)%>% width(4, width = 1)
 
+
+table3 = set_caption(table3,
+  caption ="Table 3. Results from reanalysis of legrand (2022). Table showing the correlation between sessions of the threshold and slope parameter of the psychometric function using different model fomulations as well as hierarchical model structures.")
+
+
+
 table3
 ```
+
+\linebreak
 
 Table 3 highlights the fact that the additional assumptions of the hierarchical models both nested and unnested increases the session-by-session correlation of the slope of the psychometric function. Additionally including the reactions times increases the correlation even more, however with overlaying 95% credibility intervals. The models with included confidence ratings perform worse than the models with only the added reaction time in the session by session correlation. This might allude to the fact that another process is present, or that the particular model used for the confidence ratings, might be inappropriate. The main difference in session-by-session correlation between the two hierarchical models can be found in the threshold as the nested hierarchical model outperforms the non-nested hierarchical model in this regard. A concern of this approach of just looking the correlation coefficients is of cause that a model with a high session by session correlation might not fit the data at all. Therefore an examination of the comparison of model fit is crucial to ensure that the nested hierarchical model also fits the data better than the unnested hierarchical model. One approach would therefore be to examine model fit using common metrics such as leave one out cross validation, information criterion etc. The difficulty here is that most of the models are incompatible. This stems from the fact that they have been fit to differing amounts of subjects in the case of hierarchical vs single fit models, and to differing amounts of dependent variables in the case of within model architectures. Another consideration for not conducting model comparison is that the difference between the models that are comparable i.e. the hierarchical and nested hierarchical with the same number of dependent variables is that the difference between these model lie in the assumption of the data and is therefore something that should have been decided before modeling the data. Therefore given that it is known that each subject was accessed twice (and not a new participant was tested), and that the nested Hierarchical model captures this assumption, one should be inclined to choose this model regardless of the session by session correlation. Therefore instead of directly comparing the comparable models, one might look at posterior predictive checks. These checks serves to investigate whether the model predictions align with the data. These posterior predictive checks were performed for the most complicated models to ensure that the models are capturing some of the underlying patterns in the collected data. For these posterior predictive checks on both group level and single subject level see supplementary Figure 8-11 together with Supplementary Note 5.

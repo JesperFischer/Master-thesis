@@ -100,7 +100,7 @@ The model and task used to demonstrate and investigate parameter recovery in thi
 
 <!-- table of parameters and ranges -->
 
-```{r table1, warning = F, message = F, echo = F, fig.cap = "**Table 1: parameter distributions** Parameter distributions for the simulated agents and the transformations for each of the parameters."}
+```{r table1, warning = F, message = F, echo = F}
 
 table1 = read.csv(here::here("tables","table1.csv"))
 
@@ -111,7 +111,12 @@ table1 = flextable::flextable(table1)
 
 table1 = flextable::autofit(table1)
 
+table1 = set_caption(table1,
+  caption ="Table 1: parameter distributions. Parameter distributions for the simulated agents and the transformations for each of the parameters.")
+
+
 table1
+
 ```
 
 ```{r figure6, fig.width = 7, fig.height = 5, warning = F, message = F, echo = F, fig.cap = "**Figure 6. Displaying 100 samples of the parameters of the psychometric function from table 1.** Visualization of the implications of the simulated parameters of table 1. Black lines depicting individual subjects, while the red line depicts the group mean."}

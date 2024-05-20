@@ -10,13 +10,18 @@ When researchers are interested in the parameter values of their models, they ar
 
 \newpage
 
-```{r table 4, fig.width = 7, fig.height = 7, warning = F, message = F, echo = F, fig.cap = "**Table 4.** 2 by 2 confusion matrix of whether the is an underlying effect (Reality) and whether a model is able to correctly identify this effect or not whether its present or not."}
+```{r table 4, fig.width = 7, fig.height = 7, warning = F, message = F, echo = F}
 
 table4 = read.csv(here::here("tables","table4.csv")) %>% mutate(X = NULL)
 
 names(table4) = c(" ", "Reality (effect)","Reality (no effect)")
 # Create a flextable
 table4 <- flextable(table4) %>% width(j = 1, width = 2) %>% width(j = 2:3, width = 1.3)
+
+
+table4 = set_caption(table4,
+  caption ="Table 4. 2 by 2 confusion matrix of whether the is an underlying effect (Reality) and whether a model is able to correctly identify this effect or not whether its present or not.")
+
 table4
 ```
 
@@ -127,6 +132,12 @@ table5[,2:3] = round(table5[,2:3],2)
 table5$elpd_ratio = round(-table5$elpd_diff/table5$se_diff,2) 
 
 table5 <- flextable(table5) %>% width(j = 1:4, width = 1.5)
+
+
+
+table5 = set_caption(table5,
+  caption ="Table 5. Model comparison of the power analyis models, using Pareto smoothed importance sampling leave one out cross validation. Expected log predictive density (elpd) difference and standard error between models is depicted in the second and third column and the absolute ratio between these in the fourth column. The Higher the elpd-ratio the bigger the scaled difference (scaled by the uncertainty) between the models and the more confident one might be that one model outperforms the other.")
+
 table5
 ```
 
@@ -262,7 +273,7 @@ cowplot::ggdraw() +
 
 Now turning to a particular example of a researcher wanting to conduct a power analysis utilizing the information provided. Two assumptions have been made, either a mean effect size or a mean difference of the intervention is assumed, and the variance introduced by the intervention. Here we expect a mean difference of the intervention of 4 and that the intervention does not increase variability meaning that the variance in both groups should be equal. To fully appreciate the power of this approach one could even imagine sampling these values as random variables and not as point estimates. Using the effect size equations above, it is possible to derive the mean difference and therefore simulate observed effect sizes which are then put into $\Psi(d_{\text{obs}}, \alpha, \beta, t, s)$ and the probability of rejecting that draw is calculated.  Repeating this process over the 4000 draws of the posterior distribution distribution of the parameters of $\Psi(d_{\text{obs}}, \alpha, \beta, t, s)$, and calculating the ratio of rejected to failed rejected null hypotheses gives an estimate of power. 
 
-In the case of not including the sampling varability (prior probability) of the effect size the effect size estimate is just repeatedly entered as 0.5.  This idea of not including the sampling varability is equivalent of saying that a minimum effect size of 0.5 is deemed to be the minimum effect size of interrest. As can now be seen in figure 23 the observed effect size has been "integrated" out and a grid of subjects by trial span the space of power to reject the null hypothesis. The left and right column of figure 23 quite clearly display the difference between accounting for the sampling process of effect sizes with the left not accounting for the sampling process. As a reference frame in figure 23 the red dashed line at subjects = 25 depicts the results from plugging the same assumptions, here $\mu_1 = -8$ $\sigma_1 = 8$ $\mu_2 = -4$ and $\sigma_2=8$ and $\rho = 0.54$, into the widely used and cited statistical software tool G\*power [@faul_gpower_2007]. Further reiterating how and why uncertainty propagation is vital to designing studies of adequate power as this line seems to be overly optimistic about the number of subjects / trials needed to power the study at 80% at an alpha level of 5%.
+In the case of not including the sampling varability (prior probability) of the effect size the effect size estimate is just repeatedly entered as 0.5.  This idea of not including the sampling varability is equivalent of saying that a minimum effect size of 0.5 is deemed to be the minimum effect size of interest. As can now be seen in figure 23 the observed effect size has been "integrated" out and a grid of subjects by trial span the space of power to reject the null hypothesis. The left and right column of figure 23 quite clearly display the difference between accounting for the sampling process of effect sizes with the left not accounting for the sampling process. As a reference frame in figure 23 the red dashed line at subjects = 25 depicts the results from plugging the same assumptions, here $\mu_1 = -8$ $\sigma_1 = 8$ $\mu_2 = -4$ and $\sigma_2=8$ and $\rho = 0.54$, into the widely used and cited statistical software tool G\*power [@faul_gpower_2007].
 
 ```{r Figure23, fig.width = 7.2, fig.height = 7.2, warning = F, message = F, echo = F, fig.cap = "Figure 22."}
 

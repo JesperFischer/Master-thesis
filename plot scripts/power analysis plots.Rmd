@@ -786,7 +786,9 @@ df_un %>% group_by(trials, subs) %>% summarize(mean = mean(power), sd = sd(power
 
 
 subtract = 0.005
-linedata = df_un %>% group_by(trials, subs) %>% summarize(mean_power = round(mean(power),3)) %>% filter(mean_power < 0.8+subtract & mean_power > 0.8-subtract)
+
+linedata = df_un %>% group_by(trials, subs) %>% summarize(mean_power = round(mean(power),3)) %>% 
+  filter(mean_power < 0.8+subtract & mean_power > 0.8-subtract)
 
 pun = df_un %>% 
   group_by(trials, subs) %>% summarize(mean_power = round(mean(power),3))%>% 

@@ -119,12 +119,17 @@ see [Supplementary table 1](https://github.com/JesperFischer/Master-thesis/blob/
 
 ```{r, fig.height=7.2, fig.width=7.2, warning = F, message = F, echo = F}
 
-table2 = read.csv(here::here("Supplementary tables","Supplementary table2.csv")) %>% mutate(X = NULL)
+table_sup2 = read.csv(here::here("Supplementary tables","Supplementary table2.csv")) %>% mutate(X = NULL)
 
 
-table2 = flextable::flextable(table2) %>% width(c(1), width = 1.5)
+table_sup2 = flextable::flextable(table_sup2) %>% width(c(1), width = 1.5)
 
-table2
+
+
+table_sup2 = set_caption(table_sup2,
+  caption ="Table supplementary 2: Group mean parameter distributions of Binary test re-test re-analysis. Summary statistics of the group mean parameters of the Binary hierarchical model, used as the baseline parameters for the power analysis.")
+
+table_sup2
 
 ```
 
