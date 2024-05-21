@@ -19,26 +19,36 @@ set.seed(123)
 error_bar_colorx = "black"
 error_bar_colory = "black"
 
+# parameters for the figures:
 
+#data points
 n = 50
+#mean of the measurement 1
 mu1 = 500
+#mean of the measurement 2
 mu2 = 100
+#sd of the measurement 1
 sd1 = 100
+#sd of the measurement 2
 sd2 = 40/2
+#correlation of the measurements
 cor = 0.5
+#mean measurement uncertainty on measurement 1
 x_un = 20/2
+#mean measurement uncertainty on measurement 2
 y_un  = 10/2
-
+# individual measurement uncertainties for each point
 x_error = truncnorm::rtruncnorm(n,0,Inf, 0, x_un)
 y_error = truncnorm::rtruncnorm(n,0,Inf, 0, y_un)
 
-
+# simulated data based on the above parameters:
 dd = faux::rnorm_multi(n, mu = c(mu1,mu2), sd = c(sd1,sd2), r = cor)
 
+#add the error to the dataframe
 dd$x_error = x_error
 dd$y_error = y_error
 
-
+#plot the resulting datapoints
 dd %>% ggplot()+
   geom_pointrange(aes(x = X1, y = X2, xmin = X1-x_error,xmax = X1+x_error), col = error_bar_colorx)+
   geom_pointrange(aes(x = X1, y = X2, ymin = X2-y_error,ymax = X2+y_error), col = error_bar_colory)+
@@ -46,6 +56,8 @@ dd %>% ggplot()+
   theme_classic()+
   ylab("Measurement 1")+
   xlab("Measurement 2")
+
+# getting the linear regression with and without propergating uncertainty
 
 df = data.frame()
 bootstrapped_sigma= c()
@@ -56,13 +68,17 @@ for(i in 1:1000){
   # Subset data using bootstrap indices
   dd11 <- dd[bootstrap_indices, ]
   
+  #residual uncertainty
   bootstrapped_sigma[i] = sigma(lm(X2~X1, data = dd11))
   
+  #add measurement uncertainty
   dd1 = dd11 %>% mutate(X22 = rnorm(n(), X2, y_error),
                       X11 = rnorm(n(), X1, x_error))
-  
+
+  #linear model with measurement uncertainty
   m1 = lm(X22~X11, data = dd1)
   
+  #grab all estiamtes  
   d = data.frame(intercept = coef(m1)[1],
                  slope = coef(m1)[2],
                  sigma = sigma(m1),
@@ -70,36 +86,24 @@ for(i in 1:1000){
   df = rbind(df,d)
 }
 
-
+#linear model without measurement uncertainty
 m1 = lm(X2~X1, data = dd)
-
+#coeffcients
 beta = c(coef(m1)[1], coef(m1)[2])
-
+#xs and ys for the plot
 xs = seq(min(dd$X1), max(dd$X1), by = 0.1)
 ys = t(cbind(1, xs) %*% beta)[1:length(xs)]
-
+#getting uncertaintyies of the coefficicents
 summary = summary(m1)
 
 se_slope = summary$coefficients[2,2]
 se_int = summary$coefficients[1,2]
 
-
+#and the mean residual variances
 sigma = sigma(m1)
 
 
-data.frame() %>% ggplot()+
-  geom_pointrange(data = dd, aes(x = X1, y = X2, xmin = X1-x_error,xmax = X1+x_error), col = error_bar_colorx)+
-  geom_pointrange(data = dd, aes(x = X1, y = X2, ymin = X2-y_error,ymax = X2+y_error), col = error_bar_colory)+
-  geom_point(data = dd, aes(x = X1, y = X2))+
-  theme_classic()+
-  ylab("Measurement 1")+
-  xlab("Measurement 2")+
-  geom_segment(aes(x = min(dd$X1), xend = max(dd$X1), y = ys[1], yend = last(ys)))+
-  geom_ribbon(aes(x = xs, ymin = ys-se_slope, ymax = ys+se_slope), fill = "blue", alpha =  0.5)+
-  geom_ribbon(aes(x = xs, ymin = ys-se_slope-sigma, ymax = ys+se_slope+sigma), fill = "lightblue", alpha =  0.5)
-  
-
-#
+# plot of everything
 p1 = data.frame() %>% ggplot()+
   geom_pointrange(data = dd, aes(x = X1, y = X2, xmin = X1-x_error,xmax = X1+x_error), col = error_bar_colorx)+
   geom_pointrange(data = dd, aes(x = X1, y = X2, ymin = X2-y_error,ymax = X2+y_error), col = error_bar_colory)+
@@ -131,6 +135,9 @@ ggsave(here::here("Figures","figure_1_measurement_uncertainty.png"), plot = p1, 
 
 
 ```{r, fig.height=6, fig.width=8}
+
+# doing the same as above just twice (i.e. s) for each subject (i.e. j).
+
 propgated_un = data.frame()
 unpropgated_un = data.frame()
 
@@ -201,6 +208,7 @@ for(j in 1:15){
   } 
 }
 
+#data wrangling
 
 unpropgated_un_mean = unpropgated_un %>% pivot_longer(cols = c("sigma","slope","int"), names_to = "parameters",values_to = "value") %>% mutate(session = as.factor(session))
 
@@ -216,7 +224,7 @@ dff = rbind(unpropgated_un %>% mutate(sd_sigma.1 = NULL,prop = F),propgated_un %
 
 
 
-
+#plot 
 p2 = dff %>% pivot_wider(names_from = "session", values_from = c("value","value_se")) %>% filter(paste0("se_",parameters) == parameters_se) %>% 
   rename(parameter = parameters)%>% mutate(parameter = ifelse(parameter == "int","Intercept",parameter)) %>% 
   ggplot()+

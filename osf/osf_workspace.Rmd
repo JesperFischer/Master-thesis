@@ -1,0 +1,24 @@
+---
+title: "osf_workspace"
+output: html_document
+date: "2024-05-20"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+pacman::p_load(tidyverse,gamlss,DHARMa,glmmTMB, gamlss,kableExtra,kableExtra,here, cowplot,scales,osfr)
+```
+
+## R Markdown
+
+```{r}
+osf_auth(token = read_lines(here::here("osf","osf_token.txt"))[1])
+
+Master = osf_retrieve_node("https://osf.io/qrsc3/")
+
+Master %>%
+  osfr::osf_ls_files(pattern = "Analysis") %>%
+  osfr::osf_download(path = here::here(), recurse = TRUE, conflicts = "overwrite", progress = TRUE)
+
+
+```

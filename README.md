@@ -15,7 +15,7 @@ Public repository of the Master thesis "Uncertainty in Cognitive Science" contai
 ## Introduction of repository
 
 
-This repository contains all scripts necessary to execute and generate the results, plot, analyses, and the manuscript for the Master thesis. To ensure complete reproducibility, the project is integrated with the Open Science Framework [OSF](https://osf.io/7pu6a/) to facilitate either the rerunning of analyses or the retrieval of results which are located on the [OSF](https://osf.io/7pu6a/). 
+This repository contains all scripts necessary to execute and generate the results, plot, analyses, and the manuscript for the Master thesis. To ensure complete reproducibility, the project is integrated with the Open Science Framework [OSF](https://osf.io/qrsc3/) to facilitate either the rerunning of analyses or the retrieval of results which are located on the [OSF](https://osf.io/qrsc3/). 
 
 
 
@@ -27,61 +27,70 @@ Additionally, the computational environment required for these analyses can be p
 The repository is structured in the following way:
 
 ```         
-Thermal Pain Learning/
-├── README.md             # Overview of the project.
+Master-thesis/
 │
-├── Figures/              # Figures generated from code to the from the final manuscript.
+├── Analyses/                   # Directory containing Directories for all analyses in the manuscript.
+│   ├── ICC analysis                              # Directory for all parameter recovery analyses as well as uncertainty minimization.
+│   ├── Legrand reanalysis                        # Directory for all models and analyses of the reanalysis of Legrand (2021).
+│   └── Power analysis                            # Directory for the scripts and analysis of the power analysis.
+│
+├── data ICC/                   # Directory containing the simulated data for the parameter recovery analysis.
 │   └── ... 
 │
-├── manuscript/          # Folder containing everything needed to recreate the final manuscript in pdf,docx and html.
-│   ├── Manuscript.Rmd                # Rmarkdown for the final manuscript.
-│   ├── Supplementary material.Rmd    # Rmarkdown for the supplementary material of the final manuscript.
-│   └── Kntting files/                # Files used for knitting the manuscript.
-│
-├── Markdowns/            # Folder containing markdowns for running the analyses and plots.
-│   ├── Analysis.Rmd                  # Rmarkdown for for running the main analyses in the manuscript.
-│   ├── Supplementary Analysis.Rmd    # Rmarkdown for the supplementary analyses in the manuscript.
-│   ├── plots.Rmd                     # Rmarkdown for the plots used in the manuscript.
-│   └── Control analyses.Rmd          # Rmarkdown for the control analyses done.
-│
-│
-├── Pictures/             # External pictures used to produce the final figures for the manuscript.
+├── Figures/                    # Figures generated from code to the from the final manuscript.
 │   └── ... 
-│ 
-│ 
-├── Matlab/               # Folder containing MATLAB scripts plots and data from both the computational modeling and VBQ analyses.
-│   ├── Matlab data                  # Folder containing all the raw data stored from the experimental script.
+│
+├── manuscript/                 # Folder containing everything needed to recreate the final manuscript in pdf,docx and html.
+│   ├── 1_Introduction.Rmd                        # Rmarkdown for the introduction.
+│   ├── 2_Measurement uncertainty.Rmd             # Rmarkdown for the section on measurement uncertainty.
+│   ├── 3_Modeling definitions.Rmd                # Rmarkdown for the section on modeling definitions.
+│   ├── 4_uncertainty minimazation.Rmd            # Rmarkdown for the section on uncertainty minimazation.
+│   ├── 5_Real data.Rmd                           # Rmarkdown for the section on real data.
+│   ├── 6_Power analysis.Rmd                      # Rmarkdown for the section on power analysis.
+│   ├── 7_discussion.Rmd                          # Rmarkdown for the section on discussion.
+│   ├── Knitting files                            # Directory containing files for knitting the manuscript. Including templates and citations.
 │   │    └── ... 
-│   ├── pain_main.m                  # Main MATLAB script for running all the computational analyses.
-│   ├── painLearning_ver4            # Folder containing MATLAB scripts for running the experiment with instructions.
-│   │   └── ... 
-│   ├── scripts                      # Folder containing MATLAB written scripts used in the Main MATLAB script.
-│   │   └── ... 
-│   └── VBQ                          # Folder containing files and script to run the VBQ brain analysis.
+│   ├── Manuscript.Rmd                            # Rmarkdown for the final manuscript. Containing all of the above sections (used for knitting).
+│   └── Supplementary materia                     # Directory for all supplementary materials. Including analyses and materials.
+│       └── ... 
 │
-├── renv/                 # Directory for the R enviroment
+├── osf/                        # Directory containing a script for getting the workspace for the analysis.
 │   └── ... 
 │
-├── scripts/              # Directory containing all R scripts in the project
-│   ├── utils.R                       # Utility functions to gather data, extract summary statistics etc.
-│   ├── plots.R                       # Functions used to produced the figures in the final manuscript.
-│   └── supplementary_functions.R     # Functions to run the supplementary analysis, produce plots, tables etc.
+├── plot scripts/               # Directory containing scripts for generating all figures in the Thesis.
+│   └── ... 
 │
-├── renv.lock             # File used to download and install all necessary packages in the versions used to generate the manuscript.
+├── python/                     # Directory for the single python script that excutes the PSI-adaptive design optimization procedure.
+│   └── ... 
 │
-└── run.sh                # Bash file to knit the Manuscript for all three document types.
+├── README.md                   # Overview of the project.
+│
+├── Stanmodels/                 # Directory containing Stan scripts for particular Stan-models used in the Thesis.
+│   └── ... 
+│
+├── Supplementary figures/      # Directory with all supplementary figures.
+│   └── ... 
+│
+├── Supplementary tables/       # Directory with all supplementary tables.
+│   └── ... 
+│
+└── tables/                     # Directory with all main tables.
+    └── ... 
 
 
 ```
 
 ## Access
 
-To get access to the data for running the analysis a OSF-token is needed, as the data is stored in the following [OSF-project](https://osf.io/pw956/). It is recommended to make an osf folder that contains an osf.txt file which on the first line contains the OSF-token, however make sure that this token is not shared or pushed to github. In the current gitignore an osf folder will be ignored.
+To get access to the already run workspace for the a OSF-token is needed, as the workspaces are stored in the following [OSF-project](https://osf.io/7pu6a/) due to space limitations of github. 
+
+
+It is recommended to make an osf folder that contains an osf.txt file which on the first line contains the OSF-token, however make sure that this token is not shared or pushed to github. In the current gitignore an osf folder will be ignored.
 To get access to the repository users are recommended to clone the respository with the following command in the terminal
 
-```bash
-git clone  https://github.com/Body-Pain-Perception-Lab/Pain-Thermal-Learning.git
-```
+
+
+
 
 ## Reproducibility
 
