@@ -3,7 +3,22 @@
 
 # Supplementary material
 
-## **Supplementary analysis 1:**
+## **Supplementary analysis 1**
+
+As mentioned in the main text, introducing measurement uncertainty or any type of particular uncertainty into statistical metrics and easily be done by the use of bootstrapping / re-sampling. Here i will demonstrate an example from a simple linear regression analysis with 3 parameters an intercept, a slope and a residual variance. To do this we consider an idealized example of a fictional researcher wanting to understand the relationship between reaction times and stress while incorporating all types of uncertainty. To do this the researcher conducts an experiment where participants are measured several times under different conditions to introduce stress. In this example both of these measures have associated uncertainty, see the individual data points in the Supplementary analysis Figure 1. The relationship between reaction times and stress is determined by the slope of the regression line depicted in the Supplementary analysis Figure 1. Estimation uncertainty can thus be thought of as the uncertainty in the parameter estimates achieved by fitting a linear model to the data see the linear model in Supplementary analysis Figure 1. Finally test re-test  uncertainty can be thought as when the researchers study on reaction times and stress is tested twice on different days to understand how stable the relationship is over time.As the relationship is measured by the parameters of the model the stability of the relationship is measured by the stability of the parameters. One might imagine that the amount of sleep acquired before the experimental day could influence both measures of the task i.e. reaction time and susceptibility to stress and perhaps even their relationship. Supplementary analysis Figure 2 displays how the parameter estimates of the same model as presented in Supplementary analysis Figure 1 with and without accounting for uncertainty propagation change based on the propagation of uncertainty. As can be seen from Supplementary analysis Figure 1 accounting for the measurement uncertainty does not change much the prediction made by the model, however when propagating these extra uncertainties into the next analysis of the parameters i.e. from session to session in Supplementary analysis Figure 2 the change in results become more pronounced. The main effect for the current linear model is that the residual variance (sigma) and the intercept is underestimated without error propagation and the slope parameter is overestimated.
+
+```{r supplementary_analysis_figure1, fig.width = 7, fig.height = 4, warning = F, message = F, echo = F, fig.cap = "**Supplementary analysis Figure 1: Measurement and Estimation uncertainty.** The figure displays a linear regression between two measurements of for instance reaction time and stress with measurement uncertainty depicted as vertical and horizontal error bars on individual points. The mean of the regression line with and without propagated uncertainty is highlighted in grey and dark green respectively. Lastly a prediction interval is depicted as the shaded area around the mean of the regression line with and without propagated uncertainty again in grey and green respectively. The difference between the green and grey lines are therefore the difference between accounting for measurement uncertainty and not accounting for it."}
+cowplot::ggdraw() +
+    cowplot::draw_image(magick::image_read(here::here("Figures","figure_1_measurement_uncertainty.png")), scale = 1)
+```
+
+
+
+```{r supplementary_analysis_figure2, fig.width = 7, fig.height = 4, warning = F, message = F, echo = F, fig.cap = "**Supplementary analysis Figure 2, Test retest uncertainty.** Diplays the results of fitting the linear regression in Figure 1 twice, with and without accounting for measurement uncertainty. Each facet represents one of the three parameters of the linear model, the intercept the residual uncertainty (sigma) and the slope respectively from left to right. Colors represented weather the measurement uncertainty was proporgated or not."}
+cowplot::ggdraw() +
+    cowplot::draw_image(magick::image_read(here::here("Figures","figure_2_test_retest.png")), scale = 1)
+```
+
 
 
 ## **Supplementary Figures**

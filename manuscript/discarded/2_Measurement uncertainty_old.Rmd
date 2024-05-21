@@ -1,0 +1,44 @@
+# Measurement uncertainty
+
+To keep a consistent theme, I will throughout the thesis be demonstrating how computational resources have made the need for analytic solutions involving tedious assumptions sometimes irrelevant. This is highly relevant as closed-form-problems where an analytic solution is known or even attainable are becoming less and less frequent with the surge in popularity of more and more complex models, see section about modeling definitions for further elaboration. In order to explore measurement uncertainty in examples related to cognitive science the thesis will here investigate the relationship between correlation coefficients and measurement uncertainty. This will be done, as a non trivial part of the published litterature in cognitive science revolves around conducting correlational analyses on measures that have quantifiable uncertainties. These measures involve estimated parameters or even structural properties of the brain like the myelination [@wu_neurobiological_2021; @de_berker_computations_2016; @luijcks_influence_2015]. This section serves to introduce measurement uncertainty in a correlational analysis which is going to be used extensively and it serves as a primer for the upcoming sections.
+
+In this section I will demonstrate how using simulations to both understand and explore how adding uncertainty will change the strength of interpretation of correlational analyses this will serve as an abstract representation of how correlation coefficient estimate change under different sizes of measurement uncertainty. In order to use simulations to include uncertainty firstly an understanding of the uncertainty of the correlation coefficient itself is needed. Analytical solutions exist to calculate the uncertainty of such statistics, which is incorporated in most statistical softwares [@R-correlation], however another way to find and understand this uncertainty comes from re-sampling. Below is an explanation of using re-sampling to evaluate uncertainty in a general case and thereafter its implementation for adding measurement uncertainty. The way to estimate the uncertainty in the correlation coefficient is to re-sample the collected data with replacement i.e. bootstrapping  and then recalculate the test statistic of interest [@efron_estimating_1983]. Iterating this process gives a distribution of test statistics which with enough iterations will converge towards the analytic solution with recommendations of having at least 30 data points to begin with [@efron_estimating_1983; @efron_introduction_1994; @wu_jackknife_1986]. For the simplest case of recalculating the correlation coefficient and its uncertainty it is somewhat tedious compared to taking the direct analytic solution, as this is already implemented in most statistical softwares and packages [@correlationPackage]. However, once implemented and understood this approach allows for adding not only measurement uncertainty, but a more general way of thinking about the uncertainty of statistical metrics. One of the advantages of having an analytic solution to this simple case of recalculating the uncertainty of the correlation coefficient is to ensure that the code and scripts are properly set up. This therefore serves as a validation step before exploring territories where analytic solutions are scarce or nonexistent.
+
+The first step is therefore to show that the two approaches of simulating and analytically estimating the uncertainty of the correlation coefficient is identical across different ranges of correlations and sample sizes. To do this, simulated data from a multivariate normal distribution with the following parameters are produced.
+
+$$
+\begin{equation} 
+  \tag{Eq. 1}
+  \begin{pmatrix}
+  x_i \\
+  y_i 
+  \end{pmatrix} \sim \mathcal{N}\left(
+  \begin{pmatrix}
+  \mu_x \\
+  \mu_y 
+  \end{pmatrix}, \begin{bmatrix}
+  \sigma_x^2 & \sigma_x \cdot \sigma_y \cdot \rho_{xx} \\
+  \sigma_x \cdot \sigma_y \cdot \rho_{xx} & \sigma_y^2 
+  \end{bmatrix} 
+  \right)
+\end{equation} 
+$$
+
+Where
+
+$$
+\mu_x = 50, \quad \mu_y = 100, \quad \Sigma = \begin{bmatrix}
+10^2 & 10 \cdot 10 \cdot \rho_{xy} \\
+10 \cdot 10 \cdot \rho_{xy} & 10^2 
+\end{bmatrix}
+$$
+
+The multinormal distribution produces random variables with a means $μ_x$ a standard deviation $σ_x$ and crucially with a correlation coefficient between all random variables $ρ_{xy}$. This distribution is perfect for understanding how the correlation coefficient changes as it is a parameter of the distribution. Now demonstrating that bootstrapping and the analytic solution implemented in R are identical, is a matter of simulating correlation coefficients ranging from -0.9 to 0.9 in increments of 0.1 with the total number of samples per random variable being between 50 and 500 in increments of 50 [@correlationPackage; @R2024]. See supplementary Figure 1 for demonstration of the similarity of these two approaches.
+
+Having shown that the two approaches are identical (or close to) we can add measurement uncertainty to each observation. This has been analytically solved and solutions exist to calculate the correlation coefficient under particular circumstances of normally distributed noise [@saccenti_corruption_2020]. To add measurement uncertainty to the measurements we can instead of randomly re-sampling pairs of data points from the original data, as done for the case without measurement uncertainty, instead one re samples these pairs as means of an error distribution where the uncertainty (standard deviation) of this distribution is the measurement uncertainty. A mindless choice of error distribution would be the normal distribution which would reflect the fact that the directionality of the uncertainty is assumed to be bidirectional i.e. with no preferred direction. Of note here is that one might re sample the original data from other error distributions. For instance if values are strictly positive or bounded in other ways then simulating from a truncated normal or strictly positive distributions like a lognormal, would be preferred to avoid sampling values that cannot be obtained i.e. negative reaction time values. For this demonstration of adding measurement uncertainties to observed data, normally distributed noise is simulated, which means simulating new "observed values" from a normal distribution with a mean of the observed observation and a standard deviation $\sigma$ equal to the measurement uncertainty. This can be seen in Figure 3, here uncertainty is added to just the x values in increasing amounts (A), with the resulting correlation coefficient distribution obtained by bootstrapping displayed in (B). It should be noted that the correlation coefficient simulated in this case was 0.8, as indicated by the vertical line in figure 3 (B). it is clear the estimated correlation coefficient using bootstrapping is being attenuated in size but also that the width of the correlation coefficient distribution is increasing with increasing measurement uncertainty, mimicking what can be shown using the analytical solutions [@saccenti_corruption_2020]. This demonstration serves as a primer for the rest of the thesis, in how uncertainty on the data going into a correlational analysis can shape the correlation coefficient. Here it was shown with normally distributed noise that decreased the size and width of the correlation coefficient, later non trivial types of noise is added where the simulation approach used here is nessecary to properly propergate the uncertainty.
+
+```{r figure3, fig.width = 7, fig.height = 7, warning = F, message = F, echo = F, fig.cap = "**Figure 3 Measurement uncertainty on correlation coefficient**  (A) Displays a scatterplot with varying amounts of measurement uncertainty. (B) displays how the correlation coefficient distribution, obtained through bootstrapping changes with increasing measurement uncertainty. Vertical line is the simulated correlation coeficient without uncertainty."}
+cowplot::ggdraw() +
+    cowplot::draw_image(magick::image_read(here::here("Figures","figure_3_measurement_uncertainty.png")), scale = 1)
+```
+

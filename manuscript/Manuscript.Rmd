@@ -57,39 +57,39 @@ All scripts, code, models and simulated data can be found on the following [Gith
 
 ```
 
+<!-- \newpage -->
+
+<!-- ```{r Measurement uncertainty_v2, child="2_Measurement uncertainty.Rmd"} -->
+
+<!-- ``` -->
+
 \newpage
 
-```{r Measurement uncertainty_v2, child="2_Measurement uncertainty.Rmd"}
+```{r Modeling definitions, child="2_Modeling definitions.Rmd"}
 
 ```
 
 \newpage
 
-```{r Modeling definitions, child="3_Modeling definitions.Rmd"}
+```{r uncertainty minimazation, child="3_uncertainty minimazation.Rmd"}
 
 ```
 
 \newpage
 
-```{r uncertainty minimazation, child="4_uncertainty minimazation.Rmd"}
+```{r Real data, child="4_Real data.Rmd"}
 
 ```
 
 \newpage
 
-```{r Real data, child="5_Real data.Rmd"}
+```{r Power analysis, child="5_Power analysis.Rmd"}
 
 ```
 
 \newpage
 
-```{r Power analysis, child="6_Power analysis.Rmd"}
-
-```
-
-\newpage
-
-```{r Discussion, child="7_Discussion.Rmd"}
+```{r Discussion, child="6_Discussion.Rmd"}
 
 ```
 

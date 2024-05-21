@@ -23,49 +23,77 @@ The next level of uncertainty is when calculations are done on data with uncerta
 The next level, and here last level of uncertainty (presented here) stems from the fact that the parameter estimates will vary over time. In cognitive science the extra uncertainty on retesting the estimates of a parameter stems from the fact that humans vary over time. This variation stems from both behavioral factors like learning, but also psychological factors such as mood and arousal [@schurr_dynamic_2024]. This type of uncertainty will be referred to as test-retest uncertainty. 
 
 
+In order to demonstrate and account for these types of uncertainties, the thesis will here introduce how it is possible to add measurement uncertainty to a correlation analysis. This will be done by using simulations, which therefore does not require high level mathematics, but instead some coding experience. A correlation analysis is chosen as the example for three main reasons. Firstly, a non trivial part of the published litterature in cognitive science revolves around conducting correlational analyses on measures that have quantifiable and considerable uncertainties. These measures typically involve estimated parameters, structural properties of the brain or even reactions times [@wu_neurobiological_2021; @de_berker_computations_2016; @luijcks_influence_2015]. Secondly, the example can be generalized such that instead of being estimating a correlation coefficient on data with measurement uncertainty, it could just as well be estimating a correlation coefficient based on other measures with uncertainty, or even more elaborate models, see supplementary analysis 1 for an example of how these types of uncertainties interact in a linear model, also commonly used in the cognitive science literature. third and lastly, this type of analysis is going to be used extensively throughout the thesis and it serves as a primer for the upcoming sections. 
 
 
+Firstly we might consider the special case where no or minimal uncertainty is present in the data to understand the uncertainty of the correlation coefficient in a vaccum, i.e. its estimation uncertainty without being influenced by measurement uncertainty. 
 
-In order to demonstrate and account for these types of uncertainties the thesis will here introduce how it is possible to add measurement uncertainty to a correlation analysis. This will be done by using simulations, which therefore does not require high level mathematics, but instead some coding experience. A correlation analysis is chosen as the example for two reasons. Firstly, a non trivial part of the published litterature in cognitive science revolves around conducting correlational analyses on measures that have quantifiable and considerable uncertainties. These measures typically involve estimated parameters, structural properties of the brain or even reactions times [@wu_neurobiological_2021; @de_berker_computations_2016; @luijcks_influence_2015]. Secondly this type of analysis is going to be used extensively throughout the thesis and it serves as a primer for the upcoming sections. For a more elaborate example of how these types of uncertainties interact in a linear model, also commonly used in the cognitive science litterature, see supplementary analysis 1. 
-
-
-
-An understanding of the uncertainty of the correlation coefficient itself is needed in order to incorpurate measurement uncertainty, this type of uncertainty is what the thesis will refer to as estimation uncertainty.
-
-Analytical solutions exist to calculate the uncertainty of such statistics, which is incorporated in most statistical softwares [@R-correlation] and can be .however another way to find and understand this uncertainty comes from re-sampling. Below is an explanation of using re-sampling to evaluate uncertainty in a general case and thereafter its implementation for adding measurement uncertainty. The way to estimate the uncertainty in the correlation coefficient is to re-sample the collected data with replacement i.e. bootstrapping  and then recalculate the test statistic of interest [@efron_estimating_1983]. Iterating this process gives a distribution of test statistics which with enough iterations will converge towards the analytic solution with recommendations of having at least 30 data points to begin with [@efron_estimating_1983; @efron_introduction_1994; @wu_jackknife_1986]. For the simplest case of recalculating the correlation coefficient and its uncertainty it is somewhat tedious compared to taking the direct analytic solution, as this is already implemented in most statistical softwares and packages [@correlationPackage]. However, once implemented and understood this approach allows for adding not only measurement uncertainty, but a more general way of thinking about the uncertainty of statistical metrics. One of the advantages of having an analytic solution to this simple case of recalculating the uncertainty of the correlation coefficient is to ensure that the code and scripts are properly set up. This therefore serves as a validation step before exploring territories where analytic solutions are scarce or nonexistent.
+Matematical analytical solutions exist to calculate this type of uncertainty and is incorporated in most statistical softwares [@R-correlation], however this can also be shown by simulations or more accuractely by re-sampling.
 
 
-
-
-This would amount to measuring the correlation coefficient from figure 1 twice and getting different results, even if the measurements were infinity precise and there was no uncertainty in the estimation process.
-
-
-
-
-Figure 1 B displays such estimation uncertainty in the width of the distribution of correlation coefficients. As is highlighted by the colors, when measurement uncertainty increases the estimation of the correlation coefficient decreases and the width of the distribution of correlation coefficient increases, highlighting the propergation of uncertainty from measurements to estimation. 
-
-
-
-
-
-
-
-
+Below is an explanation of using re-sampling to evaluate uncertainty in a general case and thereafter its implementation for adding measurement uncertainty. The way to estimate the uncertainty in the correlation coefficient is to re-sample the collected data with replacement i.e. bootstrapping  and then recalculate the test statistic of interest [@efron_estimating_1983]. Iterating this process gives a distribution of test statistics which with enough iterations will converge towards the analytic solution with recommendations of having at least 30 data points to begin with [@efron_estimating_1983; @efron_introduction_1994; @wu_jackknife_1986]. For the simplest case of recalculating the correlation coefficient (without measurement uncertainty) and its uncertainty it is somewhat tedious compared to taking the direct analytic solution, as this is already implemented in most statistical softwares and packages [@correlationPackage]. However, once implemented and understood this approach allows for adding and propergating all types of uncertainty coming from many different kinds of distributions. One of the advantages of having an analytic solution to this simple case of recalculating the uncertainty of the correlation coefficient is to ensure that the code and scripts are properly set up. This therefore serves as a validation step before exploring territories where analytic solutions are scarce or nonexistent.
 
 
 The first step is therefore to show that the two approaches of simulating and analytically estimating the uncertainty of the correlation coefficient is identical across different ranges of correlations and sample sizes. To do this, simulated data from a multivariate normal distribution with the following parameters are produced.
 
 
+$$
+\begin{equation} 
+  \begin{pmatrix}
+  x_i \\
+  y_i 
+  \end{pmatrix} \sim \mathcal{N}\left(
+  \begin{pmatrix}
+  \mu_x \\
+  \mu_y 
+  \end{pmatrix}, \begin{bmatrix}
+  \sigma_x^2 & \sigma_x \cdot \sigma_y \cdot \rho_{xx} \\
+  \sigma_x \cdot \sigma_y \cdot \rho_{xx} & \sigma_y^2 
+  \end{bmatrix} 
+  \right)
+\end{equation} 
+$$
+
+Where
+
+$$
+\mu_x = 50, \quad \mu_y = 100, \quad \Sigma = \begin{bmatrix}
+10^2 & 10 \cdot 10 \cdot \rho_{xy} \\
+10 \cdot 10 \cdot \rho_{xy} & 10^2 
+\end{bmatrix}
+$$
 
 
+The multinormal distribution produces random variables with a means $μ_x$ a standard deviation $σ_x$ and crucially with a correlation coefficient between the random variables $ρ_{xy}$. This distribution is perfect for understanding how the correlation coefficient changes as it is a parameter of the distribution. Now demonstrating that bootstrapping and the analytic solution to the estimation uncertainty implemented in R are identical, is a matter of simulating correlation coefficients ranging from -0.9 to 0.9 in increments of 0.1 with the total number of samples per random variable being between 50 and 500 in increments of 50 [@correlationPackage; @R2024]. See supplementary Figure 1 for demonstration of the similarity of these two approaches.
 
-To demonstrate this type of uncertainty error bars on individual data points is usually depicted see figure 1 A. Here a scatter plot of two types of data is depicted $x_i$ and $y_i$, these might represent different measurements from a cognitive science experiment, say reaction times and time spent awake. For visualization purposes only measurement uncertainty was added to the y-coordinates.
+Having shown that the two approaches are identical (or close to) we can add measurement uncertainty to each observation. To add measurement uncertainty to the measurements we can instead of randomly re-sampling pairs of data points from the original data, as done for the case without measurement uncertainty. Instead one re-samples these pairs as means of an error distribution where the uncertainty (standard deviation) of this distribution is the measurement uncertainty. A mindless choice of error distribution would be the normal distribution which would reflect the fact that the directionality of the uncertainty is assumed to be bidirectional i.e. with no preferred direction. This can be fomulated as the following:
+
+$$
+\begin{equation}
+\begin{pmatrix}
+  \hat{x}_i \\
+  \hat{y}_i
+\end{pmatrix} \sim \mathcal{N}\left(
+\begin{pmatrix}
+  x_i \\
+  y_i
+\end{pmatrix}, \begin{bmatrix}
+  m_x^2 & m_x^2\cdot m_y^2\cdot\rho_{m} \\
+  m_x^2\cdot m_y^2\cdot\rho_{m} & m_y^2
+\end{bmatrix}
+\right)
+\end{equation}
+$$
+
+where $\hat{x}_i$ and $\hat{y}_i$ are the observed estimates of x and y on a particular simulation given their measurement uncertainty $m_x$ and $m_y$ and their correlation between them $\rho_m$. Of note here is that one might re-sample the original data from other error distributions. For instance if values are strictly positive or bounded in other ways then simulating from a truncated normal or strictly positive distributions like a lognormal, would be preferred to avoid sampling values that cannot be obtained i.e. negative reaction time values. 
+
+To demonstrate this type of uncertainty error bars on individual data points is usually depicted see figure 1 A. Here a scatter plot of two types of data is depicted $x_i$ and $y_i$, these might represent different measurements from a cognitive science experiment, say reaction times and time spent awake. For visualization purposes only measurement uncertainty was added to the y-coordinates meaning that from the above equation $m_x = 0$ and $m_y \in \{ 1, 2, \ldots, 10 \}$.Figure 1 B displays how the estimated correlation coefficient distribution obtained by bootstrapping changes based on these measurement uncertainties. It should be noted that the correlation coefficient simulated in this case was 0.8, as indicated by the vertical line in figure 3 (B). it is clear that the estimated correlation coefficient using bootstrapping is being attenuated in size but also that the width of the correlation coefficient distribution is increasing with increasing measurement uncertainty, mimicking what can be shown using the analytical solutions [@saccenti_corruption_2020]. This demonstration serves as a primer for the rest of the thesis, in how uncertainty on the data going into a correlational analysis can shape the correlation coefficient. Here it was shown with normally distributed noise that decreased the size and width of the correlation coefficient, later non trivial types of noise is added where the simulation approach used here is necessary to properly propagate the uncertainty. Note this example does not demonstrate how test re-test uncertainty interacts with these lower levels i.e. measurement and estimation uncertainty, but one can imagine measuring the correlation coefficient from figure 1 twice and getting different results, even if the measurements were infinity precise and there was no uncertainty in the estimation process due to infinity many data-points. For a more concrete and elaborate example supplementary analysis 1.
+
 
 ```{r figure1, fig.width = 7, fig.height = 7, warning = F, message = F, echo = F, fig.cap = "**Figure 1 Measurement uncertainty on correlation coefficient**  (A) Displays a scatterplot with varying amounts of measurement uncertainty. (B) displays how the correlation coefficient distribution, obtained through bootstrapping changes with increasing measurement uncertainty. Vertical line is the simulated correlation coeficient without uncertainty."}
 cowplot::ggdraw() +
     cowplot::draw_image(magick::image_read(here::here("Figures","figure_3_measurement_uncertainty.png")), scale = 1)
 ```
 
-
-
 The main message here is that to get reliable estimates and in the end, to make reliable inference one needs to account for sorts of uncertainties and the lower in the hierarchy you move the more fundamental and important they become, when doing higher level calculations with them. Having a parameter estimate that is stable over time will not matter if you cannot estimate it, or measure it, reliably in the first place. For a complete set of scripts and parameters used for above demonstration see [github](https://github.com/JesperFischer/Master-thesis/blob/main/plot%20scripts/Measurement%20error%20visualization.Rmd).
+
