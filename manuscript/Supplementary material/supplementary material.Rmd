@@ -122,6 +122,15 @@ cowplot::ggdraw() +
 
 ```
 
+### Supplementary figure 12
+
+```{r, fig.height=7.2, fig.width=7.2, warning = F, message = F, echo = F, fig.cap = "Supplementary Figure 12, Parameters estimates of the individually fit  psychometric functions (columns) on trials and subjects. The top row depcits a (log(y),x) coordinate system whereas the bottom row a (log(y), log(x)) coordinate system. A straight line relationship between subjects (trials) and the log of the parameter value (top row) would indicate exponential relationship whereas a straight line in the log;log coordinate system would imply a power law relationship in the native (x,y) space."}
+
+cowplot::ggdraw() +
+    cowplot::draw_image(magick::image_read(here::here("Figures","power_individal_log_loglog.PNG")), scale = 1)
+
+```
+
 \newpage
 
 ## Supplementary tables

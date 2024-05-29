@@ -4,16 +4,7 @@
 
 The rest of the thesis will revolve around refining, testing, and designing models of cognition. Cognitive modelling will be deployed for this purpose, serving as an intermediate level in a hierarchy of computational models on top, and statistical models in the bottom. These types of models can be thought to differ in their flexibility, assumptions, and scope of investigation. It should be noted that all types of models have many things in common, such as being mathematical representations of a data generating process. This makes these definitions operational and should be thought of as having fuzzy boundaries [@durstewitz_computational_2016].
 
-*Statistical models* are the models primarily used in medical and social sciences. 
-
-
-These models mostly consist of linear and generalized linear (mixed) models. 
-
-https://www.researchgate.net/publication/374834913_Statistical_Modeling_in_Healthcare_Shaping_the_Future_of_Medical_Research_and_Healthcare_Delivery
-https://www.emerald.com/insight/content/doi/10.1108/JHASS-08-2019-0038/full/html
-
-
-What these models have in common is that they are linear combinations of independent variables which are sometimes transformed (making them generalized) to a particular domain. The mathematical representation of such models are as follows:
+*Statistical models* are the models primarily used in medical and social sciences. These models mostly consist of linear and generalized linear (mixed) models [@bahadori_statistical_2023; @maravelakis_use_2019]. What these models have in common is that they are linear combinations of independent variables which are sometimes transformed (making them generalized) to a particular domain. The mathematical representation of such models are as follows:
 
 $$
 F(y)=\beta·X+\epsilon

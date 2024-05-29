@@ -721,7 +721,7 @@ get_power_per_trials = function(d_logistic_int, params){
   sd2 = 8
   
   #meandif = effect_size * (blablalab) / blablalba
-  meandif = (seq(0,0.5,by = 0.1) * sqrt(sd1^2+sd2^2-2*sd1*sd2*0.54)) / sqrt(2*(1-0.54))
+  #meandif = (seq(0,0.5,by = 0.1) * sqrt(sd1^2+sd2^2-2*sd1*sd2*0.54)) / sqrt(2*(1-0.54))
   
   # we use mean effect size = 0.5 so mean dif = 4
   mu1 = -8
@@ -757,10 +757,10 @@ get_power_per_trials = function(d_logistic_int, params){
 }
 
 
-trials = seq(10,200,by = 2)
-subs = seq(10,50,by = 1)
+trials = seq(10,200,by = 10)
+subs = seq(50,150,by = 5)
 
-replicate = 1:5
+replicate = 1:3
 
 
 parameters = expand.grid(trials = trials,
@@ -769,9 +769,8 @@ parameters = expand.grid(trials = trials,
 
 data_list <- split(parameters, parameters$id)
   
-
-#cores = 15
-#plan(multisession, workers = cores)
+cores = 20
+plan(multisession, workers = cores)
 
 possfit_model = possibly(.f = get_power_per_trials, otherwise = "Error")
 
@@ -785,7 +784,7 @@ df_un %>% group_by(trials, subs) %>% summarize(mean = mean(power), sd = sd(power
   geom_pointrange(aes(x = trials, y = mean, ymin = mean-2*sd, ymax = mean+2*sd, col = subs))+facet_wrap(~subs)
 
 
-subtract = 0.005
+subtract = 0.01
 
 linedata = df_un %>% group_by(trials, subs) %>% summarize(mean_power = round(mean(power),3)) %>% 
   filter(mean_power < 0.8+subtract & mean_power > 0.8-subtract)
@@ -798,8 +797,8 @@ pun = df_un %>%
   geom_raster(aes(x = trials, y = subs, fill = mean_power))+
   geom_line(data = linedata, aes(x = trials, y = subs), col = "black")+
   scale_fill_continuous(type = "viridis", breaks = c(0,0.2,0.4,0.6,0.8,1))+theme_classic()+
-  scale_y_continuous("Subjects", breaks = seq(10,55,by = 10))+
-  scale_x_continuous("Trials", breaks = seq(10,200,by = 30), limits = c(10,200))
+  scale_y_continuous("Subjects", breaks = seq(50,150,by = 10), limits = c(50,150))+
+  scale_x_continuous("Trials", breaks = seq(10,205,by = 30), limits = c(10,205))
 
 
 
@@ -808,7 +807,7 @@ pun
 
 
 #without uncertainty
-```{r}
+```{r, fig.height=7.2, fig.width=7.2}
 
 get_power_per_trials_no_unc = function(d_logistic_int, params){
 
@@ -822,7 +821,7 @@ get_power_per_trials_no_unc = function(d_logistic_int, params){
   
   # we use mean effect size = 0.5 so mean dif = 4
   mu1 = -8
-  mu2 = (-8 + 4)
+  mu2 = (-8 + 2)
   
   effectsize = 0.5
 
@@ -844,7 +843,7 @@ get_power_per_trials_no_unc = function(d_logistic_int, params){
 
 
 trials = seq(10,200,by = 2)
-subs = seq(10,50,by = 1)
+subs = seq(10,70,by = 1)
 
 replicate = 1
 
@@ -856,8 +855,8 @@ parameters = expand.grid(trials = trials,
 data_list <- split(parameters, parameters$id)
   
 
-# cores = 8
-# plan(multisession, workers = cores)
+cores = 20
+plan(multisession, workers = cores)
 
 possfit_model = possibly(.f = get_power_per_trials_no_unc, otherwise = "Error")
 
@@ -874,16 +873,23 @@ df_noun = map_dfr(results,bind_rows)
 
 
 
-subtract = 0.1
+subtract = 0.05
 linedata2 = df_noun %>% group_by(trials, subs) %>% summarize(mean_power = round(mean(power),3)) %>% filter(mean_power < 0.8+subtract & mean_power > 0.8-subtract)
 
 p_noun = df_noun %>% group_by(trials, subs) %>% summarize(mean_power = round(mean(power),3)) %>% 
   ggplot()+geom_raster(aes(x = trials, y = subs, fill = mean_power))+
-  geom_line(data = linedata2, aes(x = trials, y = subs), col = "black")+
+  geom_line(data = linedata2, aes(x = trials, y = subs), col = "black", alpha = 0.7)+
 #  geom_line(data = linedata, aes(x = trials, y = subs), col = "red")+
   scale_fill_continuous(type = "viridis", breaks = c(0,0.2,0.4,0.6,0.8,1))+theme_classic()+
-  scale_y_continuous("Subjects", breaks = seq(10,50,by = 10), limits = c(10,50))+
-  scale_x_continuous("Trials", breaks = seq(10,200,by = 30), limits = c(10,200))
+  scale_y_continuous("Subjects", breaks = seq(30,70,by = 10), limits = c(30,70))+
+  scale_x_continuous("Trials", breaks = seq(10,200,by = 30), limits = c(10,200))+
+  guides(fill=guide_legend(title="Mean power"))+
+  theme(text=element_text(size=16), #change font size of all text
+        axis.text=element_text(size=16), #change font size of axis text
+        axis.title=element_text(size=16), #change font size of axis titles
+        plot.title=element_text(size=16), #change font size of plot title
+        legend.text=element_text(size=16), #change font size of legend text
+        legend.title=element_text(size=16)) #change font size of legend title   
 
 p_noun
 

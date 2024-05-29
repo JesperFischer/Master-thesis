@@ -1,0 +1,153 @@
+---
+title: "shinyapp JPDM"
+author: "Jesper Fischer Ehmsen"
+output: html_document 
+runtime: shiny
+---
+
+# Shiny app of joint modeling
+
+```{r setup, warning = F, message = F, echo = F}
+knitr::opts_chunk$set(echo = TRUE)
+pacman::p_load(cmdstanr,tidyverse,posterior, bayesplot, tidybayes, furrr, stringr, patchwork,corrplot, ggh4x, shiny)
+
+#setwd("~/Joint-psychophysical-decision-model-JPDM-/publish markdown")
+```
+
+Here i firstly show an example participant from the supplementary figure of the thesis.
+
+```{r, fig.height=7.2, fig.width=7.2, warning = F, message = F, echo = F}
+cowplot::ggdraw() +
+    cowplot::draw_image(magick::image_read(here::here("Supplementary figures","Supplementary figure9.PNG")), scale = 1)
+```
+
+In thee following sections i will in detail describe how one can argue for the relationship generatively. In the end of the document a shiny app is made such that the parameters of the model, can be understood visually.
+
+## Intution of the model 
+
+The pattern of responses is quite easily visable, and can be argued to be intuitive on several levels. Firstly the middle section of the binary responses follow the usual pattern of increasing "1" / "yes" / "faster" responses as the stimulus intensity increases. The reaction times follow a pattern where participants are responding fast (low RTs) when very low and or very high stimuli is presented with slower reaction times (high RTs) close the transisition point of the probability graph. Lastly confidence ratings follow the oppisite pattern to the reaction time with lowest confidence close to the transition between "1" and "0" responses, with highest ratings in the extreme stimulus values. This pattern and intuition can easily be mathematically explained, if we think generatively about the process of the participant. We assume that the participant has a function that maps stimuli values to probabilities of responding "1", this function we call a psychometric function and takes the stimuli values and maps them to probabilities $p = \Psi(x | \Theta)$ here $\Theta$ represents parameters of the psychometric function. Common psychometric function include the cumulative normal and logistic distributions, also known in the generalized linear modeling framework as probit and logit link functions when doing logistic regression. What these functions have in common is that they have 2-4 parameters. Here we consider the 3 parameter cumulative normal distribution as the psychometric function which has the following mathematical formulation:
+
+$$
+p_t = \Psi(x_t | \alpha, \beta, \lambda) = \lambda + (1 - 2 * \lambda) + \left(0.5+0.5 \cdot erf\left(\frac{x_t-\alpha}{\beta * \sqrt2}\right)\right)
+$$
+
+here the parameters $\alpha$ $\beta$ $\lambda$ all govern the shape of the psychometric function with $\alpha$ being the location of the function (i.e the x-value) when y = 0.5, $\beta$ determines the steepness of the function and $\lambda$ controls both extreme ends of the function such that if $\lambda$ = 0 the function extends to y = 1 and y = 0 in the extremes, but if $\lambda$ = 0.1 it extends to y = 1 - 0.1 = 0.9 and y = 0 + 0.1 = 0.1.
+
+The output of such psychometric function is thus the probability of responding "1", which are then thought to be inputs to the Bernoulli distribution (again through the generative process) that then has an output either 0 and 1's. The Bernoulli distribution is a 1 parameter distribution i.e. the probability parameter, the mean of this distribution is therefore also this probability parameter, but its variance is given by $Var(Bern(p)) = p \cdot (1-p)$. This means that the uncertainty in the distribution it-self follows a second order polynomial that peaks at 0.5 and tapers off when this probability parameter either increases or decreases. Note this is because of the fact that the probability parameter is bounded between [0 ; 1] and when transformed through the variance of the Bernoulli distribution you will have the most uncertainty at p = 0.5 and the least at p = 0 & p = 1 where the variance is 0.
+
+
+We use the variance of the Bernoulli distribution to guide the functional relationship between the psychometric function (that outputs the probabilities) and the functions that govern the reaction times and Confidence ratings. We believe that the generative process of reaction times on these binary choices follow the same relationship as the variance of the underlying Bernoulli distribution that govern the binary responses. This means that the mean of the reaction times could be a linear mapping of an intercept and a slope on this variance i.e.
+
+$$
+\mu_{t_{rt}} \sim Int_{rt} + \beta_{rt} * Var(Bern(p_t))
+$$
+where $Int_{rt}$ represents the intercept and $\beta_{RT}$ represents the degree to which the uncertainty from the psychometric function influences the reaction times. In order to stochastically model the reaction times with this formulation a probability density function is needed to account for the noise observed. Due to the non negative nature of reactions times and the physical constraints of information processing (i.e. a delay from the time the stimulus is presented to which it reaches the brain of the agent), a sensible choice of this probability density function would be the shifted log normal distribution. This introduces two more variables, a non decision time ($\tau$) and a standard deviation ($\sigma_{rt}$) for the log normal distribution. This formulation of the reactions times therefore follow the relationship described below, where the crucial link, linking the psychometric function and the reaction times being the Bernoulli variance.
+
+$$
+RT_t \sim LN(Int_{rt} + \beta_{RT} * Var(Bern(p_t), \sigma_{rt}) + \tau
+$$
+where $LN$ represent the lognormal distribution. The same argumentation can be done for the confidence ratings, where instead of the LN distribution being the "likelihood" function (the function that maps the model predictions to the data) we use a beta-distribution as out confidence ratings are constrained in [0 ; 100] or more usefully between [0 ; 1].
+$$
+Confidence_t \sim \beta(Int_{Conf} + \beta_{Conf} * Var(Bern(p_t), \sigma_{Conf})
+$$
+In order to keep the prediction of the Confidence model on thé [0 ; 1] scale a useful transformation is the inverse logit transformation
+$$
+logit^{-1}(x) = \frac{1}{1+exp(-x)} = f(x)
+$$
+making it:
+
+
+$$
+Confidence_t \sim \beta(f(Int_{Conf} + \beta_{Conf} * Var(Bern(p_t)), \sigma_{Conf})
+$$
+
+## Understanding the parameters of the model
+
+Many parameters have been introduced and the meaning of each one might be hard to understand in isolation. Below is therefore a Shiny app that allows for a user to slide the parameters of the model and see how it changes the underlying functions: Note that here a few parameters do not do anything which are the non decision time for the reaction times i.e. rt_ndt = $\tau$ as well as the two standard deviations of the beta and logNormal distribtion i.e. conf_prec = $\sigma_{Conf}$ and rt_sd = $\sigma_{rt}$. This is because we are only looking at how the mean predictions change and not generating data points (yet).
+
+
+
+```{r, warning = F, message = F, echo = F}
+shinyApp(
+# Define UI
+ui <- navbarPage(
+  "Parameters",
+  tabPanel("JPDM_v1", 
+           sidebarLayout(
+             sidebarPanel(
+               sliderInput("beta", "slope", min = -3, max = 3, value = 0.1, step = 0.1),
+               sliderInput("lapse", "lapse", min = -10, max = 0, value = -4, step = 0.01),
+               sliderInput("alpha", "alpha", min = -50, max = 50, value = 0, step = 0.1),
+               sliderInput("conf_int", "conf_int", min = -3, max = 3, value = -1, step = 0.1),
+               sliderInput("conf_beta", "conf_beta", min = -20, max = 5, value = -5, step = 0.1),
+               sliderInput("rt_int", "rt_int", min = -3, max = 3, value = -0.5, step = 0.01),
+               sliderInput("rt_beta", "rt_beta", min = -3, max = 10, value = 1.5, step = 0.1),
+               sliderInput("rt_sd", "rt_sd", min = -3, max = 3, value = 0, step = 0.1),
+               sliderInput("rt_ndt", "rt_ndt", min = -10, max = 0, value = -3, step = 0.1),
+               sliderInput("conf_prec", "conf_prec", min = -3, max = 3, value = 2, step = 1)
+             ),
+             mainPanel(
+               plotOutput("results", height = "900px")
+             )
+           )
+)
+),
+
+# Define server
+server <- function(input, output) {
+  
+  
+  
+  output$results <- renderPlot({
+
+    
+    
+    
+  jpdm = function(x,beta,lapse,alpha,conf_int,conf_beta,conf_prec,rt_int,rt_beta,rt_sd,rt_ndt, id = 1){
+    
+      prob = (brms::inv_logit_scaled(lapse) / 2) + (1 - 2 *  (brms::inv_logit_scaled(lapse) / 2)) * (0.5+0.5 * pracma::erf((x-alpha) / (exp(beta) * sqrt(2))))
+      
+      rt = exp(rt_int + rt_beta * (prob * (1-prob)))
+      
+      conf = brms::inv_logit_scaled(conf_int + conf_beta * (prob * (1-prob)))
+      
+      return(data.frame(prob = prob,rt = rt,conf = conf,x = x, id = id))
+  }
+    
+    
+    data <- jpdm(x = seq(-50,50,0.1), beta = input$beta, lapse = input$lapse, alpha = input$alpha,
+                           conf_int = input$conf_int, conf_beta = input$conf_beta, conf_prec = input$conf_prec,
+                           rt_int = input$rt_int, rt_beta = input$rt_beta, rt_sd = input$rt_sd, rt_ndt = input$rt_ndt, id = 1)
+    
+
+    
+    plot1 = data %>% 
+      pivot_longer(cols = c("prob","rt","conf"), names_to = "decision",values_to = "decision_value") %>% 
+      ggplot()+
+      geom_line(aes(x = x, y = decision_value))+
+      facet_wrap(~decision, scales = "free",ncol = 1)+theme_classic()+
+      theme(text = element_text(size = 24))
+        
+
+
+
+
+    plot1 = plot1+
+    facetted_pos_scales(
+      y = list(
+        decision == "prob" ~ scale_y_continuous(limits = c(0, 1), breaks = c(0,0.2,0.4,0.6,0.8,1.0)),
+        decision == "rt" ~ scale_y_continuous(limits = c(0, 8), breaks = c(0,2,4,6,8)),
+        decision == "conf" ~ scale_y_continuous(limits = c(0, 1), breaks = c(0,0.2,0.4,0.6,0.8,1.0))
+      )
+    )
+    
+    
+    plot1
+  })
+},
+options = list(height = 1200, width = 1200)
+
+)
+```
+
+
